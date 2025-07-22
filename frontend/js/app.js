@@ -3854,6 +3854,320 @@ function showUsersManagement() {
     }, 100);
 }
 
+// Admin Management Modal and Fullscreen Functions
+function showLoansManagementModal() {
+    console.log('showLoansManagementModal called');
+    showModal('إدارة طلبات القروض', `
+        <div id="loans-section">
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="switchLoansTab('pending', this)">
+                    <i class="fas fa-clock"></i> طلبات القروض المعلقة
+                </button>
+                <button class="admin-tab" onclick="switchLoansTab('all', this)">
+                    <i class="fas fa-list-alt"></i> جميع طلبات القروض
+                </button>
+            </div>
+            
+            <div class="admin-tab-content">
+                <div id="loans-tab-content">
+                    <div style="text-align: center; padding: 50px; color: #666;">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>جاري تحميل البيانات...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    // Initialize the loans tab
+    setTimeout(() => {
+        switchLoansTab('pending');
+        // Add event listeners to tabs for better reliability
+        const tabs = document.querySelectorAll('#loans-section .admin-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                const tabType = this.onclick.toString().includes("'pending'") ? 'pending' : 'all';
+                switchLoansTab(tabType, this);
+            });
+        });
+    }, 100);
+}
+
+function showLoansManagementFullscreen() {
+    console.log('showLoansManagementFullscreen called');
+    // Create fullscreen container
+    const fullscreenDiv = document.createElement('div');
+    fullscreenDiv.className = 'fullscreen-container';
+    fullscreenDiv.innerHTML = `
+        <div class="fullscreen-header">
+            <h1><i class="fas fa-money-bill-wave"></i> إدارة طلبات القروض</h1>
+            <button class="fullscreen-close" onclick="closeFullscreen()">
+                <i class="fas fa-times"></i> إغلاق
+            </button>
+        </div>
+        <div class="fullscreen-content">
+            <div id="loans-section-fullscreen">
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="switchLoansTab('pending', this, 'fullscreen')">
+                        <i class="fas fa-clock"></i> طلبات القروض المعلقة
+                    </button>
+                    <button class="admin-tab" onclick="switchLoansTab('all', this, 'fullscreen')">
+                        <i class="fas fa-list-alt"></i> جميع طلبات القروض
+                    </button>
+                </div>
+                
+                <div class="admin-tab-content">
+                    <div id="loans-tab-content-fullscreen">
+                        <div style="text-align: center; padding: 50px; color: #666;">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p>جاري تحميل البيانات...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(fullscreenDiv);
+    
+    // Initialize the loans tab for fullscreen
+    setTimeout(() => switchLoansTabFullscreen('pending'), 100);
+}
+
+function showTransactionsManagementModal() {
+    console.log('showTransactionsManagementModal called');
+    showModal('إدارة المعاملات المالية', `
+        <div id="transactions-section">
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="switchTransactionsTab('pending', this)">
+                    <i class="fas fa-credit-card"></i> المعاملات المعلقة
+                </button>
+                <button class="admin-tab" onclick="switchTransactionsTab('all', this)">
+                    <i class="fas fa-history"></i> جميع المعاملات
+                </button>
+            </div>
+            
+            <div class="admin-tab-content">
+                <div id="transactions-tab-content">
+                    <div style="text-align: center; padding: 50px; color: #666;">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>جاري تحميل البيانات...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    // Initialize the transactions tab
+    setTimeout(() => {
+        switchTransactionsTab('pending');
+        // Add event listeners to tabs for better reliability
+        const tabs = document.querySelectorAll('#transactions-section .admin-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                const tabType = this.onclick.toString().includes("'pending'") ? 'pending' : 'all';
+                switchTransactionsTab(tabType, this);
+            });
+        });
+    }, 100);
+}
+
+function showTransactionsManagementFullscreen() {
+    console.log('showTransactionsManagementFullscreen called');
+    // Create fullscreen container
+    const fullscreenDiv = document.createElement('div');
+    fullscreenDiv.className = 'fullscreen-container';
+    fullscreenDiv.innerHTML = `
+        <div class="fullscreen-header">
+            <h1><i class="fas fa-exchange-alt"></i> إدارة المعاملات المالية</h1>
+            <button class="fullscreen-close" onclick="closeFullscreen()">
+                <i class="fas fa-times"></i> إغلاق
+            </button>
+        </div>
+        <div class="fullscreen-content">
+            <div id="transactions-section-fullscreen">
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="switchTransactionsTab('pending', this, 'fullscreen')">
+                        <i class="fas fa-credit-card"></i> المعاملات المعلقة
+                    </button>
+                    <button class="admin-tab" onclick="switchTransactionsTab('all', this, 'fullscreen')">
+                        <i class="fas fa-history"></i> جميع المعاملات
+                    </button>
+                </div>
+                
+                <div class="admin-tab-content">
+                    <div id="transactions-tab-content-fullscreen">
+                        <div style="text-align: center; padding: 50px; color: #666;">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p>جاري تحميل البيانات...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(fullscreenDiv);
+    
+    // Initialize the transactions tab for fullscreen
+    setTimeout(() => switchTransactionsTabFullscreen('pending'), 100);
+}
+
+function showUsersManagementModal() {
+    console.log('showUsersManagementModal called');
+    showModal('إدارة الأعضاء', `
+        <div id="users-section">
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="switchUsersTab('list', this)">
+                    <i class="fas fa-users"></i> قائمة الأعضاء
+                </button>
+                <button class="admin-tab" onclick="switchUsersTab('register', this)">
+                    <i class="fas fa-user-plus"></i> تسجيل عضو جديد
+                </button>
+            </div>
+            
+            <div class="admin-tab-content">
+                <div id="users-tab-content">
+                    <div style="text-align: center; padding: 50px; color: #666;">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>جاري تحميل البيانات...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    // Initialize the users tab
+    setTimeout(() => {
+        switchUsersTab('list');
+        // Add event listeners to tabs for better reliability
+        const tabs = document.querySelectorAll('#users-section .admin-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                const tabType = this.onclick.toString().includes("'list'") ? 'list' : 'register';
+                switchUsersTab(tabType, this);
+            });
+        });
+    }, 100);
+}
+
+function showUsersManagementFullscreen() {
+    console.log('showUsersManagementFullscreen called');
+    // Create fullscreen container
+    const fullscreenDiv = document.createElement('div');
+    fullscreenDiv.className = 'fullscreen-container';
+    fullscreenDiv.innerHTML = `
+        <div class="fullscreen-header">
+            <h1><i class="fas fa-users-cog"></i> إدارة الأعضاء</h1>
+            <button class="fullscreen-close" onclick="closeFullscreen()">
+                <i class="fas fa-times"></i> إغلاق
+            </button>
+        </div>
+        <div class="fullscreen-content">
+            <div id="users-section-fullscreen">
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="switchUsersTab('list', this, 'fullscreen')">
+                        <i class="fas fa-users"></i> قائمة الأعضاء
+                    </button>
+                    <button class="admin-tab" onclick="switchUsersTab('register', this, 'fullscreen')">
+                        <i class="fas fa-user-plus"></i> تسجيل عضو جديد
+                    </button>
+                </div>
+                
+                <div class="admin-tab-content">
+                    <div id="users-tab-content-fullscreen">
+                        <div style="text-align: center; padding: 50px; color: #666;">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p>جاري تحميل البيانات...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(fullscreenDiv);
+    
+    // Initialize the users tab for fullscreen
+    setTimeout(() => switchUsersTabFullscreen('list'), 100);
+}
+
+function closeFullscreen() {
+    const fullscreen = document.querySelector('.fullscreen-container');
+    if (fullscreen) {
+        fullscreen.remove();
+    }
+}
+
+// Fullscreen tab switching functions
+async function switchLoansTabFullscreen(tab) {
+    // Update tab active states for fullscreen
+    document.querySelectorAll('#loans-section-fullscreen .admin-tab').forEach(t => t.classList.remove('active'));
+    const targetTab = document.querySelector(`#loans-section-fullscreen .admin-tab[onclick*="'${tab}'"]`);
+    if (targetTab) targetTab.classList.add('active');
+    
+    const contentDiv = document.getElementById('loans-tab-content-fullscreen');
+    contentDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>جاري تحميل البيانات...</p></div>';
+    
+    try {
+        if (tab === 'pending') {
+            const result = await apiCall('/admin/pending-loans');
+            displayPendingLoans(result.loans, contentDiv);
+        } else {
+            const result = await apiCall('/admin/all-loans');
+            displayAllLoans(result.loans, contentDiv);
+        }
+    } catch (error) {
+        contentDiv.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><i class="fas fa-exclamation-triangle fa-2x"></i><p>خطأ في تحميل البيانات: ${error.message}</p></div>`;
+    }
+}
+
+async function switchTransactionsTabFullscreen(tab) {
+    // Update tab active states for fullscreen
+    document.querySelectorAll('#transactions-section-fullscreen .admin-tab').forEach(t => t.classList.remove('active'));
+    const targetTab = document.querySelector(`#transactions-section-fullscreen .admin-tab[onclick*="'${tab}'"]`);
+    if (targetTab) targetTab.classList.add('active');
+    
+    const contentDiv = document.getElementById('transactions-tab-content-fullscreen');
+    contentDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>جاري تحميل البيانات...</p></div>';
+    
+    try {
+        if (tab === 'pending') {
+            const result = await apiCall('/admin/pending-transactions');
+            displayPendingTransactions(result.transactions, contentDiv);
+        } else {
+            const result = await apiCall('/admin/all-transactions');
+            displayAllTransactions(result.transactions, contentDiv);
+        }
+    } catch (error) {
+        contentDiv.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><i class="fas fa-exclamation-triangle fa-2x"></i><p>خطأ في تحميل البيانات: ${error.message}</p></div>`;
+    }
+}
+
+async function switchUsersTabFullscreen(tab) {
+    // Update tab active states for fullscreen
+    document.querySelectorAll('#users-section-fullscreen .admin-tab').forEach(t => t.classList.remove('active'));
+    const targetTab = document.querySelector(`#users-section-fullscreen .admin-tab[onclick*="'${tab}'"]`);
+    if (targetTab) targetTab.classList.add('active');
+    
+    const contentDiv = document.getElementById('users-tab-content-fullscreen');
+    contentDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>جاري تحميل البيانات...</p></div>';
+    
+    try {
+        if (tab === 'list') {
+            const result = await apiCall('/admin/users');
+            displayUsersList(result.users, contentDiv);
+        } else {
+            displayUserRegistrationForm(contentDiv);
+        }
+    } catch (error) {
+        contentDiv.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><i class="fas fa-exclamation-triangle fa-2x"></i><p>خطأ في تحميل البيانات: ${error.message}</p></div>`;
+    }
+}
+
 // Tab switching functions
 async function switchLoansTab(tab, element) {
     // Update tab active states
