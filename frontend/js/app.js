@@ -327,6 +327,12 @@ function hideModal() {
 
 // Auth tab switching (make it global)
 window.showAuthTab = function showAuthTab(tabName) {
+    // Show rules popup before registration
+    if (tabName === 'register' && !window.rulesAcknowledged) {
+        showRegistrationRulesPopup();
+        return;
+    }
+    
     // Hide all auth tab contents
     document.querySelectorAll('.auth-tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -619,6 +625,163 @@ function acknowledgeCredentialsAndLogin() {
     hideModal();
     showAuthTab('login');
     showToast('يمكنك الآن تسجيل الدخول باستخدام رقم المستخدم وكلمة المرور', 'info');
+}
+
+// Show registration rules popup
+function showRegistrationRulesPopup() {
+    const modalContent = `
+        <div class="registration-rules-modal">
+            <div class="rules-header">
+                <h2 style="color: #007bff; text-align: center; margin-bottom: 20px;">
+                    <i class="fas fa-shield-alt"></i> قواعد صندوق درع العائلة
+                </h2>
+                <p style="text-align: center; color: #666; margin-bottom: 25px;">
+                    يرجى قراءة هذه القواعد الأساسية بعناية قبل التسجيل
+                </p>
+            </div>
+            
+            <div class="key-rules">
+                <div class="rule-card">
+                    <div class="rule-icon">💰</div>
+                    <div class="rule-content">
+                        <h4>رسوم الانضمام</h4>
+                        <p>10 دنانير كويتية غير قابلة للاسترداد</p>
+                    </div>
+                </div>
+                
+                <div class="rule-card">
+                    <div class="rule-icon">📊</div>
+                    <div class="rule-content">
+                        <h4>الحد الأدنى للاشتراك</h4>
+                        <p>240 د.ك خلال 24 شهر لإمكانية طلب القروض</p>
+                    </div>
+                </div>
+                
+                <div class="rule-card">
+                    <div class="rule-icon">⚖️</div>
+                    <div class="rule-content">
+                        <h4>موافقة الإدارة</h4>
+                        <p>العضوية تحتاج موافقة من الإدارة بعد التسجيل</p>
+                    </div>
+                </div>
+                
+                <div class="rule-card">
+                    <div class="rule-icon">🎯</div>
+                    <div class="rule-content">
+                        <h4>7 شروط للقروض</h4>
+                        <p>عدم الحظر، موافقة الرسوم، 500 د.ك رصيد، سنة عضوية، عدم وجود قروض نشطة، اشتراكات كافية، و30 يوم من آخر قرض</p>
+                    </div>
+                </div>
+                
+                <div class="rule-card">
+                    <div class="rule-icon">🔢</div>
+                    <div class="rule-content">
+                        <h4>نظام القروض</h4>
+                        <p>بدون فوائد - الحد الأقصى: (الرصيد × 3) أو 10,000 د.ك</p>
+                    </div>
+                </div>
+                
+                <div class="rule-card">
+                    <div class="rule-icon">📧</div>
+                    <div class="rule-content">
+                        <h4>التواصل</h4>
+                        <p>جميع الإشعارات عبر البريد الإلكتروني والواتساب</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="rules-footer">
+                <p style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #ffc107;">
+                    <i class="fas fa-exclamation-triangle" style="color: #856404;"></i>
+                    <strong>تنبيه:</strong> بالضغط على "فهمت وأوافق" فإنك تؤكد قراءتك وفهمك وموافقتك على جميع شروط وأحكام الصندوق.
+                </p>
+                
+                <div class="action-buttons">
+                    <button onclick="acknowledgeRulesAndProceed()" class="btn btn-success" style="width: 200px; margin: 0 10px;">
+                        <i class="fas fa-check-circle"></i> فهمت وأوافق - متابعة التسجيل
+                    </button>
+                    <button onclick="hideModal()" class="btn btn-secondary" style="width: 150px; margin: 0 10px;">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                </div>
+                
+                <div style="text-align: center; margin-top: 15px;">
+                    <button onclick="showFullTerms()" class="btn btn-info btn-sm">
+                        <i class="fas fa-file-contract"></i> عرض الشروط والأحكام كاملة
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            .registration-rules-modal {
+                max-width: 800px;
+                margin: 0 auto;
+            }
+            
+            .key-rules {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 15px;
+                margin: 25px 0;
+            }
+            
+            .rule-card {
+                background: #f8f9fa;
+                border: 2px solid #e9ecef;
+                border-radius: 10px;
+                padding: 15px;
+                text-align: center;
+                transition: all 0.3s ease;
+            }
+            
+            .rule-card:hover {
+                border-color: #007bff;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,123,255,0.1);
+            }
+            
+            .rule-icon {
+                font-size: 32px;
+                margin-bottom: 10px;
+                display: block;
+            }
+            
+            .rule-card h4 {
+                color: #007bff;
+                margin: 10px 0;
+                font-size: 16px;
+            }
+            
+            .rule-card p {
+                color: #666;
+                font-size: 14px;
+                line-height: 1.4;
+                margin: 0;
+            }
+            
+            .action-buttons {
+                text-align: center;
+                margin: 20px 0;
+            }
+        </style>
+    `;
+    
+    showModal('قواعد التسجيل', modalContent);
+}
+
+// Acknowledge rules and proceed to registration
+function acknowledgeRulesAndProceed() {
+    window.rulesAcknowledged = true;
+    hideModal();
+    showAuthTab('register');
+    showToast('يمكنك الآن متابعة عملية التسجيل', 'success');
+}
+
+// Show full terms from rules popup
+function showFullTerms() {
+    hideModal();
+    showAuthTab('terms');
 }
 
 // Close modal when clicking outside

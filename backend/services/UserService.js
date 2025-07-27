@@ -8,7 +8,21 @@ class UserService {
       fields = fields.join(', ');
     }
     
-    const query = `SELECT ${fields} FROM users WHERE user_id = ? LIMIT 1`;
+    // If requesting all fields or specific fields, include admin name
+    let query;
+    if (fields === '*' || fields.includes('approved_by_admin')) {
+      query = `
+        SELECT u.*, 
+               admin.Aname as approved_by_admin_name
+        FROM users u
+        LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+        WHERE u.user_id = ? 
+        LIMIT 1
+      `;
+    } else {
+      query = `SELECT ${fields} FROM users WHERE user_id = ? LIMIT 1`;
+    }
+    
     const results = await DatabaseService.executeQuery(query, [userId]);
     
     if (results.length === 0) {
@@ -19,7 +33,7 @@ class UserService {
   }
 
   static async getUserWithBalance(userId) {
-    return await this.getBasicUserInfo(userId, 'user_id, Aname, user_type, balance, registration_date, joining_fee_approved, is_blocked');
+    return await this.getBasicUserInfo(userId, 'user_id, Aname, user_type, balance, registration_date, joining_fee_approved, is_blocked, approved_by_admin_id');
   }
 
   static async getUserForAuth(userId) {
@@ -64,8 +78,54 @@ class UserService {
   }
 
   static async getUsersByType(userType = null, limit = null) {
-    const conditions = userType ? { user_type: userType } : {};
-    return await DatabaseService.findMany('users', conditions, limit, 'registration_date DESC');
+    let query = `
+      SELECT u.*, 
+             admin.Aname as approved_by_admin_name
+      FROM users u
+      LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+    `;
+    
+    const params = [];
+    
+    if (userType) {
+      query += ' WHERE u.user_type = ?';
+      params.push(userType);
+    }
+    
+    query += ' ORDER BY u.registration_date DESC';
+    
+    if (limit) {
+      query += ' LIMIT ?';
+      params.push(limit);
+    }
+    
+    return await DatabaseService.executeQuery(query, params);
+  }
+
+  static async getUsersByApprovingAdmin(adminId, userType = null, limit = null) {
+    let query = `
+      SELECT u.*, 
+             admin.Aname as approved_by_admin_name
+      FROM users u
+      LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+      WHERE u.approved_by_admin_id = ?
+    `;
+    
+    const params = [adminId];
+    
+    if (userType) {
+      query += ' AND u.user_type = ?';
+      params.push(userType);
+    }
+    
+    query += ' ORDER BY u.registration_date DESC';
+    
+    if (limit) {
+      query += ' LIMIT ?';
+      params.push(limit);
+    }
+    
+    return await DatabaseService.executeQuery(query, params);
   }
 
   static async getAdminUsers() {
@@ -93,14 +153,21 @@ class UserService {
     return true;
   }
 
-  static async updateJoiningFeeStatus(userId, status) {
+  static async updateJoiningFeeStatus(userId, status, adminId = null) {
     const validStatuses = ['pending', 'approved', 'rejected'];
     if (!validStatuses.includes(status)) {
       throw new AppError('حالة رسوم الانضمام غير صحيحة', 400);
     }
 
+    const updateData = { joining_fee_approved: status };
+    
+    // Set approving admin when status is approved
+    if (status === 'approved' && adminId) {
+      updateData.approved_by_admin_id = adminId;
+    }
+
     const affectedRows = await DatabaseService.update('users',
-      { joining_fee_approved: status },
+      updateData,
       { user_id: userId }
     );
 

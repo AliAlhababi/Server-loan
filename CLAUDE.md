@@ -54,6 +54,7 @@ frontend/
 - joining_fee_approved (ENUM: 'pending', 'approved', 'rejected')
 - is_blocked (tinyint(1)) - Account blocking status
 - will_content (text) - Will/inheritance content
+- approved_by_admin_id (INT, FK to users.user_id) - Admin who approved joining fee ⭐ NEW
 - created_at, updated_at (timestamps)
 ```
 
@@ -313,12 +314,49 @@ EMAIL_FROM_ADDRESS=your-email@gmail.com # From address
 - **Improved Navigation**: Fixed tab switching and button click handlers
 - **Professional Styling**: Better visual hierarchy and information presentation
 
+### Latest Features (December 2025) 🆕
+
+#### **Admin Segmentation System** 🔐
+- **User Assignment**: Each admin only manages users they approve
+- **Joining Fee Control**: Admin who approves joining fee becomes user's manager
+- **Access Control**: Admins can only approve loans/transactions for their assigned users
+- **Transparency**: All admins can view all users, but actions are restricted
+- **Database**: Added `approved_by_admin_id` field with proper foreign key constraints
+
+#### **Enhanced Registration Experience** 📝
+- **Rules Popup**: Mandatory rules display before registration
+- **Visual Rule Cards**: 6 key rules in attractive, informative cards
+- **Terms Enhancement**: Comprehensive Arabic terms with clear structure
+- **User Flow**: Must acknowledge rules before accessing registration form
+- **Professional Presentation**: Clean, visual design with icons and formatting
+
+#### **Comprehensive Email Notification System** 📧
+- **4 Email Types**: Welcome, joining fee approval, loan status, transaction status, loan payments
+- **Professional Design**: Beautiful RTL Arabic HTML templates with responsive layout
+- **Rich Content**: Detailed information with progress tracking and summaries
+- **Smart Features**: 
+  - Loan progress with remaining balance and completion percentage
+  - Subscription totals for transaction emails
+  - Celebration messages for loan completion
+  - Next payment reminders and eligibility countdowns
+- **Error Handling**: Graceful degradation if email fails
+- **Admin Attribution**: Shows which admin approved each action
+
+#### **Enhanced Email Features** ✨
+- **Loan Status Emails**: Complete loan details, payment schedule, admin name
+- **Transaction Emails**: Amount, type, admin name + subscription totals for subscription payments
+- **Payment Emails**: Amount, loan progress, remaining balance, completion status
+- **Joining Fee Emails**: Status, next steps, guidance for new members
+- **Mobile Responsive**: Professional layout works on all devices
+- **Fallback Support**: Text versions for all HTML emails
+
 ---
 
 **System Status**: ✅ Production Ready & Fully Functional  
-**Database Schema**: ✅ Updated & Documented (July 2025)  
-**Last Update**: July 2025 - Modular Architecture & Enhanced Admin Interface  
-**Key Achievement**: Unified loan status logic and comprehensive admin user management  
-**Architecture**: Modular design with shared utilities for consistency  
-**Admin Features**: Complete user overview with payment history and professional interface  
-**Status Logic**: Centralized and consistent across all components
+**Database Schema**: ✅ Updated & Documented (December 2025)  
+**Last Update**: December 2025 - Admin Segmentation, Enhanced Registration & Email System  
+**Key Achievement**: Complete admin segmentation with comprehensive email notifications  
+**Architecture**: Modular design with shared utilities and robust email service  
+**Admin Features**: Segmented user management with full transparency and email notifications  
+**User Experience**: Professional registration flow with mandatory rules and email updates  
+**Communication**: Automated email notifications for all admin actions with detailed progress tracking

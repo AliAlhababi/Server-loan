@@ -117,6 +117,7 @@ class UsersManagement {
                             <th>معرف المستخدم</th>
                             <th>الاسم</th>
                             <th>نوع العضوية</th>
+                            <th>المدير المعتمد</th>
                             <th>البريد الإلكتروني</th>
                             <th>الهاتف</th>
                             <th>الرصيد</th>
@@ -141,6 +142,15 @@ class UsersManagement {
                                         <i class="fas ${user.user_type === 'admin' ? 'fa-user-shield' : 'fa-user'}"></i>
                                         ${user.user_type === 'employee' ? 'عضو' : 'إداري'}
                                     </span>
+                                </td>
+                                <td>
+                                    ${user.user_type === 'employee' && user.approved_by_admin_name ? 
+                                        `<span class="admin-name">
+                                            <i class="fas fa-user-check"></i>
+                                            ${user.approved_by_admin_name}
+                                        </span>` : 
+                                        '<span class="no-admin">غير محدد</span>'
+                                    }
                                 </td>
                                 <td>
                                     <span class="email">${user.email || 'غير محدد'}</span>
@@ -510,6 +520,15 @@ class UsersManagement {
                                         ${user.user_type === 'employee' ? 'عضو' : 'إداري'}
                                     </span>
                                 </div>
+                                ${user.user_type === 'employee' && user.approved_by_admin_name ? `
+                                <div class="detail-row">
+                                    <span class="label">المدير المعتمد:</span>
+                                    <span class="value">
+                                        <i class="fas fa-user-check"></i>
+                                        ${user.approved_by_admin_name}
+                                    </span>
+                                </div>
+                                ` : ''}
                                 <div class="detail-row">
                                     <span class="label">تاريخ التسجيل:</span>
                                     <span class="value">${FormatHelper.formatDate(user.registration_date)}</span>

@@ -2,6 +2,7 @@ const UserService = require('../services/UserService');
 const ResponseHelper = require('../utils/ResponseHelper');
 const { asyncHandler } = require('../utils/ErrorHandler');
 const LoanCalculator = require('../models/LoanCalculator');
+const emailService = require('../services/emailService');
 
 class UserManagementController {
   static getAllUsers = asyncHandler(async (req, res) => {
@@ -95,15 +96,34 @@ class UserManagementController {
   static joiningFeeAction = asyncHandler(async (req, res) => {
     const { userId } = req.params;
     const { action } = req.body;
+    const adminId = req.user.user_id; // Get admin ID from JWT token
     
-    console.log(`💰 Admin ${action}ing joining fee for user ${userId}`);
+    console.log(`💰 Admin ${adminId} ${action}ing joining fee for user ${userId}`);
     
     if (!['approve', 'reject'].includes(action)) {
       return ResponseHelper.error(res, 'إجراء غير صحيح', 400);
     }
 
     const status = action === 'approve' ? 'approved' : 'rejected';
-    await UserService.updateJoiningFeeStatus(userId, status);
+    await UserService.updateJoiningFeeStatus(userId, status, adminId);
+
+    // Send email notification to user
+    try {
+      const user = await UserService.getBasicUserInfo(userId, 'Aname, email');
+      
+      if (user && user.email) {
+        await emailService.sendJoiningFeeApprovalEmail(
+          user.email,
+          user.Aname,
+          status
+        );
+        
+        console.log(`✅ Joining fee status email sent to ${user.email}`);
+      }
+    } catch (emailError) {
+      console.error('❌ Failed to send joining fee status email:', emailError);
+      // Don't fail the request if email fails
+    }
     
     ResponseHelper.success(res, null,
       action === 'approve' ? 'تم اعتماد رسوم الانضمام' : 'تم رفض رسوم الانضمام'

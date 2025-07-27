@@ -2,6 +2,7 @@ const DatabaseService = require('../services/DatabaseService');
 const UserService = require('../services/UserService');
 const ResponseHelper = require('../utils/ResponseHelper');
 const { asyncHandler } = require('../utils/ErrorHandler');
+const emailService = require('../services/emailService');
 
 class TransactionController {
   static getPendingTransactions = asyncHandler(async (req, res) => {
@@ -40,10 +41,24 @@ class TransactionController {
   static transactionAction = asyncHandler(async (req, res) => {
     const { transactionId } = req.params;
     const { action, reason } = req.body;
-    const adminId = req.user.userId;
+    const adminId = req.user.user_id;
 
     if (!['accept', 'reject'].includes(action)) {
       return ResponseHelper.error(res, 'إجراء غير صحيح', 400);
+    }
+
+    // Verify admin has access to this transaction's user
+    const transactionQuery = `
+      SELECT t.transaction_id, t.user_id, u.approved_by_admin_id 
+      FROM transaction t
+      JOIN users u ON t.user_id = u.user_id
+      WHERE t.transaction_id = ? AND u.approved_by_admin_id = ?
+    `;
+    
+    const transactionResults = await DatabaseService.executeQuery(transactionQuery, [transactionId, adminId]);
+    
+    if (transactionResults.length === 0) {
+      return ResponseHelper.error(res, 'ليس لديك صلاحية للتعامل مع هذه المعاملة', 403);
     }
 
     // Update transaction status
@@ -71,6 +86,59 @@ class TransactionController {
       }
     }
 
+    // Send email notification to user
+    try {
+      // Get transaction details with user info for email
+      const transactionDetailsQuery = `
+        SELECT t.*, u.Aname as full_name, u.email, admin.Aname as admin_name
+        FROM transaction t
+        JOIN users u ON t.user_id = u.user_id
+        LEFT JOIN users admin ON t.admin_id = admin.user_id
+        WHERE t.transaction_id = ?
+      `;
+      
+      const transactionDetailsResults = await DatabaseService.executeQuery(transactionDetailsQuery, [transactionId]);
+      
+      if (transactionDetailsResults.length > 0) {
+        const transaction = transactionDetailsResults[0];
+        
+        // Prepare transaction data for email
+        const transactionData = {
+          amount: (transaction.credit || 0) - (transaction.debit || 0),
+          transaction_type: transaction.transaction_type,
+          memo: transaction.memo,
+          date: transaction.date
+        };
+
+        // Calculate total subscriptions if this is a subscription transaction
+        let totalSubscriptions = null;
+        if (action === 'accept' && transaction.transaction_type === 'subscription') {
+          const subscriptionQuery = `
+            SELECT SUM(credit) as total_subscriptions
+            FROM transaction 
+            WHERE user_id = ? AND transaction_type = 'subscription' AND status = 'accepted'
+          `;
+          const subscriptionResults = await DatabaseService.executeQuery(subscriptionQuery, [transaction.user_id]);
+          totalSubscriptions = parseFloat(subscriptionResults[0]?.total_subscriptions || 0).toFixed(3);
+        }
+        
+        // Send email notification
+        await emailService.sendTransactionStatusEmail(
+          transaction.email,
+          transaction.full_name,
+          transactionData,
+          action === 'accept' ? 'accepted' : 'rejected',
+          transaction.admin_name || 'الإدارة',
+          totalSubscriptions
+        );
+        
+        console.log(`✅ Transaction status email sent to ${transaction.email}`);
+      }
+    } catch (emailError) {
+      console.error('❌ Failed to send transaction status email:', emailError);
+      // Don't fail the request if email fails
+    }
+
     ResponseHelper.success(res, null,
       action === 'accept' ? 'تم قبول المعاملة' : 'تم رفض المعاملة'
     );
@@ -89,6 +157,20 @@ class TransactionController {
     }
 
     console.log(`🔍 Admin ${adminId} attempting to ${normalizedAction} loan payment #${loanPaymentId}`);
+
+    // Verify admin has access to this payment's user
+    const accessQuery = `
+      SELECT l.loan_id, l.user_id, u.approved_by_admin_id 
+      FROM loan l
+      JOIN users u ON l.user_id = u.user_id
+      WHERE l.loan_id = ? AND u.approved_by_admin_id = ?
+    `;
+    
+    const accessResults = await DatabaseService.executeQuery(accessQuery, [loanPaymentId, adminId]);
+    
+    if (accessResults.length === 0) {
+      return ResponseHelper.error(res, 'ليس لديك صلاحية للتعامل مع هذه الدفعة', 403);
+    }
 
     // Get payment details before updating
     const paymentQuery = `
@@ -150,6 +232,72 @@ class TransactionController {
       } else if (totalPaid >= loanAmount) {
         console.log(`⚠️  Warning: Would have closed loan incorrectly (${totalPaid}/${loanAmount})`);
       }
+    }
+
+    // Send email notification to user
+    try {
+      // Get payment details with user info for email
+      const paymentDetailsQuery = `
+        SELECT l.*, rl.loan_amount, rl.loan_id as target_loan_id, 
+               u.Aname as full_name, u.email, admin.Aname as admin_name
+        FROM loan l
+        JOIN requested_loan rl ON l.target_loan_id = rl.loan_id
+        JOIN users u ON l.user_id = u.user_id
+        LEFT JOIN users admin ON l.admin_id = admin.user_id
+        WHERE l.loan_id = ?
+      `;
+      
+      const paymentDetailsResults = await DatabaseService.executeQuery(paymentDetailsQuery, [loanPaymentId]);
+      
+      if (paymentDetailsResults.length > 0) {
+        const payment = paymentDetailsResults[0];
+        
+        // Prepare payment data for email
+        const paymentData = {
+          amount: payment.credit,
+          memo: payment.memo,
+          date: payment.date
+        };
+
+        // Calculate loan summary for email
+        let loanSummary = null;
+        if (normalizedAction === 'accept') {
+          const totalPaidQuery = `
+            SELECT SUM(credit) as total_paid
+            FROM loan
+            WHERE target_loan_id = ? AND status = 'accepted'
+          `;
+          const totalPaidResults = await DatabaseService.executeQuery(totalPaidQuery, [payment.target_loan_id]);
+          const totalPaid = parseFloat(totalPaidResults[0]?.total_paid || 0);
+          const loanAmount = parseFloat(payment.loan_amount || 0);
+          const remainingAmount = Math.max(0, loanAmount - totalPaid);
+          const completionPercentage = loanAmount > 0 ? Math.round((totalPaid / loanAmount) * 100) : 0;
+          
+          loanSummary = {
+            totalLoan: loanAmount.toFixed(3),
+            totalPaid: totalPaid.toFixed(3),
+            remainingAmount: remainingAmount.toFixed(3),
+            completionPercentage: completionPercentage,
+            isCompleted: totalPaid >= loanAmount,
+            nextInstallment: remainingAmount > 0 ? Math.min(remainingAmount, payment.installment_amount || 20).toFixed(3) : '0.000'
+          };
+        }
+        
+        // Send email notification
+        await emailService.sendLoanPaymentStatusEmail(
+          payment.email,
+          payment.full_name,
+          paymentData,
+          normalizedAction === 'accept' ? 'accepted' : 'rejected',
+          payment.admin_name || 'الإدارة',
+          loanSummary
+        );
+        
+        console.log(`✅ Loan payment status email sent to ${payment.email}`);
+      }
+    } catch (emailError) {
+      console.error('❌ Failed to send loan payment status email:', emailError);
+      // Don't fail the request if email fails
     }
 
     ResponseHelper.success(res, null,
