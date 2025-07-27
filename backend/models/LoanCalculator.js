@@ -1,37 +1,32 @@
 class LoanCalculator {
   constructor() {
-    // Core constants - corrected understanding
     this.CONSTANTS = {
-      maxl1: 10000,        // Maximum loan amount
-      maxlp1: 3,           // Multiplier for max loan relative to balance
-      instp1: 0.02,        // 2% installment rate
-      minInstallment: 20,  // Minimum installment amount in KWD
-      get monthlyRate() { 
-        return this.instp1; // 2% monthly installment rate
-      },
-      get ratio() { 
-        // Corrected ratio to match exact examples: 10K loan + 3550 balance = 200 installment
-        // Formula: ratio = (200 * 3550) / (10000 * 10000) = 0.00667
-        return 0.02 / 3; // 0.006667 - exact mathematical ratio
-      }
+      MAX_LOAN_AMOUNT: 10000,
+      BALANCE_MULTIPLIER: 3,
+      MIN_INSTALLMENT: 20,
+      MIN_BALANCE_REQUIREMENT: 500,
+      MIN_INSTALLMENT_PERIOD: 6,
+      DEFAULT_PERIOD: 24,
+      INSTALLMENT_RATIO: 0.006667
     };
   }
 
-  // Simple loan calculation based on frontend logic with flexible installment periods
-  static calculateLoanTerms(balance, requestedAmount = null, installmentPeriod = null) {
+  static calculateLoanTerms(balance, requestedAmount = null, customPeriod = null) {
     const calculator = new LoanCalculator();
     
-    if (!balance || balance < 500) {
+    if (!balance || balance < calculator.CONSTANTS.MIN_BALANCE_REQUIREMENT) {
       return {
         eligible: false,
-        reason: 'الرصيد أقل من الحد الأدنى المطلوب (500 دينار)',
+        reason: `الرصيد أقل من الحد الأدنى المطلوب (${calculator.CONSTANTS.MIN_BALANCE_REQUIREMENT} دينار)`,
         maxLoan: 0,
         balance: balance || 0
       };
     }
 
-    // Calculate maximum loan (balance * 3, capped at system max)
-    const maxLoan = Math.min(balance * calculator.CONSTANTS.maxlp1, calculator.CONSTANTS.maxl1);
+    const maxLoan = Math.min(
+      balance * calculator.CONSTANTS.BALANCE_MULTIPLIER, 
+      calculator.CONSTANTS.MAX_LOAN_AMOUNT
+    );
 
     if (requestedAmount) {
       if (requestedAmount > maxLoan) {
@@ -44,44 +39,30 @@ class LoanCalculator {
         };
       }
 
-      // Calculate using 2% monthly installment rate with flexible period
-      const monthlyInstallment = calculator.calculateMonthlyInstallment(requestedAmount, balance);
+      const installmentData = calculator.calculateInstallment(requestedAmount, balance);
+      const period = customPeriod || calculator.calculateOptimalPeriod(requestedAmount, installmentData.amount);
       
-      // Ensure valid installment calculation
-      if (!monthlyInstallment || !monthlyInstallment.installment) {
-        return {
-          eligible: false,
-          reason: 'خطأ في حساب القسط الشهري',
-          maxLoan,
-          requestedAmount,
-          balance
-        };
-      }
-      
-      // Calculate flexible installment period
-      let calculatedPeriod = 24; // Default 24 months
-      if (installmentPeriod && installmentPeriod > 0) {
-        calculatedPeriod = installmentPeriod;
-      } else {
-        // Calculate period needed to repay loan at monthly installment rate
-        calculatedPeriod = Math.ceil(requestedAmount / monthlyInstallment.installment);
-        // Ensure reasonable minimum bound (6 months minimum, no maximum cap)
-        calculatedPeriod = Math.max(6, calculatedPeriod);
-      }
+      // Calculate exact repayment details
+      const exactPeriod = requestedAmount / installmentData.amount;
+      const wholePeriods = Math.floor(exactPeriod);
+      const remainder = requestedAmount - (wholePeriods * installmentData.amount);
+      const lastInstallment = remainder > 0 ? parseFloat(remainder.toFixed(3)) : installmentData.amount;
+      const totalRepayment = parseFloat((requestedAmount || 0).toFixed(3)); // Always equals loan amount
       
       return {
         eligible: true,
         maxLoan,
         requestedAmount,
-        installment: monthlyInstallment.installment.toFixed(3),
-        installmentPeriod: calculatedPeriod,
+        installment: installmentData.amount,
+        installmentPeriod: period,
+        totalRepayment: totalRepayment.toFixed(3),
+        lastInstallment: lastInstallment,
+        wholePeriods: wholePeriods,
         balance,
-        balanceTier: calculator.getBalanceTier(balance),
-        calculationMethod: monthlyInstallment.method
+        balanceTier: calculator.getBalanceTier(balance)
       };
     }
 
-    // Return general terms without specific amount
     return {
       eligible: true,
       maxLoan,
@@ -90,95 +71,47 @@ class LoanCalculator {
     };
   }
 
-  // Rounds a number UP to the nearest multiple of 5
   round5(value) {
     return Math.ceil(value / 5) * 5;
   }
 
-  // Get balance tier description (simplified)
   getBalanceTier(balance) {
-    if (balance >= 3330) {
-      return { name: 'الحساب الخاص', level: 'special' };
-    } else if (balance >= 1000) {
-      return { name: 'الفئة المتوسطة', level: 'medium' };
-    } else if (balance >= 500) {
-      return { name: 'الفئة الأساسية', level: 'basic' };
-    } else {
-      return { name: 'غير مؤهل', level: 'ineligible' };
-    }
+    if (balance >= 3330) return { name: 'الحساب الخاص', level: 'special' };
+    if (balance >= 1000) return { name: 'الفئة المتوسطة', level: 'medium' };
+    if (balance >= 500) return { name: 'الفئة الأساسية', level: 'basic' };
+    return { name: 'غير مؤهل', level: 'ineligible' };
   }
 
-  // Calculate flexible installment period based on loan amount and installment
-  calculateInstallmentPeriod(loanAmount, installment) {
-    if (!loanAmount || !installment || installment <= 0) {
-      return 24; // Default 24 months
+  calculateOptimalPeriod(loanAmount, installmentAmount) {
+    if (!loanAmount || !installmentAmount || installmentAmount <= 0) {
+      return this.CONSTANTS.DEFAULT_PERIOD;
     }
     
-    // Calculate optimal period based on loan amount and installment
-    let period = Math.ceil(loanAmount / installment);
+    // Calculate period so total repayment equals loan amount exactly
+    const exactPeriod = loanAmount / installmentAmount;
+    const wholePeriods = Math.floor(exactPeriod);
+    const remainder = loanAmount - (wholePeriods * installmentAmount);
     
-    // Ensure reasonable minimum bound (6 months minimum, no maximum cap)
-    period = Math.max(6, period);
+    // If remainder is less than minimum installment, extend by one period
+    if (remainder > 0 && remainder < this.CONSTANTS.MIN_INSTALLMENT) {
+      return Math.max(this.CONSTANTS.MIN_INSTALLMENT_PERIOD, wholePeriods + 1);
+    }
     
-    return period;
+    // Otherwise use exact calculation
+    return Math.max(this.CONSTANTS.MIN_INSTALLMENT_PERIOD, Math.ceil(exactPeriod));
   }
 
-  // Calculate installment using the correct formula: I = round5(ratio × L² / B)
-  calculateMonthlyInstallment(loanAmount, balance) {
-    // Use the original formula: I = round5(ratio × L² / B) where ratio = 0.02/3
-    const baseInstallment = this.round5(this.CONSTANTS.ratio * loanAmount * loanAmount / balance);
-    
-    // Apply minimum installment rule (20 KWD minimum)
-    const finalInstallment = Math.max(baseInstallment, this.CONSTANTS.minInstallment);
-    
+  calculateInstallment(loanAmount, balance) {
+    const baseAmount = this.round5(
+      this.CONSTANTS.INSTALLMENT_RATIO * loanAmount * loanAmount / balance
+    );
     return {
-      installment: finalInstallment,
-      method: 'formula-based',
-      baseCalculation: baseInstallment,
-      appliedMinimum: finalInstallment > baseInstallment
+      amount: Math.max(baseAmount, this.CONSTANTS.MIN_INSTALLMENT),
+      baseAmount,
+      minimumApplied: Math.max(baseAmount, this.CONSTANTS.MIN_INSTALLMENT) > baseAmount
     };
   }
 
-  // Simple calculation methods from frontend with flexible periods
-  calculateFromLoanAmount(loanAmount, balance) {
-    if (!balance || balance < 500) {
-      throw new Error('الرصيد أقل من الحد الأدنى المطلوب');
-    }
-
-    const L = Math.min(loanAmount, this.CONSTANTS.maxl1);
-    const B = balance;
-    const baseI = this.round5(this.CONSTANTS.ratio * L * L / B);
-    const I = Math.max(baseI, this.CONSTANTS.minInstallment);
-    const period = this.calculateInstallmentPeriod(L, I);
-
-    return {
-      loanAmount: L,
-      balance: B,
-      installment: I,
-      installmentPeriod: period,
-      scenario: 'من مبلغ القرض'
-    };
-  }
-
-  calculateFromBalance(balance) {
-    if (!balance || balance < 500) {
-      throw new Error('الرصيد غير صحيح');
-    }
-
-    const B = balance;
-    const L = Math.min(B * this.CONSTANTS.maxlp1, this.CONSTANTS.maxl1);
-    const baseI = this.round5(this.CONSTANTS.ratio * L * L / B);
-    const I = Math.max(baseI, this.CONSTANTS.minInstallment);
-    const period = this.calculateInstallmentPeriod(L, I);
-
-    return {
-      loanAmount: L,
-      balance: B,
-      installment: I,
-      installmentPeriod: period,
-      scenario: 'من الرصيد'
-    };
-  }
 }
 
 module.exports = LoanCalculator;

@@ -15,10 +15,11 @@ const verifyToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get fresh user data
+    // Get fresh user data - support both userId formats
+    const userId = decoded.userId || decoded.user_id;
     const [users] = await pool.execute(
       'SELECT user_id, user_type, Aname, is_blocked FROM users WHERE user_id = ?',
-      [decoded.userId]
+      [userId]
     );
 
     if (users.length === 0) {
@@ -88,10 +89,11 @@ const verifyTokenOptional = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get fresh user data
+    // Get fresh user data - support both userId formats
+    const userId = decoded.userId || decoded.user_id;
     const [users] = await pool.execute(
       'SELECT user_id, user_type, Aname, is_blocked FROM users WHERE user_id = ?',
-      [decoded.userId]
+      [userId]
     );
 
     if (users.length === 0) {

@@ -6,35 +6,7 @@ const LoanCalculator = require('../models/LoanCalculator');
 
 const router = express.Router();
 
-// Check loan eligibility with simple calculation
-router.get('/check-eligibility/:userId', verifyToken, requireOwnershipOrAdmin, async (req, res) => {
-  try {
-    const userId = parseInt(req.params.userId);
-    const eligibility = await UserModel.checkLoanEligibility(userId);
-    
-    // Get user balance for simple calculation
-    const user = await UserModel.getUserById(userId);
-    const userBalance = user.current_balance || 0;
-    
-    // Get simple loan terms
-    const loanTerms = LoanCalculator.calculateLoanTerms(userBalance);
-
-    res.json({
-      success: true,
-      eligibility: {
-        ...eligibility,
-        dynamicTerms: loanTerms
-      }
-    });
-
-  } catch (error) {
-    console.error('Check eligibility error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
+// Removed: Use /users/loans/eligibility/:userId instead
 
 // Get loan calculation for specific amount
 router.post('/calculate', verifyToken, async (req, res) => {
@@ -145,19 +117,26 @@ router.post('/request', verifyToken, async (req, res) => {
 
     // Get user balance for calculation
     const user = await UserModel.getUserById(userId);
-    const userBalance = user.current_balance || 0;
+    const userBalance = user.balance || 0;
+    
+    console.log(`User data for loan calculation:`, { userId, balance: user.balance, userBalance });
     
     // Use the same calculation logic as dashboard calculator
-    // This should match the frontend LoanCalculator.calculateInstallment() method
-    const LoanCalculator = require('../models/LoanCalculator');
+    // Use the centralized LoanCalculator for consistent calculations
     
     let monthlyInstallment, period;
     try {
-      // Try to use the exact same calculation as frontend
-      // Calculate installment using the formula: I = round5(ratio × L² / B)  
-      const ratio = 0.02 / 3; // Same as frontend constants
-      const installmentBase = Math.ceil((ratio * amount * amount / userBalance) / 5) * 5;
-      monthlyInstallment = Math.max(installmentBase, 20); // 20 KWD minimum
+      // Check if user balance is valid for calculation
+      if (userBalance <= 0) {
+        throw new Error('Invalid user balance for installment calculation');
+      }
+      
+      // Use LoanCalculator for consistent installment calculation
+      const installmentData = new LoanCalculator().calculateInstallment(amount, userBalance);
+      monthlyInstallment = installmentData.amount;
+      
+      console.log(`Loan calculation: Amount=${amount}, Balance=${userBalance}`);
+      console.log(`Installment calculation: ${installmentData.baseAmount} → ${monthlyInstallment}`);
       
       // Calculate period automatically: period = loanAmount / installment (no maximum cap)
       period = Math.max(Math.ceil(amount / monthlyInstallment), 6); // minimum 6 months
@@ -169,16 +148,23 @@ router.post('/request', verifyToken, async (req, res) => {
       period = 24;
     }
 
-    // Insert loan request with calculated period
+    // Validate calculated installment before inserting
+    if (monthlyInstallment <= 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'خطأ في حساب القسط الشهري. يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني'
+      });
+    }
+
+    // Insert loan request
     const [result] = await pool.execute(`
       INSERT INTO requested_loan 
-      (user_id, loan_amount, installment_amount, installment_period, status)
-      VALUES (?, ?, ?, ?, 'pending')
+      (user_id, loan_amount, installment_amount, status)
+      VALUES (?, ?, ?, 'pending')
     `, [
       userId,
       amount,
-      monthlyInstallment,
-      period
+      monthlyInstallment
     ]);
 
     res.json({
@@ -239,7 +225,8 @@ router.get('/active/:userId', verifyToken, requireOwnershipOrAdmin, async (req, 
         WHERE status = 'accepted'
         GROUP BY target_loan_id
       ) paid ON rl.loan_id = paid.target_loan_id
-      WHERE rl.user_id = ? AND rl.status = 'approved'
+      WHERE rl.user_id = ? AND rl.status = 'approved' 
+        AND (COALESCE(paid.total_paid, 0) < rl.loan_amount)
       ORDER BY rl.approval_date DESC
       LIMIT 1
     `, [userId]);
@@ -303,15 +290,36 @@ router.post('/payment', verifyToken, async (req, res) => {
     
     const userBalance = users[0].balance || 0;
 
-    // Calculate minimum required payment using the same formula as frontend
-    const minPayment = LoanCalculator.calculateLoanTerms(userBalance, activeLoan.loan_amount);
-    const minInstallment = parseFloat(minPayment.installment);
+    // Calculate remaining loan balance
+    const [paidAmountResult] = await pool.execute(`
+      SELECT COALESCE(SUM(credit), 0) as total_paid 
+      FROM loan 
+      WHERE target_loan_id = ? AND status = 'accepted'
+    `, [activeLoan.loan_id]);
+    
+    const totalPaid = parseFloat(paidAmountResult[0].total_paid || 0);
+    const remainingBalance = parseFloat(activeLoan.loan_amount) - totalPaid;
 
-    // Validate minimum payment amount
-    if (amount < minInstallment) {
+    // Calculate minimum required payment using LoanCalculator for consistency
+    const installmentData = new LoanCalculator().calculateInstallment(activeLoan.loan_amount, userBalance);
+    const minInstallment = installmentData.amount;
+
+    // Special handling for final payment - allow remaining balance even if below minimum
+    const effectiveMinimum = remainingBalance <= minInstallment ? remainingBalance : minInstallment;
+
+    // Validate payment amount
+    if (amount < effectiveMinimum) {
       return res.status(400).json({
         success: false,
-        message: `المبلغ أقل من الحد الأدنى المطلوب (${minInstallment.toFixed(3)} دينار)`
+        message: `المبلغ أقل من الحد الأدنى المطلوب (${effectiveMinimum.toFixed(3)} دينار)`
+      });
+    }
+
+    // Prevent overpayment
+    if (amount > remainingBalance) {
+      return res.status(400).json({
+        success: false,
+        message: `المبلغ أكبر من المتبقي من القرض (${remainingBalance.toFixed(3)} دينار)`
       });
     }
 
@@ -432,5 +440,7 @@ router.post('/calculate-realtime', verifyToken, async (req, res) => {
     });
   }
 });
+
+// Removed duplicate routes - see above for the actual implementations
 
 module.exports = router;

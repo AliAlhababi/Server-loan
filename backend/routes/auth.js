@@ -1,23 +1,114 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { body, validationResult } = require('express-validator');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 
-// Login route
-router.post('/login', async (req, res) => {
-  try {
-    const { userId, password } = req.body;
+// Public registration route
+router.post('/register', [
+  body('fullName').isLength({ min: 2 }).withMessage('الاسم يجب أن يكون حرفين على الأقل'),
+  body('email').isEmail().withMessage('يرجى إدخال بريد إلكتروني صحيح'),
+  body('phone').isLength({ min: 8 }).withMessage('رقم الهاتف يجب أن يكون 8 أرقام على الأقل'),
+  body('password').isLength({ min: 6 }).withMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'خطأ في البيانات المدخلة',
+      errors: errors.array() 
+    });
+  }
 
-    // Validate input
-    if (!userId || !password) {
+  try {
+    const { fullName, email, phone, whatsapp, workplace, password } = req.body;
+
+    // Check if email already exists
+    const [existingUsers] = await pool.execute(
+      'SELECT user_id FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (existingUsers.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'رقم المستخدم وكلمة المرور مطلوبان'
+        message: 'البريد الإلكتروني مسجل بالفعل'
       });
     }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Insert new user
+    const [result] = await pool.execute(
+      `INSERT INTO users (Aname, email, phone, whatsapp, workplace, password, user_type, balance, registration_date, joining_fee_approved, is_blocked) 
+       VALUES (?, ?, ?, ?, ?, ?, 'employee', 0, CURDATE(), 'pending', 0)`,
+      [fullName, email, phone, whatsapp || phone, workplace || '', hashedPassword]
+    );
+
+    const newUserId = result.insertId;
+    let emailSent = false;
+    let emailMessage = '';
+
+    // Send welcome email with user credentials (only if email is configured)
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+      try {
+        const emailResult = await emailService.sendWelcomeEmail(email, fullName, newUserId, password);
+        if (emailResult.success) {
+          console.log(`✅ Welcome email sent to ${email} for user ${newUserId}`);
+          emailSent = true;
+          emailMessage = `تم إرسال تفاصيل الحساب إلى بريدك الإلكتروني: ${email}`;
+        } else {
+          console.error(`❌ Failed to send welcome email to ${email}:`, emailResult.error);
+          emailMessage = `لم يتم إرسال البريد الإلكتروني. ${emailResult.userMessage || 'خطأ في الإرسال'}`;
+        }
+      } catch (emailError) {
+        console.error('Email service error:', emailError);
+        emailMessage = 'لم يتم إرسال البريد الإلكتروني. مشكلة في خدمة البريد الإلكتروني';
+      }
+    } else {
+      console.log('📧 Email service not configured - skipping welcome email');
+      emailMessage = 'لم يتم إرسال البريد الإلكتروني. خدمة البريد غير مفعلة';
+    }
+
+    const baseMessage = `تم تسجيل العضوية بنجاح. رقم العضوية الخاص بك هو: ${newUserId}`;
+    const fullMessage = emailSent ? 
+      `${baseMessage}. ${emailMessage}` : 
+      `${baseMessage}. ${emailMessage}`;
+
+    res.status(201).json({
+      success: true,
+      message: fullMessage,
+      userId: newUserId,
+      emailSent: emailSent,
+      emailMessage: emailMessage
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في الخادم. يرجى المحاولة مرة أخرى'
+    });
+  }
+});
+
+// Login route
+router.post('/login', [
+  body('userId').isInt().withMessage('User ID must be an integer'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { userId, password } = req.body;
 
     // Get user from database
     const [users] = await pool.execute(
@@ -91,7 +182,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const [users] = await pool.execute(
-      'SELECT user_id, Aname, user_type, balance FROM users WHERE user_id = ?',
+      'SELECT user_id, Aname, email, phone, whatsapp, workplace, user_type, balance, registration_date, joining_fee_approved, is_blocked FROM users WHERE user_id = ?',
       [req.user.user_id]
     );
 
@@ -110,9 +201,16 @@ router.get('/me', verifyToken, async (req, res) => {
       user: {
         user_id: user.user_id,
         name: user.Aname,
+        email: user.email,
+        phone: user.phone,
+        whatsapp: user.whatsapp,
+        workplace: user.workplace,
         user_type: user.user_type,
         balance: user.balance || 0,
         maxLoanAmount: maxLoanAmount,
+        registration_date: user.registration_date,
+        joining_fee_approved: user.joining_fee_approved,
+        is_blocked: user.is_blocked,
         isAdmin: user.user_type === 'admin'
       }
     });
@@ -262,25 +360,6 @@ router.post('/reset-password', verifyToken, async (req, res) => {
   }
 });
 
-// Get current user info (for token verification)
-router.get('/me', verifyToken, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      user: {
-        userId: req.user.user_id,
-        userType: req.user.user_type,
-        name: req.user.Aname,
-        balance: req.user.balance || 0
-      }
-    });
-  } catch (error) {
-    console.error('Get current user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'خطأ في جلب بيانات المستخدم'
-    });
-  }
-});
+
 
 module.exports = router;

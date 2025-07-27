@@ -6,15 +6,7 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
-    "setup": "node backend/setup-database.js",
-    "reset": "node backend/setup-database.js reset",
-    "build": "echo 'Frontend files are static, no build needed'",
-    "test": "node backend/tests/test-orchestrator.js",
-    "test:unit": "node backend/tests/unit-tests.js",
-    "test:integration": "node backend/tests/integration-tests.js",
-    "test:e2e": "node backend/tests/run-tests.js",
-    "test:architecture": "node backend/test-architecture.js",
-    "clean": "node backend/server-clean.js"
+    "test": "jest"
   },
   "keywords": [
     "loan",
@@ -26,16 +18,16 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.2.0",
     "express": "^4.18.2",
+    "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.6.0",
+    "mysql2": "^3.14.2",
     "nodemailer": "^7.0.5"
   },
   "devDependencies": {
-    "axios": "^1.10.0",
+    "jest": "^30.0.5",
     "nodemon": "^3.0.1"
   }
 }

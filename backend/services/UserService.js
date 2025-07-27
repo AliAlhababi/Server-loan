@@ -1,293 +1,251 @@
+const DatabaseService = require('./DatabaseService');
+const { AppError } = require('../utils/ErrorHandler');
 const bcrypt = require('bcrypt');
-const UserRepository = require('../repositories/UserRepository');
-const TransactionRepository = require('../repositories/TransactionRepository');
-const LoanPaymentRepository = require('../repositories/LoanPaymentRepository');
-const emailService = require('./emailService');
 
 class UserService {
-  constructor() {
-    this.userRepository = new UserRepository();
-    this.transactionRepository = new TransactionRepository();
-    this.loanPaymentRepository = new LoanPaymentRepository();
-    this.emailService = emailService;
+  static async getBasicUserInfo(userId, fields = '*') {
+    if (typeof fields === 'array') {
+      fields = fields.join(', ');
+    }
+    
+    const query = `SELECT ${fields} FROM users WHERE user_id = ? LIMIT 1`;
+    const results = await DatabaseService.executeQuery(query, [userId]);
+    
+    if (results.length === 0) {
+      throw new AppError('المستخدم غير موجود', 404);
+    }
+    
+    return results[0];
   }
 
-  async getUserById(userId) {
-    try {
-      return await this.userRepository.findByUserId(userId);
-    } catch (error) {
-      throw new Error('خطأ في جلب بيانات المستخدم: ' + error.message);
-    }
+  static async getUserWithBalance(userId) {
+    return await this.getBasicUserInfo(userId, 'user_id, Aname, user_type, balance, registration_date, joining_fee_approved, is_blocked');
   }
 
-  async getUserDashboardData(userId) {
-    try {
-      const [user, transactions, loanPayments, financialSummary] = await Promise.all([
-        this.userRepository.findByUserId(userId),
-        this.transactionRepository.findTransactionsByUserId(userId, 10),
-        this.loanPaymentRepository.findLoanPaymentsByUserId(userId, 10),
-        this.transactionRepository.getUserFinancialSummary(userId)
-      ]);
-
-      if (!user) {
-        throw new Error('المستخدم غير موجود');
-      }
-
-      return {
-        user,
-        transactions,
-        loanPayments,
-        financialSummary
-      };
-    } catch (error) {
-      throw new Error('خطأ في جلب بيانات لوحة التحكم: ' + error.message);
-    }
+  static async getUserForAuth(userId) {
+    return await this.getBasicUserInfo(userId, 'user_id, password, user_type, Aname, balance, is_blocked');
   }
 
-  async updateUserProfile(userId, profileData) {
-    try {
-      const { Aname, email, phone, whatsapp, workplace } = profileData;
-
-      // Validate required fields
-      if (!Aname || !email || !phone) {
-        throw new Error('الاسم والبريد الإلكتروني والهاتف مطلوبة');
-      }
-
-      // Check email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        throw new Error('تنسيق البريد الإلكتروني غير صحيح');
-      }
-
-      // Check if email is already used by another user
-      const existingUser = await this.userRepository.findByEmailOrPhone(email, '');
-      if (existingUser && existingUser.user_id !== userId) {
-        throw new Error('البريد الإلكتروني مستخدم من قبل مستخدم آخر');
-      }
-
-      const success = await this.userRepository.updateProfile(userId, {
-        Aname,
-        email,
-        phone,
-        whatsapp: whatsapp || phone, // Use phone as fallback for WhatsApp
-        workplace: workplace || ''
-      });
-
-      if (!success) {
-        throw new Error('فشل في تحديث الملف الشخصي');
-      }
-
-      return {
-        success: true,
-        message: 'تم تحديث الملف الشخصي بنجاح'
-      };
-
-    } catch (error) {
-      throw new Error(error.message);
+  static async validateUserAccess(userId, requestingUserId, requestingUserType) {
+    if (requestingUserType === 'admin') {
+      return true;
     }
+    
+    if (parseInt(userId) !== parseInt(requestingUserId)) {
+      throw new AppError('غير مصرح لك بالوصول لهذه البيانات', 403);
+    }
+    
+    return true;
   }
 
-  async getUserTransactions(userId, limit = 50) {
-    try {
-      return await this.transactionRepository.findTransactionsByUserId(userId, limit);
-    } catch (error) {
-      throw new Error('خطأ في جلب تاريخ المعاملات: ' + error.message);
-    }
+  static async checkUserExists(userId) {
+    return await DatabaseService.exists('users', { user_id: userId });
   }
 
-  async getUserLoanPayments(userId, limit = 50) {
-    try {
-      return await this.loanPaymentRepository.findLoanPaymentsByUserId(userId, limit);
-    } catch (error) {
-      throw new Error('خطأ في جلب تاريخ تسديدات القروض: ' + error.message);
+  static async updateUserBalance(userId, amount, operation = 'add') {
+    const user = await this.getUserWithBalance(userId);
+    const currentBalance = parseFloat(user.balance || 0);
+    
+    let newBalance;
+    if (operation === 'add') {
+      newBalance = currentBalance + parseFloat(amount);
+    } else if (operation === 'subtract') {
+      newBalance = currentBalance - parseFloat(amount);
+    } else {
+      newBalance = parseFloat(amount);
     }
+
+    await DatabaseService.update('users', 
+      { balance: newBalance }, 
+      { user_id: userId }
+    );
+
+    return newBalance;
   }
 
-  async requestDeposit(userId, amount, memo = null) {
-    try {
-      // Validate amount
-      if (!amount || amount <= 0) {
-        throw new Error('مبلغ الإيداع يجب أن يكون أكبر من صفر');
-      }
-
-      // Get first admin for processing
-      const admin = await this.userRepository.getFirstAdmin();
-      if (!admin) {
-        throw new Error('لا يوجد مدير متاح لمعالجة الطلب');
-      }
-
-      const transactionData = {
-        userId,
-        credit: amount,
-        debit: null,
-        memo: memo || `طلب إيداع ${amount} دينار`,
-        transactionType: 'deposit',
-        adminId: admin.user_id,
-        status: 'pending'
-      };
-
-      const result = await this.transactionRepository.createTransaction(transactionData);
-
-      return {
-        success: true,
-        transactionId: result.transactionId,
-        message: 'تم تقديم طلب الإيداع بنجاح - بانتظار الموافقة'
-      };
-
-    } catch (error) {
-      throw new Error('خطأ في طلب الإيداع: ' + error.message);
-    }
+  static async getUsersByType(userType = null, limit = null) {
+    const conditions = userType ? { user_type: userType } : {};
+    return await DatabaseService.findMany('users', conditions, limit, 'registration_date DESC');
   }
 
-  async getAllUsers(limit = 100) {
-    try {
-      return await this.userRepository.findAllUsers(limit);
-    } catch (error) {
-      throw new Error('خطأ في جلب قائمة المستخدمين: ' + error.message);
-    }
+  static async getAdminUsers() {
+    return await this.getUsersByType('admin');
   }
 
-  async createUser(userData) {
-    try {
-      const {
-        Aname, civilId, phone, email, userType = 'user',
-        workplace, balance = 0, password, whatsapp,
-        joiningFeeStatus = 'pending'
-      } = userData;
-
-      // Validate required fields
-      if (!Aname || !phone || !email || !password) {
-        throw new Error('الاسم والهاتف والبريد الإلكتروني وكلمة المرور مطلوبة');
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        throw new Error('تنسيق البريد الإلكتروني غير صحيح');
-      }
-
-      // Check if email already exists
-      const existingUser = await this.userRepository.findByEmailOrPhone(email, phone);
-      if (existingUser) {
-        throw new Error('المستخدم موجود مسبقاً بنفس البريد الإلكتروني أو رقم الهاتف');
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const newUserData = {
-        Aname,
-        civilId,
-        phone,
-        email,
-        userType,
-        workplace: workplace || '',
-        balance: parseFloat(balance) || 0,
-        hashedPassword,
-        whatsapp: whatsapp || phone,
-        joiningFeeStatus
-      };
-
-      const result = await this.userRepository.createUser(newUserData);
-
-      // Send welcome email
-      try {
-        await this.emailService.sendWelcomeEmail({
-          name: Aname,
-          email: email,
-          userId: result.userId,
-          password: password // Send original password in email
-        });
-      } catch (emailError) {
-        console.error('فشل في إرسال البريد الترحيبي:', emailError.message);
-        // Continue with user creation even if email fails
-      }
-
-      return {
-        success: true,
-        userId: result.userId,
-        message: `تم إنشاء حساب المستخدم بنجاح - رقم المستخدم: ${result.userId}`
-      };
-
-    } catch (error) {
-      throw new Error('خطأ في إنشاء المستخدم: ' + error.message);
+  static async getFirstAdmin() {
+    const admins = await this.getAdminUsers();
+    if (admins.length === 0) {
+      throw new AppError('لا يوجد مدير متاح', 500);
     }
+    return admins[0];
   }
 
-  async updateUserJoiningFeeStatus(userId, status, adminId) {
-    try {
-      if (!['approved', 'rejected', 'pending'].includes(status)) {
-        throw new Error('حالة رسوم الانضمام غير صحيحة');
-      }
+  static async blockUser(userId, isBlocked = true) {
+    const affectedRows = await DatabaseService.update('users',
+      { is_blocked: isBlocked ? 1 : 0 },
+      { user_id: userId }
+    );
 
-      const success = await this.userRepository.updateJoiningFeeStatus(userId, status);
-      if (!success) {
-        throw new Error('فشل في تحديث حالة رسوم الانضمام');
-      }
-
-      const statusText = status === 'approved' ? 'موافق عليها' : 
-                        status === 'rejected' ? 'مرفوضة' : 'بانتظار المراجعة';
-
-      return {
-        success: true,
-        message: `تم تحديث حالة رسوم الانضمام إلى: ${statusText}`
-      };
-
-    } catch (error) {
-      throw new Error('خطأ في تحديث رسوم الانضمام: ' + error.message);
+    if (affectedRows === 0) {
+      throw new AppError('المستخدم غير موجود', 404);
     }
+
+    return true;
   }
 
-  async updateUserBlockStatus(userId, isBlocked, adminId) {
-    try {
-      const success = await this.userRepository.updateBlockStatus(userId, isBlocked);
-      if (!success) {
-        throw new Error('فشل في تحديث حالة الحظر');
+  static async updateJoiningFeeStatus(userId, status) {
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new AppError('حالة رسوم الانضمام غير صحيحة', 400);
+    }
+
+    const affectedRows = await DatabaseService.update('users',
+      { joining_fee_approved: status },
+      { user_id: userId }
+    );
+
+    if (affectedRows === 0) {
+      throw new AppError('المستخدم غير موجود', 404);
+    }
+
+    return true;
+  }
+
+  static async changePassword(userId, currentPassword, newPassword) {
+    const user = await this.getUserForAuth(userId);
+    
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new AppError('كلمة المرور الحالية غير صحيحة', 400);
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+    await DatabaseService.update('users',
+      { password: hashedNewPassword },
+      { user_id: userId }
+    );
+
+    return true;
+  }
+
+  static async resetPassword(userId, newPassword) {
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    const affectedRows = await DatabaseService.update('users',
+      { password: hashedPassword },
+      { user_id: userId }
+    );
+
+    if (affectedRows === 0) {
+      throw new AppError('المستخدم غير موجود', 404);
+    }
+
+    return true;
+  }
+
+  static async createUser(userData) {
+    // Hash password if provided
+    if (userData.password) {
+      userData.password = await bcrypt.hash(userData.password, 12);
+    }
+
+    // Set default values
+    userData.balance = userData.balance || 0;
+    userData.joining_fee_approved = userData.joining_fee_approved || 'pending';
+    userData.user_type = userData.user_type || 'employee';
+    userData.registration_date = new Date();
+
+    const result = await DatabaseService.create('users', userData);
+    return result.insertId;
+  }
+
+  static async updateUserProfile(userId, profileData) {
+    // Remove sensitive fields that shouldn't be updated through profile
+    const { password, user_type, balance, joining_fee_approved, is_blocked, ...safeData } = profileData;
+
+    if (Object.keys(safeData).length === 0) {
+      throw new AppError('لا توجد بيانات للتحديث', 400);
+    }
+
+    const affectedRows = await DatabaseService.update('users', safeData, { user_id: userId });
+    
+    if (affectedRows === 0) {
+      throw new AppError('المستخدم غير موجود', 404);
+    }
+
+    return true;
+  }
+
+  static async isEmailTaken(email, excludeUserId = null) {
+    const conditions = { email };
+    if (excludeUserId) {
+      // For updates, we need to exclude the current user
+      const query = 'SELECT user_id FROM users WHERE email = ? AND user_id != ?';
+      const results = await DatabaseService.executeQuery(query, [email, excludeUserId]);
+      return results.length > 0;
+    }
+    
+    return await DatabaseService.exists('users', conditions);
+  }
+
+  static calculateMaxLoanAmount(balance) {
+    return Math.min((balance || 0) * 3, 10000);
+  }
+
+  static async getUserStats() {
+    const [totalUsers, activeUsers, adminUsers] = await Promise.all([
+      DatabaseService.count('users'),
+      DatabaseService.count('users', { is_blocked: 0 }),
+      DatabaseService.count('users', { user_type: 'admin' })
+    ]);
+
+    return {
+      total: totalUsers,
+      active: activeUsers,
+      blocked: totalUsers - activeUsers,
+      admins: adminUsers,
+      regular: totalUsers - adminUsers
+    };
+  }
+
+  static async updateUser(userId, updateData) {
+    // Prepare the update data with proper field mappings
+    const allowedFields = {
+      fullName: 'Aname',
+      name: 'Aname', 
+      email: 'email',
+      phone: 'phone',
+      whatsapp: 'whatsapp',
+      workplace: 'workplace',
+      balance: 'balance',
+      registration_date: 'registration_date',
+      joining_fee_approved: 'joining_fee_approved',
+      is_blocked: 'is_blocked',
+      user_type: 'user_type'
+    };
+
+    const updateFields = {};
+    
+    for (const [key, value] of Object.entries(updateData)) {
+      if (allowedFields[key] && value !== undefined && value !== '') {
+        updateFields[allowedFields[key]] = value;
       }
-
-      const statusText = isBlocked ? 'محظور' : 'نشط';
-
-      return {
-        success: true,
-        message: `تم ${isBlocked ? 'حظر' : 'إلغاء حظر'} المستخدم - الحالة: ${statusText}`
-      };
-
-    } catch (error) {
-      throw new Error('خطأ في تحديث حالة الحظر: ' + error.message);
     }
-  }
 
-  async updateUserRegistrationDate(userId, registrationDate, adminId) {
-    try {
-      const success = await this.userRepository.updateRegistrationDate(userId, registrationDate);
-      if (!success) {
-        throw new Error('فشل في تحديث تاريخ التسجيل');
-      }
-
-      return {
-        success: true,
-        message: 'تم تحديث تاريخ التسجيل بنجاح'
-      };
-
-    } catch (error) {
-      throw new Error('خطأ في تحديث تاريخ التسجيل: ' + error.message);
+    // If no valid fields to update
+    if (Object.keys(updateFields).length === 0) {
+      throw new AppError('لا توجد بيانات صحيحة للتحديث', 400);
     }
-  }
 
-  async getUserStats() {
-    try {
-      return await this.userRepository.getUserStats();
-    } catch (error) {
-      throw new Error('خطأ في جلب إحصائيات المستخدمين: ' + error.message);
-    }
-  }
+    // Add update timestamp
+    updateFields.updated_at = new Date();
 
-  async getAdminUsers() {
-    try {
-      return await this.userRepository.findAdminUsers();
-    } catch (error) {
-      throw new Error('خطأ في جلب قائمة الإداريين: ' + error.message);
-    }
+    console.log(`📝 UserService: Updating user ${userId} with fields:`, updateFields);
+    
+    return await DatabaseService.update('users', updateFields, { user_id: userId });
   }
 }
 

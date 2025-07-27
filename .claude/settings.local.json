@@ -28,7 +28,17 @@
       "Bash(mkdir:*)",
       "Bash(tail:*)",
       "Bash(git filter-branch:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
+      "Bash(\"C:\\xampp\\mysql\\bin\\mysql.exe\" -u root --execute=\"source manual-fix.sql\")",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(mv:*)",
+      "Bash(taskkill:*)",
+      "Bash(PORT=3001 node backend/server.js)",
+      "Bash(cmd /c taskkill:*)",
+      "Bash(cp:*)",
+      "Bash(du:*)"
     ],
     "deny": []
   }

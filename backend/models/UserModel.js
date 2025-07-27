@@ -1,251 +1,241 @@
 const { pool } = require('../config/database');
 
 class UserModel {
-  
-  // Get user by ID with balance calculation
   static async getUserById(userId) {
     try {
-      const [users] = await pool.execute(`
-        SELECT u.*, 
-               COALESCE(u.balance, 0) as current_balance,
-               LEAST((COALESCE(u.balance, 0) * 3), 10000) as max_loan_amount
-        FROM users u 
-        WHERE u.user_id = ?
-      `, [userId]);
-      
+      const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ?', [userId]);
       return users[0] || null;
     } catch (error) {
-      throw new Error('خطأ في جلب بيانات المستخدم: ' + error.message);
+      throw new Error(`خطأ في جلب بيانات المستخدم: ${error.message}`);
     }
   }
 
-  // Check loan eligibility with all business rules
+  // Simplified loan eligibility check with individual tests
   static async checkLoanEligibility(userId) {
     try {
-      const user = await this.getUserById(userId);
-      if (!user) {
-        return { eligible: false, reason: 'المستخدم غير موجود أو غير نشط' };
+      // Get basic user data
+      const [userResults] = await pool.execute(
+        'SELECT user_id, Aname, user_type, balance, registration_date, joining_fee_approved, is_blocked FROM users WHERE user_id = ?',
+        [userId]
+      );
+      
+      if (userResults.length === 0) {
+        return { eligible: false, reason: 'المستخدم غير موجود', reasons: ['user_not_found'] };
       }
 
-      const eligibilityChecks = {
-        hasActiveOrPendingLoan: false,
-        hasPassedLastLoanClosure: false,
-        hasRequiredBalance: false,
-        hasSubscriptionFees: false,
-        hasPassedLastLoanReceived: false,
-        hasJoiningFeeApproved: false,
-        hasOneYearRegistration: false
-      };
-
-      // Rule 1: Check for active or pending loans (rejected loans should not block new requests)
-      const [activeLoan] = await pool.execute(`
-        SELECT loan_id FROM requested_loan 
-        WHERE user_id = ? AND status IN ('pending', 'approved') 
-        LIMIT 1
-      `, [userId]);
+      const user = userResults[0];
       
-      eligibilityChecks.hasActiveOrPendingLoan = activeLoan.length > 0;
-
-      // Rule 2: Check 30 days since last loan closure
-      // Note: Current schema doesn't track loan closure dates, so we'll skip this check
-      eligibilityChecks.hasPassedLastLoanClosure = true; // Skip closure check for now
-      eligibilityChecks.daysUntilNextLoan = 0;
-
-      // Rule 3: Check required balance (minimum 500 KWD for loan eligibility)
-      const minBalanceForLoan = 500; // 500 KWD minimum requirement
-      eligibilityChecks.hasRequiredBalance = parseFloat(user.current_balance || user.balance || 0) >= minBalanceForLoan;
-
-      // Rule 4: Check subscription fees payment (24 months) - PROPER CALCULATION
-      const monthsToCheck = 24;
-      const cutoffDate = new Date();
-      cutoffDate.setMonth(cutoffDate.getMonth() - monthsToCheck);
-      
-      // Get total subscription payments (accepted) in the last 24 months
-      // Look for both subscription-type and deposit-type transactions to capture all payment methods
-      const [subscriptionPayments] = await pool.execute(`
-        SELECT COALESCE(SUM(credit), 0) as total_paid
-        FROM transaction 
-        WHERE user_id = ? 
-          AND status = 'accepted' 
-          AND credit > 0 
-          AND date >= ?
-          AND transaction_type IN ('subscription', 'deposit')
-      `, [userId, cutoffDate]);
-
-      // Also get pending subscription payments to show user
-      const [pendingPayments] = await pool.execute(`
-        SELECT COALESCE(SUM(credit), 0) as pending_paid
-        FROM transaction 
-        WHERE user_id = ? 
-          AND status = 'pending' 
-          AND credit > 0 
-          AND date >= ?
-          AND transaction_type IN ('subscription', 'deposit')
-      `, [userId, cutoffDate]);
-
-      const totalPaidLast24Months = parseFloat(subscriptionPayments[0].total_paid || 0);
-      const totalPendingLast24Months = parseFloat(pendingPayments[0].pending_paid || 0);
-      
-      // Required amount for all members (simplified to single rate)
-      const requiredSubscriptionAmount = 240; // 240 KWD for all members over 24 months
-      
-      eligibilityChecks.hasRequiredSubscription = totalPaidLast24Months >= requiredSubscriptionAmount;
-      eligibilityChecks.hasSubscriptionFees = totalPaidLast24Months >= requiredSubscriptionAmount;
-      eligibilityChecks.subscriptionDetails = {
-        required: parseFloat(requiredSubscriptionAmount),
-        paid: parseFloat(totalPaidLast24Months),
-        pending: parseFloat(totalPendingLast24Months),
-        total: parseFloat(totalPaidLast24Months + totalPendingLast24Months),
-        shortfall: parseFloat(Math.max(0, requiredSubscriptionAmount - totalPaidLast24Months)),
-        monthsChecked: monthsToCheck
-      };
-
-      // Rule 5: Check 11 months since last loan received
-      const [lastLoan] = await pool.execute(`
-        SELECT approval_date FROM requested_loan 
-        WHERE user_id = ? AND status = 'approved' 
-        ORDER BY approval_date DESC LIMIT 1
-      `, [userId]);
-
-      if (lastLoan.length > 0 && lastLoan[0].approval_date) {
-        const monthsSinceLastLoan = Math.floor(
-          (new Date() - new Date(lastLoan[0].approval_date)) / (1000 * 60 * 60 * 24 * 30)
-        );
-        eligibilityChecks.hasPassedLastLoanReceived = monthsSinceLastLoan >= 11;
-      } else {
-        eligibilityChecks.hasPassedLastLoanReceived = true; // No previous loans
+      // Skip admin users - they can't get loans
+      if (user.user_type === 'admin') {
+        return { eligible: false, reason: 'المدراء لا يمكنهم طلب القروض', reasons: ['admin_user'] };
       }
 
-      // Rule 6: Check joining fee approval status
-      eligibilityChecks.hasJoiningFeeApproved = user.joining_fee_approved === 'approved';
-
-      // Rule 7: Check 1-year registration requirement
+      // Individual eligibility tests
+      const tests = {};
+      const reasons = [];
+      const messages = [];
+      
+      // Test 1: User not blocked
+      tests.notBlocked = user.is_blocked !== 1;
+      if (!tests.notBlocked) {
+        reasons.push('blocked_user');
+        messages.push('الحساب محظور مؤقتاً');
+      }
+      
+      // Test 2: Joining fee approved
+      tests.joiningFeeApproved = user.joining_fee_approved === 'approved';
+      if (!tests.joiningFeeApproved) {
+        reasons.push('joining_fee_not_approved');
+        const status = user.joining_fee_approved === 'rejected' ? 'مرفوضة' : 
+                     user.joining_fee_approved === 'pending' ? 'معلقة' : 'غير محددة';
+        messages.push(`رسوم الانضمام غير معتمدة (الحالة: ${status})`);
+      }
+      
+      // Test 3: Minimum balance (500 KWD)
+      const currentBalance = parseFloat(user.balance || 0);
+      tests.hasMinimumBalance = currentBalance >= 500;
+      if (!tests.hasMinimumBalance) {
+        reasons.push('insufficient_balance');
+        messages.push(`الرصيد أقل من 500 دينار (الرصيد الحالي: ${currentBalance.toFixed(3)} د.ك)`);
+      }
+      
+      // Test 4: One year registration
+      tests.oneYearRegistration = false;
+      let daysUntilOneYear = 0;
       if (user.registration_date) {
         const registrationDate = new Date(user.registration_date);
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        eligibilityChecks.hasOneYearRegistration = registrationDate <= oneYearAgo;
+        tests.oneYearRegistration = registrationDate <= oneYearAgo;
         
-        if (!eligibilityChecks.hasOneYearRegistration) {
-          const daysRemaining = Math.ceil((oneYearAgo - registrationDate) / (1000 * 60 * 60 * 24));
-          eligibilityChecks.daysUntilOneYear = Math.abs(daysRemaining);
-          eligibilityChecks.monthsUntilOneYear = Math.ceil(Math.abs(daysRemaining) / 30);
+        if (!tests.oneYearRegistration) {
+          const daysRemaining = Math.ceil((oneYearAgo - registrationDate) / (1000 * 60 * 60 * 24 * -1));
+          daysUntilOneYear = daysRemaining;
+          reasons.push('no_one_year_registration');
+          messages.push(`لم يمض عام على التسجيل (باقي ${daysRemaining} يوم)`);
         }
-      } else {
-        eligibilityChecks.hasOneYearRegistration = false;
       }
-
-      // Determine overall eligibility
-      const eligible = !eligibilityChecks.hasActiveOrPendingLoan &&
-                      eligibilityChecks.hasPassedLastLoanClosure &&
-                      eligibilityChecks.hasRequiredBalance &&
-                      eligibilityChecks.hasSubscriptionFees &&
-                      eligibilityChecks.hasPassedLastLoanReceived &&
-                      eligibilityChecks.hasJoiningFeeApproved &&
-                      eligibilityChecks.hasOneYearRegistration;
-
-      // Generate Arabic reason message
-      let reason = '';
-      if (!eligible) {
-        const reasons = [];
-        if (eligibilityChecks.hasActiveOrPendingLoan) {
-          reasons.push('يوجد قرض حالي مفتوح أو بانتظار الموافقة');
-        }
-        if (!eligibilityChecks.hasPassedLastLoanClosure) {
-          const daysLeft = eligibilityChecks.daysUntilNextLoan || 0;
-          reasons.push(`لم يمر 30 يوم على إغلاق آخر قرض - باقي ${daysLeft} يوم`);
-        }
-        if (!eligibilityChecks.hasRequiredBalance) {
-          reasons.push('الرصيد أقل من 500 دينار (الحد الأدنى لطلب القرض)');
-        }
-        if (!eligibilityChecks.hasSubscriptionFees) {
-          const details = eligibilityChecks.subscriptionDetails;
-          const shortfall = details.shortfall.toFixed(3);
-          const userTypeText = user.user_type === 'employee' ? 'موظف' : 'طالب';
-          reasons.push(`نقص في اشتراك 24 شهر - مطلوب ${details.required} د.ك (${userTypeText}) - دفع ${details.paid.toFixed(3)} د.ك - باقي ${shortfall} د.ك`);
-        }
-        if (!eligibilityChecks.hasPassedLastLoanReceived) {
-          reasons.push('لم يمر 11 شهر على استلام آخر قرض');
-        }
-        if (!eligibilityChecks.hasJoiningFeeApproved) {
-          const statusText = user.joining_fee_approved === 'rejected' ? 'مرفوضة' : 
-                           user.joining_fee_approved === 'pending' ? 'بانتظار الموافقة' : 'غير محددة';
-          reasons.push(`يجب على المشترك دفع رسوم الانضمام 10 د.ك - الحالة: ${statusText}`);
-        }
-        if (!eligibilityChecks.hasOneYearRegistration) {
-          const daysRemaining = eligibilityChecks.daysUntilOneYear || 0;
-          reasons.push(`يجب أن يكون المشترك مسجل لمدة سنة واحدة على الأقل - باقي ${daysRemaining} يوم`);
-        }
-        reason = reasons.join(' • ');
+      
+      // Test 5: No active loans (exclude completed loans with loan_closed_date)
+      const [activeLoanResults] = await pool.execute(
+        'SELECT COUNT(*) as count FROM requested_loan WHERE user_id = ? AND status IN ("pending", "approved") AND loan_closed_date IS NULL',
+        [userId]
+      );
+      tests.noActiveLoans = activeLoanResults[0].count === 0;
+      if (!tests.noActiveLoans) {
+        reasons.push('active_loan');
+        messages.push('يوجد قرض نشط أو معلق');
       }
-
+      
+      // Test 6: Subscription payment (240 KWD minimum within 24 months)
+      const [subscriptionResults] = await pool.execute(
+        'SELECT COALESCE(SUM(credit), 0) as total_paid FROM transaction WHERE user_id = ? AND status = "accepted" AND credit > 0 AND date >= DATE_SUB(NOW(), INTERVAL 24 MONTH)',
+        [userId]
+      );
+      const totalPaid = parseFloat(subscriptionResults[0].total_paid || 0);
+      const requiredAmount = 240; // Minimum 240 KWD within 24 months
+      tests.hasSubscriptionPayment = totalPaid >= requiredAmount;
+      if (!tests.hasSubscriptionPayment) {
+        reasons.push('insufficient_subscription');
+        const shortfall = requiredAmount - totalPaid;
+        messages.push(`نقص في دفع الاشتراكات (مطلوب: ${requiredAmount} د.ك، مدفوع: ${totalPaid.toFixed(3)} د.ك، باقي: ${shortfall.toFixed(3)} د.ك)`);
+      }
+      
+      // Test 7: 30 days since last loan closure
+      const [lastClosureResults] = await pool.execute(
+        'SELECT loan_closed_date FROM requested_loan WHERE user_id = ? AND loan_closed_date IS NOT NULL ORDER BY loan_closed_date DESC LIMIT 1',
+        [userId]
+      );
+      tests.thirtyDaysSinceClosure = true;
+      let daysUntilNextLoan = 0;
+      if (lastClosureResults.length > 0) {
+        const lastClosure = new Date(lastClosureResults[0].loan_closed_date);
+        const daysSince = Math.floor((new Date() - lastClosure) / (1000 * 60 * 60 * 24));
+        tests.thirtyDaysSinceClosure = daysSince >= 30;
+        if (!tests.thirtyDaysSinceClosure) {
+          daysUntilNextLoan = 30 - daysSince;
+          reasons.push('closure_period_not_met');
+          messages.push(`لم يمر 30 يوم على إغلاق آخر قرض (باقي ${daysUntilNextLoan} يوم)`);
+        }
+      }
+      
+      // Overall eligibility
+      const eligible = Object.values(tests).every(test => test === true);
+      
+      // Calculate max loan amount
+      const maxLoanAmount = eligible ? Math.min(currentBalance * 3, 10000) : 0;
+      
       return {
-        isEligible: eligible,
         eligible,
-        reason,
-        errors: eligible ? [] : [reason],
-        ...eligibilityChecks,
-        checks: eligibilityChecks,
-        maxLoanAmount: user.max_loan_amount,
-        currentBalance: user.current_balance
+        isEligible: eligible,
+        reason: messages.join(' • ') || 'مؤهل لطلب قرض',
+        reasons,
+        messages,
+        tests,
+        daysUntilNextLoan,
+        maxLoanAmount,
+        currentBalance,
+        userType: user.user_type,
+        registrationDate: user.registration_date,
+        subscriptionPaid: totalPaid,
+        requiredSubscription: requiredAmount,
+        daysUntilOneYear,
+        daysUntilNextLoan
       };
-
     } catch (error) {
-      throw new Error('خطأ في فحص أهلية القرض: ' + error.message);
+      console.error('خطأ في فحص أهلية القرض:', error);
+      return { eligible: false, reason: 'خطأ في النظام', reasons: ['system_error'] };
     }
   }
 
-  // Get user's loan history
-  static async getUserLoanHistory(userId) {
+  static async getUserLoanHistory(userId, limit = 50) {
     try {
-      const [loans] = await pool.execute(`
-        SELECT rl.*, u.Aname as admin_name
+      const query = `
+        SELECT 
+          rl.loan_id,
+          rl.user_id,
+          rl.loan_amount,
+          rl.installment_amount,
+          rl.status,
+          rl.request_date,
+          rl.approval_date,
+          rl.loan_closed_date,
+          rl.admin_id,
+          u.Aname as admin_name,
+          COALESCE(SUM(CASE WHEN l.status = 'accepted' THEN l.credit ELSE 0 END), 0) as total_paid
         FROM requested_loan rl
         LEFT JOIN users u ON rl.admin_id = u.user_id
+        LEFT JOIN loan l ON rl.loan_id = l.target_loan_id
         WHERE rl.user_id = ?
+        GROUP BY rl.loan_id, rl.user_id, rl.loan_amount, rl.installment_amount, rl.status, 
+                 rl.request_date, rl.approval_date, rl.loan_closed_date, rl.admin_id, u.Aname
         ORDER BY rl.request_date DESC
-      `, [userId]);
+        LIMIT ?
+      `;
 
+      const [loans] = await pool.execute(query, [userId, limit]);
       return loans;
     } catch (error) {
-      throw new Error('خطأ في جلب تاريخ القروض: ' + error.message);
+      throw new Error(`خطأ في جلب تاريخ القروض: ${error.message}`);
     }
   }
 
-  // Get user's transaction history
-  static async getUserTransactions(userId) {
+  static async getUserTransactions(userId, limit = 50, transactionType = null) {
     try {
-      const [transactions] = await pool.execute(`
+      let query = `
         SELECT t.*, u.Aname as admin_name
         FROM transaction t
         LEFT JOIN users u ON t.admin_id = u.user_id
         WHERE t.user_id = ?
-        ORDER BY t.date DESC
-        LIMIT 50
-      `, [userId]);
+      `;
+      
+      const params = [userId];
+      
+      if (transactionType) {
+        query += ' AND t.transaction_type = ?';
+        params.push(transactionType);
+      }
+      
+      query += ' ORDER BY t.date DESC LIMIT ?';
+      params.push(limit);
 
+      const [transactions] = await pool.execute(query, params);
       return transactions;
     } catch (error) {
-      throw new Error('خطأ في جلب تاريخ المعاملات: ' + error.message);
+      throw new Error(`خطأ في جلب تاريخ المعاملات: ${error.message}`);
     }
   }
 
-  static async getUserLoanPayments(userId) {
+  static async getUserLoanPayments(userId, loanId = null) {
     try {
-      const [loanPayments] = await pool.execute(`
-        SELECT l.*, u.Aname as admin_name, rl.loan_amount
+      let query = `
+        SELECT l.*, 
+               u.Aname as admin_name, 
+               rl.loan_amount,
+               rl.installment_amount,
+               rl.status as loan_status
         FROM loan l
         LEFT JOIN users u ON l.admin_id = u.user_id
         LEFT JOIN requested_loan rl ON l.target_loan_id = rl.loan_id
         WHERE l.user_id = ? AND l.target_loan_id IS NOT NULL AND l.status = 'accepted'
-        ORDER BY l.date DESC
-      `, [userId]);
+      `;
+      
+      const params = [userId];
+      
+      if (loanId) {
+        query += ' AND l.target_loan_id = ?';
+        params.push(loanId);
+      }
+      
+      query += ' ORDER BY l.date DESC';
 
+      const [loanPayments] = await pool.execute(query, params);
       return loanPayments;
     } catch (error) {
-      throw new Error('خطأ في جلب تاريخ تسديدات القروض: ' + error.message);
+      throw new Error(`خطأ في جلب تاريخ تسديدات القروض: ${error.message}`);
     }
   }
+
 }
 
 module.exports = UserModel;

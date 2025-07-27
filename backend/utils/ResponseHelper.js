@@ -1,75 +1,93 @@
-/**
- * Standardized API response helper
- */
 class ResponseHelper {
-  static sendSuccessResponse(res, message, data = null, statusCode = 200) {
+  static success(res, data = null, message = 'تم بنجاح', statusCode = 200) {
     const response = {
       success: true,
-      message,
+      message
     };
 
     if (data !== null) {
-      response.data = data;
+      if (typeof data === 'object' && !Array.isArray(data)) {
+        Object.assign(response, data);
+      } else {
+        response.data = data;
+      }
     }
 
     return res.status(statusCode).json(response);
   }
 
-  static sendErrorResponse(res, message, statusCode = 500, errors = null) {
+  static error(res, message = 'حدث خطأ', statusCode = 500, details = null) {
     const response = {
       success: false,
-      message,
+      message
     };
 
-    if (errors !== null) {
-      response.errors = Array.isArray(errors) ? errors : [errors];
+    if (details && process.env.NODE_ENV === 'development') {
+      response.details = details;
     }
 
     return res.status(statusCode).json(response);
   }
 
-  static sendValidationError(res, errors) {
-    const errorMessages = Array.isArray(errors) ? errors : [errors];
+  static validationError(res, errors) {
+    return res.status(400).json({
+      success: false,
+      message: 'خطأ في البيانات المدخلة',
+      errors
+    });
+  }
+
+  static notFound(res, message = 'العنصر غير موجود') {
+    return res.status(404).json({
+      success: false,
+      message
+    });
+  }
+
+  static unauthorized(res, message = 'غير مصرح لك بالدخول') {
+    return res.status(401).json({
+      success: false,
+      message
+    });
+  }
+
+  static forbidden(res, message = 'غير مصرح لك بهذا الإجراء') {
+    return res.status(403).json({
+      success: false,
+      message
+    });
+  }
+
+  static created(res, data = null, message = 'تم الإنشاء بنجاح') {
+    return this.success(res, data, message, 201);
+  }
+
+  static updated(res, data = null, message = 'تم التحديث بنجاح') {
+    return this.success(res, data, message);
+  }
+
+  static deleted(res, message = 'تم الحذف بنجاح') {
+    return this.success(res, null, message);
+  }
+
+  // Pagination helper
+  static paginated(res, data, page, limit, total, message = 'تم جلب البيانات بنجاح') {
+    const totalPages = Math.ceil(total / limit);
     
-    return this.sendErrorResponse(
-      res, 
-      'خطأ في البيانات المدخلة', 
-      422, 
-      errorMessages
-    );
-  }
-
-  static sendUnauthorizedError(res, message = 'غير مخول للوصول') {
-    return this.sendErrorResponse(res, message, 401);
-  }
-
-  static sendForbiddenError(res, message = 'محظور الوصول') {
-    return this.sendErrorResponse(res, message, 403);
-  }
-
-  static sendNotFoundError(res, message = 'المورد غير موجود') {
-    return this.sendErrorResponse(res, message, 404);
-  }
-
-  static sendInternalServerError(res, message = 'خطأ داخلي في الخادم') {
-    return this.sendErrorResponse(res, message, 500);
-  }
-
-  static handleAsyncError(fn) {
-    return (req, res, next) => {
-      Promise.resolve(fn(req, res, next)).catch(next);
-    };
+    return res.json({
+      success: true,
+      message,
+      data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: parseInt(total),
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    });
   }
 }
 
 module.exports = ResponseHelper;
-
-// Export commonly used methods directly
-module.exports.sendSuccessResponse = ResponseHelper.sendSuccessResponse;
-module.exports.sendErrorResponse = ResponseHelper.sendErrorResponse;
-module.exports.sendValidationError = ResponseHelper.sendValidationError;
-module.exports.sendUnauthorizedError = ResponseHelper.sendUnauthorizedError;
-module.exports.sendForbiddenError = ResponseHelper.sendForbiddenError;
-module.exports.sendNotFoundError = ResponseHelper.sendNotFoundError;
-module.exports.sendInternalServerError = ResponseHelper.sendInternalServerError;
-module.exports.handleAsyncError = ResponseHelper.handleAsyncError;

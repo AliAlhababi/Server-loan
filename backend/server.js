@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
+const { errorHandler } = require('./utils/ErrorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,14 +28,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('خطأ في الخادم:', err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'خطأ داخلي في الخادم'
-  });
-});
+// Error handling middleware (use our optimized error handler)
+app.use(errorHandler);
 
 // Handle 404
 app.use('*', (req, res) => {
