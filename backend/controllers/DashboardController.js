@@ -11,7 +11,7 @@ class DashboardController {
     const [
       totalUsers,
       pendingLoans,
-      pendingTransactions,
+      pendingSubscriptions,
       pendingLoanPayments
     ] = await Promise.all([
       DatabaseService.count('users'),
@@ -23,13 +23,16 @@ class DashboardController {
     console.log('Dashboard stats:', {
       totalUsers,
       pendingLoans,
-      pendingTransactions: pendingTransactions + pendingLoanPayments
+      pendingSubscriptions,
+      pendingLoanPayments
     });
 
     const stats = {
       totalUsers,
       pendingLoans,
-      pendingTransactions: pendingTransactions + pendingLoanPayments,
+      pendingSubscriptions,
+      pendingLoanPayments,
+      pendingTransactions: pendingSubscriptions + pendingLoanPayments, // Keep for backward compatibility
       pendingRegistrations: 0 // Keep for frontend compatibility
     };
 

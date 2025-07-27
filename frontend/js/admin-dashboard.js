@@ -38,7 +38,8 @@ class AdminDashboard {
                 // Update DOM elements with error checking
                 const totalUsersEl = document.getElementById('totalUsers');
                 const pendingLoansEl = document.getElementById('pendingLoans');
-                const pendingTransactionsEl = document.getElementById('pendingTransactions');
+                const pendingSubscriptionsEl = document.getElementById('pendingSubscriptions');
+                const pendingLoanPaymentsEl = document.getElementById('pendingLoanPayments');
                 
                 if (totalUsersEl) {
                     totalUsersEl.textContent = stats.totalUsers || '0';
@@ -50,9 +51,14 @@ class AdminDashboard {
                     console.log('Updated pending loans:', stats.pendingLoans);
                 }
                 
-                if (pendingTransactionsEl) {
-                    pendingTransactionsEl.textContent = stats.pendingTransactions || '0';
-                    console.log('Updated pending transactions:', stats.pendingTransactions);
+                if (pendingSubscriptionsEl) {
+                    pendingSubscriptionsEl.textContent = stats.pendingSubscriptions || '0';
+                    console.log('Updated pending subscriptions:', stats.pendingSubscriptions);
+                }
+                
+                if (pendingLoanPaymentsEl) {
+                    pendingLoanPaymentsEl.textContent = stats.pendingLoanPayments || '0';
+                    console.log('Updated pending loan payments:', stats.pendingLoanPayments);
                 }
             } else {
                 console.error('Invalid response format:', result);
@@ -70,11 +76,13 @@ class AdminDashboard {
             // Set default values on error
             const totalUsersEl = document.getElementById('totalUsers');
             const pendingLoansEl = document.getElementById('pendingLoans');
-            const pendingTransactionsEl = document.getElementById('pendingTransactions');
+            const pendingSubscriptionsEl = document.getElementById('pendingSubscriptions');
+            const pendingLoanPaymentsEl = document.getElementById('pendingLoanPayments');
             
             if (totalUsersEl) totalUsersEl.textContent = 'خطأ';
             if (pendingLoansEl) pendingLoansEl.textContent = 'خطأ';
-            if (pendingTransactionsEl) pendingTransactionsEl.textContent = 'خطأ';
+            if (pendingSubscriptionsEl) pendingSubscriptionsEl.textContent = 'خطأ';
+            if (pendingLoanPaymentsEl) pendingLoanPaymentsEl.textContent = 'خطأ';
         }
     }
 
@@ -128,7 +136,10 @@ class AdminDashboard {
                             <i class="fas fa-clock"></i> الطلبات المعلقة (${document.getElementById('pendingLoans').textContent})
                         </button>
                         <button class="quick-action-btn" onclick="transactionsManagement.show()">
-                            <i class="fas fa-credit-card"></i> المعاملات المعلقة (${document.getElementById('pendingTransactions').textContent})
+                            <i class="fas fa-coins"></i> اشتراكات معلقة (${document.getElementById('pendingSubscriptions')?.textContent || '0'})
+                        </button>
+                        <button class="quick-action-btn" onclick="loansManagement.show('payments')">
+                            <i class="fas fa-credit-card"></i> أقساط قروض معلقة (${document.getElementById('pendingLoanPayments')?.textContent || '0'})
                         </button>
                         <button class="quick-action-btn" onclick="usersManagement.show()">
                             <i class="fas fa-users"></i> إدارة الأعضاء

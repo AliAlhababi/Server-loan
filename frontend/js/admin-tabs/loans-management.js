@@ -8,7 +8,7 @@ class LoansManagement {
     }
 
     // Show loans management section
-    async show() {
+    async show(defaultTab = 'pending') {
         this.adminDashboard.contentArea.innerHTML = `
             <div class="management-section">
                 <div class="section-header">
@@ -21,16 +21,16 @@ class LoansManagement {
                 </div>
                 
                 <div class="admin-tabs">
-                    <button class="admin-tab active" data-tab="pending">
+                    <button class="admin-tab ${defaultTab === 'pending' ? 'active' : ''}" data-tab="pending">
                         <i class="fas fa-clock"></i> طلبات معلقة
                     </button>
-                    <button class="admin-tab" data-tab="payments">
+                    <button class="admin-tab ${defaultTab === 'payments' ? 'active' : ''}" data-tab="payments">
                         <i class="fas fa-credit-card"></i> أقساط معلقة
                     </button>
-                    <button class="admin-tab" data-tab="all-payments">
+                    <button class="admin-tab ${defaultTab === 'all-payments' ? 'active' : ''}" data-tab="all-payments">
                         <i class="fas fa-history"></i> سجل المدفوعات
                     </button>
-                    <button class="admin-tab" data-tab="all">
+                    <button class="admin-tab ${defaultTab === 'all' ? 'active' : ''}" data-tab="all">
                         <i class="fas fa-list"></i> جميع الطلبات
                     </button>
                 </div>
@@ -46,7 +46,7 @@ class LoansManagement {
         `;
 
         this.setupTabListeners();
-        await this.loadTab('pending');
+        await this.loadTab(defaultTab);
     }
 
     // Setup tab listeners
@@ -354,10 +354,70 @@ class LoansManagement {
         if (!confirm('هل أنت متأكد من الموافقة على هذا القرض؟')) return;
         
         try {
+            // Get loan details first for WhatsApp notification
+            let loanDetails = null;
+            try {
+                const loanResult = await apiCall(`/admin/loan-details/${loanId}`);
+                loanDetails = loanResult.loan;
+            } catch (detailError) {
+                console.warn('Could not fetch loan details for WhatsApp notification:', detailError);
+            }
+
             const result = await apiCall(`/admin/loan-action/${loanId}`, 'POST', { 
                 action: 'approve' 
             });
             showToast(result.message, 'success');
+            
+            // Send WhatsApp notification if loan details are available
+            if (loanDetails && (loanDetails.whatsapp || loanDetails.phone)) {
+                try {
+                    // Get user details for WhatsApp notification
+                    const userResult = await apiCall(`/admin/user-details/${loanDetails.user_id}`);
+                    const user = userResult.user;
+                    
+                    if (user && (user.whatsapp || user.phone)) {
+                        const phoneNumber = user.whatsapp || user.phone;
+                        const userName = user.Aname || loanDetails.full_name || 'العضو';
+                        const numberOfInstallments = loanDetails.installment_amount > 0 ? 
+                            Math.max(6, Math.ceil(loanDetails.loan_amount / loanDetails.installment_amount)) : 6;
+                        
+                        // Get user financial data for enhanced notifications
+                        let userFinancials = null;
+                        try {
+                            const userTransactionsResult = await apiCall(`/users/transactions/${loanDetails.user_id}`);
+                            const subscriptions = userTransactionsResult.transactions?.filter(t => 
+                                t.transaction_type === 'subscription' && t.status === 'accepted'
+                            ) || [];
+                            const totalSubscriptions = subscriptions.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
+                            
+                            userFinancials = {
+                                currentBalance: FormatHelper.formatCurrency(user.balance || 0),
+                                totalSubscriptions: totalSubscriptions.toFixed(3)
+                            };
+                        } catch (financialError) {
+                            console.warn('Could not fetch user financial data:', financialError);
+                        }
+                        
+                        // Send WhatsApp notification
+                        const whatsappSent = Utils.sendWhatsAppNotification(
+                            phoneNumber, 
+                            userName, 
+                            'loanApproved',
+                            userFinancials,
+                            FormatHelper.formatCurrency(loanDetails.loan_amount),
+                            FormatHelper.formatCurrency(loanDetails.installment_amount),
+                            numberOfInstallments
+                        );
+                        
+                        if (whatsappSent) {
+                            showToast('تم فتح واتساب ويب لإرسال إشعار للعضو', 'info');
+                        }
+                    }
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                    // Don't show error to user - WhatsApp is supplementary
+                }
+            }
             
             // Refresh current tab
             await this.loadTab(this.currentTab);
@@ -378,11 +438,49 @@ class LoansManagement {
         if (!confirm('هل أنت متأكد من رفض هذا القرض؟')) return;
         
         try {
+            // Get loan details first for WhatsApp notification
+            let loanDetails = null;
+            try {
+                const loanResult = await apiCall(`/admin/loan-details/${loanId}`);
+                loanDetails = loanResult.loan;
+            } catch (detailError) {
+                console.warn('Could not fetch loan details for WhatsApp notification:', detailError);
+            }
+
             const result = await apiCall(`/admin/loan-action/${loanId}`, 'POST', { 
                 action: 'reject',
                 reason: reason || ''
             });
             showToast(result.message, 'success');
+            
+            // Send WhatsApp notification if loan details are available
+            if (loanDetails && (loanDetails.whatsapp || loanDetails.phone)) {
+                try {
+                    // Get user details for WhatsApp notification
+                    const userResult = await apiCall(`/admin/user-details/${loanDetails.user_id}`);
+                    const user = userResult.user;
+                    
+                    if (user && (user.whatsapp || user.phone)) {
+                        const phoneNumber = user.whatsapp || user.phone;
+                        const userName = user.Aname || loanDetails.full_name || 'العضو';
+                        
+                        // Send WhatsApp notification
+                        const whatsappSent = Utils.sendWhatsAppNotification(
+                            phoneNumber, 
+                            userName, 
+                            'loanRejected',
+                            FormatHelper.formatCurrency(loanDetails.loan_amount)
+                        );
+                        
+                        if (whatsappSent) {
+                            showToast('تم فتح واتساب ويب لإرسال إشعار للعضو', 'info');
+                        }
+                    }
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                    // Don't show error to user - WhatsApp is supplementary
+                }
+            }
             
             // Refresh current tab
             await this.loadTab(this.currentTab);
@@ -489,10 +587,84 @@ class LoansManagement {
         if (!confirm('هل أنت متأكد من الموافقة على هذه الدفعة؟')) return;
         
         try {
+            // Get payment details first for WhatsApp notification
+            let paymentDetails = null;
+            let userDetails = null;
+            
+            try {
+                const allPaymentsResult = await apiCall('/admin/all-loan-payments');
+                paymentDetails = allPaymentsResult.loanPayments?.find(p => p.loan_id == paymentId);
+                
+                if (paymentDetails && paymentDetails.user_id) {
+                    const userResult = await apiCall(`/admin/user-details/${paymentDetails.user_id}`);
+                    userDetails = userResult.user;
+                }
+            } catch (detailError) {
+                console.warn('Could not fetch payment details for WhatsApp notification:', detailError);
+            }
+            
             const result = await apiCall(`/admin/loan-payment-action/${paymentId}`, 'POST', { 
                 action: 'approve' 
             });
             showToast(result.message, 'success');
+            
+            // Send WhatsApp notification if details are available
+            if (paymentDetails && userDetails && (userDetails.whatsapp || userDetails.phone)) {
+                try {
+                    const phoneNumber = userDetails.whatsapp || userDetails.phone;
+                    const userName = userDetails.Aname || paymentDetails.full_name || 'العضو';
+                    
+                    // Get user financial data for enhanced notifications
+                    let userFinancials = null;
+                    try {
+                        const userTransactionsResult = await apiCall(`/users/transactions/${paymentDetails.user_id}`);
+                        const subscriptions = userTransactionsResult.transactions?.filter(t => 
+                            t.transaction_type === 'subscription' && t.status === 'accepted'
+                        ) || [];
+                        const totalSubscriptions = subscriptions.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
+                        
+                        userFinancials = {
+                            currentBalance: FormatHelper.formatCurrency(userDetails.balance || 0),
+                            totalSubscriptions: totalSubscriptions.toFixed(3)
+                        };
+                    } catch (financialError) {
+                        console.warn('Could not fetch user financial data:', financialError);
+                    }
+                    
+                    // Get loan summary for progress tracking
+                    const paymentAmount = paymentDetails.credit || 0;
+                    const totalPaid = paymentDetails.total_paid_for_loan || 0;
+                    const loanAmount = paymentDetails.loan_amount || 0;
+                    const remainingAmount = Math.max(0, loanAmount - totalPaid);
+                    
+                    // Debug log for payment data
+                    console.log('Payment details for WhatsApp:', {
+                        paymentAmount,
+                        totalPaid, 
+                        loanAmount,
+                        remainingAmount,
+                        paymentDetails
+                    });
+                    
+                    const whatsappSent = Utils.sendWhatsAppNotification(
+                        phoneNumber,
+                        userName,
+                        'loanPaymentApproved',
+                        userFinancials,
+                        FormatHelper.formatCurrency(paymentAmount),
+                        FormatHelper.formatCurrency(totalPaid),
+                        FormatHelper.formatCurrency(loanAmount),
+                        FormatHelper.formatCurrency(remainingAmount)
+                    );
+                    
+                    if (whatsappSent) {
+                        showToast('تم فتح واتساب ويب لإرسال إشعار دفعة القرض للعضو', 'info');
+                    }
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                    // Don't show error to user - WhatsApp is supplementary
+                }
+            }
             
             // Refresh current tab
             await this.loadTab(this.currentTab);

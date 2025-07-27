@@ -350,13 +350,53 @@ EMAIL_FROM_ADDRESS=your-email@gmail.com # From address
 - **Mobile Responsive**: Professional layout works on all devices
 - **Fallback Support**: Text versions for all HTML emails
 
+## Future Enhancement: Family Account Delegation System 👨‍👩‍👧‍👦
+
+### Concept
+Allow family members (fathers) to manage payments and transactions for other family members (sons, wives) while maintaining individual account autonomy.
+
+### Proposed Database Schema
+```sql
+CREATE TABLE account_delegations (
+    delegation_id INT PRIMARY KEY AUTO_INCREMENT,
+    delegator_user_id INT,  -- Person granting access (son/wife)
+    delegate_user_id INT,   -- Person receiving access (father)
+    delegation_type ENUM('view_only', 'payments_only', 'full_access') DEFAULT 'payments_only',
+    permissions JSON,       -- {"loan_payments": true, "subscriptions": true, "view_balance": true}
+    status ENUM('pending', 'active', 'revoked') DEFAULT 'pending',
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    approved_date TIMESTAMP NULL,
+    revoked_date TIMESTAMP NULL,
+    notes TEXT,
+    FOREIGN KEY (delegator_user_id) REFERENCES users(user_id),
+    FOREIGN KEY (delegate_user_id) REFERENCES users(user_id),
+    UNIQUE KEY unique_delegation (delegator_user_id, delegate_user_id)
+);
+```
+
+### Key Features
+- **Delegation Request System**: Send/approve delegation requests between family members
+- **Permission Levels**: View-only, payments-only, or full access (excluding password changes)
+- **Family Dashboard**: Delegate sees own account + managed family accounts with clear separation
+- **Security**: All actions logged with delegate information, notifications to both parties
+- **Revocable**: Delegations can be revoked anytime by either party or admin
+- **Audit Trail**: Complete tracking of all delegated actions
+
+### Benefits
+- ✅ Maintains individual autonomy while enabling family assistance
+- ✅ Secure permission system with granular control
+- ✅ Perfect for cooperative family-oriented financial management
+- ✅ Transparent with notifications and audit trails
+- ✅ Culturally appropriate for family-based financial cooperation
+
 ---
 
 **System Status**: ✅ Production Ready & Fully Functional  
-**Database Schema**: ✅ Updated & Documented (December 2025)  
-**Last Update**: December 2025 - Admin Segmentation, Enhanced Registration & Email System  
-**Key Achievement**: Complete admin segmentation with comprehensive email notifications  
-**Architecture**: Modular design with shared utilities and robust email service  
-**Admin Features**: Segmented user management with full transparency and email notifications  
-**User Experience**: Professional registration flow with mandatory rules and email updates  
-**Communication**: Automated email notifications for all admin actions with detailed progress tracking
+**Database Schema**: ✅ Updated & Documented (July 2025)  
+**Last Update**: July 2025 - Enhanced Notifications, Separated Admin Dashboard Stats, WhatsApp Integration  
+**Key Achievement**: Complete admin segmentation with comprehensive WhatsApp & email notifications  
+**Architecture**: Modular design with shared utilities and robust communication services  
+**Admin Features**: Segmented user management with separated subscription/loan payment statistics  
+**User Experience**: Professional registration flow with enhanced notification system  
+**Communication**: Automated WhatsApp & email notifications with financial data integration  
+**Notifications**: Fixed formatting, removed zero values, proper admin action routing

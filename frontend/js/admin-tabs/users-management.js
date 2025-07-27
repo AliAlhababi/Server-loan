@@ -180,6 +180,11 @@ class UsersManagement {
                                     <button class="btn btn-sm btn-warning" onclick="usersManagement.editUser(${user.user_id})" title="تعديل">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    ${user.whatsapp || user.phone ? 
+                                        `<button class="btn btn-sm btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', '${user.Aname || 'المستخدم'}')" title="محادثة واتساب">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>` : ''
+                                    }
                                     ${user.is_blocked ? 
                                         `<button class="btn btn-sm btn-success" onclick="usersManagement.toggleUserBlock(${user.user_id}, false)" title="إلغاء الحظر">
                                             <i class="fas fa-unlock"></i>
@@ -499,7 +504,16 @@ class UsersManagement {
                                 </div>
                                 <div class="detail-row">
                                     <span class="label">الواتساب:</span>
-                                    <span class="value">${user.whatsapp || user.phone || 'غير محدد'}</span>
+                                    <span class="value">
+                                        ${user.whatsapp || user.phone || 'غير محدد'}
+                                        ${user.whatsapp || user.phone ? `
+                                        <button class="btn btn-sm btn-success" style="margin-right: 10px; padding: 4px 8px; font-size: 12px;" 
+                                                onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', '${user.Aname}')" 
+                                                title="فتح محادثة واتساب">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
+                                        ` : ''}
+                                    </span>
                                 </div>
                                 <div class="detail-row">
                                     <span class="label">مكان العمل:</span>
@@ -592,6 +606,11 @@ class UsersManagement {
                                 <i class="fas ${user.is_blocked ? 'fa-unlock' : 'fa-ban'}"></i>
                                 ${user.is_blocked ? 'إلغاء الحظر' : 'حظر المستخدم'}
                             </button>
+                            ${user.whatsapp || user.phone ? `
+                            <button class="btn btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', '${user.Aname}')">
+                                <i class="fab fa-whatsapp"></i> محادثة واتساب
+                            </button>
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -782,10 +801,59 @@ class UsersManagement {
         if (!confirm('هل أنت متأكد من الموافقة على رسوم الانضمام؟')) return;
         
         try {
+            // Get user details first for WhatsApp notification
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${userId}`);
+                userDetails = userResult.user;
+            } catch (detailError) {
+                console.warn('Could not fetch user details for WhatsApp notification:', detailError);
+            }
+
             const result = await apiCall(`/admin/joining-fee-action/${userId}`, 'PUT', { 
                 action: 'approve' 
             });
             showToast(result.message, 'success');
+            
+            // Send WhatsApp notification if user details are available
+            if (userDetails && (userDetails.whatsapp || userDetails.phone)) {
+                try {
+                    const phoneNumber = userDetails.whatsapp || userDetails.phone;
+                    const userName = userDetails.Aname || 'العضو';
+                    
+                    // Get user financial data
+                    let userFinancials = null;
+                    try {
+                        const userTransactionsResult = await apiCall(`/users/transactions/${userId}`);
+                        const subscriptions = userTransactionsResult.transactions?.filter(t => 
+                            t.transaction_type === 'subscription' && t.status === 'accepted'
+                        ) || [];
+                        const totalSubscriptions = subscriptions.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
+                        
+                        userFinancials = {
+                            currentBalance: FormatHelper.formatCurrency(userDetails.balance || 0),
+                            totalSubscriptions: totalSubscriptions.toFixed(3)
+                        };
+                    } catch (financialError) {
+                        console.warn('Could not fetch user financial data:', financialError);
+                    }
+                    
+                    // Send WhatsApp notification
+                    const whatsappSent = Utils.sendWhatsAppNotification(
+                        phoneNumber,
+                        userName,
+                        'joiningFeeApproved',
+                        userFinancials
+                    );
+                    
+                    if (whatsappSent) {
+                        showToast('تم فتح واتساب ويب لإرسال إشعار اعتماد العضوية للعضو', 'info');
+                    }
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                    // Don't show error to user - WhatsApp is supplementary
+                }
+            }
             
             // Refresh users list
             await this.loadTab('list');
@@ -846,6 +914,20 @@ class UsersManagement {
                 ` : ''}
             </div>
         `;
+    }
+
+    // Chat with user via WhatsApp
+    chatWithUser(phoneNumber, userName) {
+        const defaultMessage = `مرحباً ${userName}، أتواصل معك من إدارة صندوق درع العائلة. كيف يمكنني مساعدتك؟`;
+        
+        // Try to open WhatsApp Web (defaults to true)
+        const success = Utils.openWhatsAppWeb(phoneNumber, defaultMessage);
+        
+        if (success) {
+            showToast(`تم فتح واتساب ويب للمحادثة مع ${userName}`, 'success');
+        } else {
+            showToast('خطأ في فتح واتساب ويب - تأكد من صحة رقم الهاتف', 'error');
+        }
     }
 
     // Generate loan payments table (reusing existing loan payments tab logic)

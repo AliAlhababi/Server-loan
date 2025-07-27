@@ -295,6 +295,29 @@ class TransactionsManagement {
         if (!confirm('هل أنت متأكد من الموافقة على هذه المعاملة؟')) return;
         
         try {
+            // Get transaction details first for WhatsApp notification
+            let transactionDetails = null;
+            let userDetails = null;
+            
+            try {
+                if (type === 'loan_payment') {
+                    // Get loan payment details
+                    const allPaymentsResult = await apiCall('/admin/all-loan-payments');
+                    transactionDetails = allPaymentsResult.loanPayments?.find(p => p.loan_id == transactionId);
+                } else {
+                    // Get transaction details
+                    const allTransactionsResult = await apiCall('/admin/all-transactions');
+                    transactionDetails = allTransactionsResult.transactions?.find(t => t.transaction_id == transactionId);
+                }
+                
+                if (transactionDetails && transactionDetails.user_id) {
+                    const userResult = await apiCall(`/admin/user-details/${transactionDetails.user_id}`);
+                    userDetails = userResult.user;
+                }
+            } catch (detailError) {
+                console.warn('Could not fetch transaction details for WhatsApp notification:', detailError);
+            }
+
             // Determine endpoint based on transaction type
             // If it's from loan table, use loan-payment-action, otherwise use transaction-action
             const endpoint = (type === 'loan_payment') 
@@ -305,6 +328,73 @@ class TransactionsManagement {
                 action: 'accept' 
             });
             showToast(result.message, 'success');
+            
+            // Send WhatsApp notification if details are available
+            if (transactionDetails && userDetails && (userDetails.whatsapp || userDetails.phone)) {
+                try {
+                    const phoneNumber = userDetails.whatsapp || userDetails.phone;
+                    const userName = userDetails.Aname || transactionDetails.user_name || 'العضو';
+                    
+                    // Get user financial data for enhanced notifications
+                    let userFinancials = null;
+                    try {
+                        const userTransactionsResult = await apiCall(`/users/transactions/${transactionDetails.user_id}`);
+                        const subscriptions = userTransactionsResult.transactions?.filter(t => 
+                            t.transaction_type === 'subscription' && t.status === 'accepted'
+                        ) || [];
+                        const totalSubscriptions = subscriptions.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
+                        
+                        userFinancials = {
+                            currentBalance: FormatHelper.formatCurrency(userDetails.balance || 0),
+                            totalSubscriptions: totalSubscriptions.toFixed(3)
+                        };
+                    } catch (financialError) {
+                        console.warn('Could not fetch user financial data:', financialError);
+                    }
+                    
+                    if (type === 'loan_payment') {
+                        // Loan payment notification
+                        // Get loan summary for progress tracking
+                        const totalPaid = transactionDetails.total_paid_for_loan || transactionDetails.credit || 0;
+                        const loanAmount = transactionDetails.loan_amount || 0;
+                        const remainingAmount = Math.max(0, loanAmount - totalPaid);
+                        
+                        const whatsappSent = Utils.sendWhatsAppNotification(
+                            phoneNumber,
+                            userName,
+                            'loanPaymentApproved',
+                            userFinancials,
+                            FormatHelper.formatCurrency(transactionDetails.credit),
+                            FormatHelper.formatCurrency(totalPaid),
+                            FormatHelper.formatCurrency(loanAmount),
+                            FormatHelper.formatCurrency(remainingAmount)
+                        );
+                        
+                        if (whatsappSent) {
+                            showToast('تم فتح واتساب ويب لإرسال إشعار دفعة القرض للعضو', 'info');
+                        }
+                    } else {
+                        // Regular transaction notification
+                        const amount = (transactionDetails.credit || 0) - (transactionDetails.debit || 0);
+                        
+                        const whatsappSent = Utils.sendWhatsAppNotification(
+                            phoneNumber,
+                            userName,
+                            'transactionApproved',
+                            userFinancials,
+                            FormatHelper.formatCurrency(Math.abs(amount)),
+                            transactionDetails.transaction_type
+                        );
+                        
+                        if (whatsappSent) {
+                            showToast('تم فتح واتساب ويب لإرسال إشعار المعاملة للعضو', 'info');
+                        }
+                    }
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                    // Don't show error to user - WhatsApp is supplementary
+                }
+            }
             
             // Refresh current tab
             await this.loadTab(this.currentTab);

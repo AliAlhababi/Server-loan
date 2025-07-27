@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار روابط الواتساب</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 3px;
+            font-family: monospace;
+            direction: ltr;
+            text-align: left;
+        }
+        button {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1ea952;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 اختبار روابط الواتساب - صندوق درع العائلة</h1>
+        
+        <div class="test-case">
+            <h3>اختبار 1: رقم كويتي مع 965+ (واتساب ويب)</h3>
+            <p>الرقم: +96512345678</p>
+            <button onclick="testWhatsApp('+96512345678', 'أحمد محمد', true)">اختبار واتساب ويب</button>
+            <button onclick="testWhatsApp('+96512345678', 'أحمد محمد', false)">اختبار واتساب موبايل</button>
+            <div class="result" id="result1"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>اختبار 2: رقم كويتي بدون رمز الدولة (واتساب ويب)</h3>
+            <p>الرقم: 12345678</p>
+            <button onclick="testWhatsApp('12345678', 'فاطمة علي', true)">اختبار واتساب ويب</button>
+            <div class="result" id="result2"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>اختبار 3: رقم كويتي مع صفر بداية (واتساب ويب)</h3>
+            <p>الرقم: 012345678</p>
+            <button onclick="testWhatsApp('012345678', 'محمد سالم', true)">اختبار واتساب ويب</button>
+            <div class="result" id="result3"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>اختبار 4: مقارنة واتساب ويب مقابل الموبايل</h3>
+            <p>الرقم: (+965) 1234-5678</p>
+            <button onclick="testWhatsApp('(+965) 1234-5678', 'سارة خالد', true)">واتساب ويب</button>
+            <button onclick="testWhatsApp('(+965) 1234-5678', 'سارة خالد', false)">واتساب موبايل</button>
+            <div class="result" id="result4"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>اختبار 5: رقم غير صحيح</h3>
+            <p>الرقم: فارغ أو null</p>
+            <button onclick="testWhatsApp('', 'مستخدم مجهول', true)">اختبار الرابط</button>
+            <div class="result" id="result5"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>اختبار 6: إشعارات درع العائلة</h3>
+            <p>اختبار رسائل الإشعارات المختلفة</p>
+            <button onclick="testNotification('joiningFeeApproved', 'أحمد محمد')">اعتماد العضوية</button>
+            <button onclick="testNotification('loanApproved', 'فاطمة علي', '2000.000', '150.000', '14')">اعتماد قرض</button>
+            <button onclick="testNotification('transactionApproved', 'محمد سالم', '50.000', 'subscription', '180.000')">اعتماد اشتراك</button>
+            <div class="result" id="result6"></div>
+        </div>
+    </div>
+
+    <script>
+        // Copy the Utils WhatsApp functions for testing
+        const Utils = {
+            formatWhatsAppNumber: (phoneNumber, countryCode = '965') => {
+                if (!phoneNumber) return null;
+                
+                // Clean the phone number - remove all non-digits
+                let cleanNumber = phoneNumber.toString().replace(/\D/g, '');
+                
+                // Remove leading zeros
+                cleanNumber = cleanNumber.replace(/^0+/, '');
+                
+                // If number already starts with country code, use as is
+                if (cleanNumber.startsWith(countryCode)) {
+                    return cleanNumber;
+                }
+                
+                // Add country code for Kuwait (965) by default
+                return countryCode + cleanNumber;
+            },
+
+            getWhatsAppChatUrl: (phoneNumber, message = '', useWeb = true) => {
+                const formattedNumber = Utils.formatWhatsAppNumber(phoneNumber);
+                if (!formattedNumber) return null;
+                
+                const encodedMessage = encodeURIComponent(message);
+                const baseUrl = useWeb ? 'https://web.whatsapp.com/send' : 'https://wa.me';
+                
+                if (useWeb) {
+                    return `${baseUrl}?phone=${formattedNumber}${message ? `&text=${encodedMessage}` : ''}`;
+                } else {
+                    return `${baseUrl}/${formattedNumber}${message ? `?text=${encodedMessage}` : ''}`;
+                }
+            },
+
+            openWhatsAppChat: (phoneNumber, message = '', useWeb = true) => {
+                const url = Utils.getWhatsAppChatUrl(phoneNumber, message, useWeb);
+                if (url) {
+                    if (useWeb) {
+                        window.open(url, '_blank', 'width=1200,height=700,scrollbars=yes,resizable=yes');
+                    } else {
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                    }
+                    return true;
+                }
+                return false;
+            }
+        };
+
+        let testCounter = 1;
+
+        function testWhatsApp(phoneNumber, userName, useWeb = true) {
+            const message = `مرحباً ${userName}، أتواصل معك من إدارة صندوق درع العائلة. كيف يمكنني مساعدتك؟`;
+            
+            // Test the formatting
+            const formattedNumber = Utils.formatWhatsAppNumber(phoneNumber);
+            const fullUrl = Utils.getWhatsAppChatUrl(phoneNumber, message, useWeb);
+            
+            const resultElement = document.getElementById(`result${testCounter}`);
+            const platform = useWeb ? 'واتساب ويب' : 'واتساب موبايل';
+            const platformIcon = useWeb ? '🌐' : '📱';
+            
+            if (formattedNumber && fullUrl) {
+                resultElement.innerHTML = `
+                    <strong>✅ نجح الاختبار (${platform}):</strong><br>
+                    الرقم المنسق: ${formattedNumber}<br>
+                    المنصة: ${platformIcon} ${platform}<br>
+                    <br>
+                    <strong>الرابط المولد:</strong><br>
+                    <a href="${fullUrl}" target="_blank" style="color: #25d366; word-break: break-all;">${fullUrl}</a>
+                    <br><br>
+                    <button onclick="window.open('${fullUrl}', '_blank', '${useWeb ? 'width=1200,height=700,scrollbars=yes,resizable=yes' : 'noopener,noreferrer'}')" style="background: #25d366;">
+                        ${platformIcon} فتح في ${platform}
+                    </button>
+                `;
+                resultElement.style.background = '#e8f5e8';
+            } else {
+                resultElement.innerHTML = `
+                    <strong>❌ فشل الاختبار (${platform}):</strong><br>
+                    الرقم غير صالح أو فارغ<br>
+                    الرقم الأصلي: "${phoneNumber}"<br>
+                    الرقم المنسق: ${formattedNumber || 'null'}
+                `;
+                resultElement.style.background = '#fde8e8';
+            }
+            
+            testCounter++;
+            if (testCounter > 6) testCounter = 1;
+        }
+
+        // Test notification messages
+        function testNotification(templateType, userName, ...args) {
+            const phoneNumber = '96512345678'; // Test number
+            
+            // Copy notification templates for testing
+            const templates = {
+                joiningFeeApproved: (userName) => `🛡️ درع العائلة - اعتماد العضوية
+
+مبروك ${userName}! 🎉
+
+تم اعتماد رسوم الانضمام وأصبحت عضواً فعالاً في صندوق درع العائلة.
+
+✅ الخطوات التالية:
+• ابدأ بدفع الاشتراكات الشهرية
+• الهدف: 240 د.ك خلال 24 شهر للتأهل للقروض
+• بعد سنة كاملة ستصبح مؤهلاً لطلب القروض
+• احتفظ برصيد 500 د.ك على الأقل
+
+أهلاً وسهلاً بك في عائلة درع العائلة
+إدارة الصندوق`,
+
+                loanApproved: (userName, loanAmount, installmentAmount, numberOfInstallments) => `🛡️ درع العائلة - اعتماد القرض
+
+مبروك ${userName}! 💰
+
+تم اعتماد طلب القرض بالتفاصيل التالية:
+
+💰 مبلغ القرض: ${loanAmount} د.ك
+📅 القسط الشهري: ${installmentAmount} د.ك
+🔢 عدد الأقساط: ${numberOfInstallments} قسط
+
+✅ يمكنك الآن:
+• البدء بدفع الأقساط من خلال النظام
+• متابعة حالة القرض من حسابك
+• التواصل معنا عند الحاجة
+
+تهانينا وبالتوفيق!
+إدارة درع العائلة`,
+
+                transactionApproved: (userName, amount, transactionType, totalSubscriptions = null) => {
+                    const typeText = {
+                        'deposit': 'الإيداع',
+                        'withdrawal': 'السحب', 
+                        'subscription': 'الاشتراك',
+                        'joining_fee': 'رسوم الانضمام'
+                    }[transactionType] || 'المعاملة';
+
+                    let message = `🛡️ درع العائلة - قبول ${typeText}
+
+مرحباً ${userName} ✅
+
+تم قبول ${typeText} بمبلغ ${amount} د.ك بنجاح.`;
+
+                    if (transactionType === 'subscription' && totalSubscriptions) {
+                        message += `\n\n📊 إجمالي اشتراكاتك: ${totalSubscriptions} د.ك`;
+                        
+                        const remaining = Math.max(0, 240 - parseFloat(totalSubscriptions));
+                        if (remaining > 0) {
+                            message += `\n💡 المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
+                        } else {
+                            message += `\n🎉 مبروك! وصلت للحد المطلوب للتأهل للقروض`;
+                        }
+                    }
+
+                    message += `\n\nشكراً لك
+إدارة درع العائلة`;
+                    return message;
+                }
+            };
+
+            let message = '';
+            try {
+                switch (templateType) {
+                    case 'joiningFeeApproved':
+                        message = templates.joiningFeeApproved(userName);
+                        break;
+                    case 'loanApproved':
+                        message = templates.loanApproved(userName, ...args);
+                        break;
+                    case 'transactionApproved':
+                        message = templates.transactionApproved(userName, ...args);
+                        break;
+                    default:
+                        message = `اختبار ${templateType} للمستخدم ${userName}`;
+                }
+
+                const url = Utils.getWhatsAppChatUrl(phoneNumber, message, true);
+                const resultElement = document.getElementById('result6');
+                
+                resultElement.innerHTML = `
+                    <strong>✅ تم إنشاء الإشعار:</strong><br>
+                    <strong>النوع:</strong> ${templateType}<br>
+                    <strong>المستخدم:</strong> ${userName}<br>
+                    <br>
+                    <strong>نص الرسالة:</strong><br>
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; white-space: pre-line; font-family: 'Courier New', monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                        ${message}
+                    </div>
+                    <br>
+                    <button onclick="window.open('${url}', '_blank', 'width=1200,height=700,scrollbars=yes,resizable=yes')" style="background: #25d366;">
+                        🌐 فتح في واتساب ويب
+                    </button>
+                `;
+                resultElement.style.background = '#e8f5e8';
+            } catch (error) {
+                document.getElementById('result6').innerHTML = `
+                    <strong>❌ خطأ في إنشاء الإشعار:</strong><br>
+                    ${error.message}
+                `;
+                document.getElementById('result6').style.background = '#fde8e8';
+            }
+        }
+    </script>
+</body>
+</html>

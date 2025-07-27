@@ -316,53 +316,53 @@ class EmailService {
     }
 
     // Joining Fee Approval Email
-    async sendJoiningFeeApprovalEmail(email, fullName, status) {
+    async sendJoiningFeeApprovalEmail(email, fullName, status, userFinancials = null) {
         const isApproved = status === 'approved';
         const subject = isApproved ? 
             'تم اعتماد رسوم الانضمام - مرحباً بك في درع العائلة' : 
             'تحديث حالة رسوم الانضمام - درع العائلة';
         
-        const htmlContent = this.getJoiningFeeEmailHTML(fullName, status);
-        const textContent = this.getJoiningFeeEmailText(fullName, status);
+        const htmlContent = this.getJoiningFeeEmailHTML(fullName, status, userFinancials);
+        const textContent = this.getJoiningFeeEmailText(fullName, status, userFinancials);
 
         return await this.sendEmail(email, subject, htmlContent, textContent);
     }
 
     // Loan Approval/Rejection Email
-    async sendLoanStatusEmail(email, fullName, loanData, status, adminName) {
+    async sendLoanStatusEmail(email, fullName, loanData, status, adminName, userFinancials = null) {
         const isApproved = status === 'approved';
         const subject = isApproved ? 
             `تم اعتماد طلب القرض ${loanData.loanAmount} د.ك - درع العائلة` : 
             'تحديث حالة طلب القرض - درع العائلة';
         
-        const htmlContent = this.getLoanStatusEmailHTML(fullName, loanData, status, adminName);
-        const textContent = this.getLoanStatusEmailText(fullName, loanData, status, adminName);
+        const htmlContent = this.getLoanStatusEmailHTML(fullName, loanData, status, adminName, userFinancials);
+        const textContent = this.getLoanStatusEmailText(fullName, loanData, status, adminName, userFinancials);
 
         return await this.sendEmail(email, subject, htmlContent, textContent);
     }
 
     // Transaction Approval/Rejection Email
-    async sendTransactionStatusEmail(email, fullName, transactionData, status, adminName, totalSubscriptions = null) {
+    async sendTransactionStatusEmail(email, fullName, transactionData, status, adminName, userFinancials = null) {
         const isApproved = status === 'accepted';
         const subject = isApproved ? 
             `تم قبول المعاملة ${transactionData.amount} د.ك - درع العائلة` : 
             'تحديث حالة المعاملة المالية - درع العائلة';
         
-        const htmlContent = this.getTransactionStatusEmailHTML(fullName, transactionData, status, adminName, totalSubscriptions);
-        const textContent = this.getTransactionStatusEmailText(fullName, transactionData, status, adminName, totalSubscriptions);
+        const htmlContent = this.getTransactionStatusEmailHTML(fullName, transactionData, status, adminName, userFinancials);
+        const textContent = this.getTransactionStatusEmailText(fullName, transactionData, status, adminName, userFinancials);
 
         return await this.sendEmail(email, subject, htmlContent, textContent);
     }
 
     // Loan Payment Approval/Rejection Email
-    async sendLoanPaymentStatusEmail(email, fullName, paymentData, status, adminName, loanSummary) {
+    async sendLoanPaymentStatusEmail(email, fullName, paymentData, status, adminName, loanSummary, userFinancials = null) {
         const isApproved = status === 'accepted';
         const subject = isApproved ? 
             `تم قبول دفعة القرض ${paymentData.amount} د.ك - درع العائلة` : 
             'تحديث حالة دفعة القرض - درع العائلة';
         
-        const htmlContent = this.getLoanPaymentStatusEmailHTML(fullName, paymentData, status, adminName, loanSummary);
-        const textContent = this.getLoanPaymentStatusEmailText(fullName, paymentData, status, adminName, loanSummary);
+        const htmlContent = this.getLoanPaymentStatusEmailHTML(fullName, paymentData, status, adminName, loanSummary, userFinancials);
+        const textContent = this.getLoanPaymentStatusEmailText(fullName, paymentData, status, adminName, loanSummary, userFinancials);
 
         return await this.sendEmail(email, subject, htmlContent, textContent);
     }
@@ -412,7 +412,7 @@ class EmailService {
     }
 
     // Email Template: Joining Fee Status
-    getJoiningFeeEmailHTML(fullName, status) {
+    getJoiningFeeEmailHTML(fullName, status, userFinancials = null) {
         const isApproved = status === 'approved';
         const statusColor = isApproved ? '#28a745' : '#dc3545';
         const statusText = isApproved ? 'معتمدة' : 'مرفوضة';
@@ -448,6 +448,22 @@ class EmailService {
                     <p><strong>الحالة:</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></p>
                 </div>
             </div>
+
+            ${userFinancials ? `
+            <div class="financial-summary">
+                <h3>📊 الوضع المالي الحالي</h3>
+                <div class="financial-grid">
+                    <div class="financial-item">
+                        <span class="label">الرصيد الحالي:</span>
+                        <span class="value">${userFinancials.currentBalance}</span>
+                    </div>
+                    <div class="financial-item">
+                        <span class="label">إجمالي الاشتراكات:</span>
+                        <span class="value">${userFinancials.totalSubscriptions} د.ك</span>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
 
             ${isApproved ? `
             <div class="steps-list">

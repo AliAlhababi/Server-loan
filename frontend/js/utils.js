@@ -140,6 +140,296 @@ const Utils = {
         document.querySelectorAll('.loading-content').forEach(el => {
             el.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
         });
+    },
+
+    // WhatsApp utility - format phone number for international format
+    formatWhatsAppNumber: (phoneNumber, countryCode = '965') => {
+        if (!phoneNumber) return null;
+        
+        // Clean the phone number - remove all non-digits
+        let cleanNumber = phoneNumber.toString().replace(/\D/g, '');
+        
+        // Remove leading zeros
+        cleanNumber = cleanNumber.replace(/^0+/, '');
+        
+        // If number already starts with country code, use as is
+        if (cleanNumber.startsWith(countryCode)) {
+            return cleanNumber;
+        }
+        
+        // Add country code for Kuwait (965) by default
+        return countryCode + cleanNumber;
+    },
+
+    // Generate WhatsApp chat URL
+    getWhatsAppChatUrl: (phoneNumber, message = '', useWeb = true) => {
+        const formattedNumber = Utils.formatWhatsAppNumber(phoneNumber);
+        if (!formattedNumber) return null;
+        
+        const encodedMessage = encodeURIComponent(message);
+        const baseUrl = useWeb ? 'https://web.whatsapp.com/send' : 'https://wa.me';
+        
+        if (useWeb) {
+            return `${baseUrl}?phone=${formattedNumber}${message ? `&text=${encodedMessage}` : ''}`;
+        } else {
+            return `${baseUrl}/${formattedNumber}${message ? `?text=${encodedMessage}` : ''}`;
+        }
+    },
+
+    // Open WhatsApp chat in new window (defaults to WhatsApp Web)
+    openWhatsAppChat: (phoneNumber, message = '', useWeb = true) => {
+        const url = Utils.getWhatsAppChatUrl(phoneNumber, message, useWeb);
+        if (url) {
+            // Open in new tab with specific window features for WhatsApp Web
+            if (useWeb) {
+                window.open(url, '_blank', 'width=1200,height=700,scrollbars=yes,resizable=yes');
+            } else {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+            return true;
+        }
+        return false;
+    },
+
+    // Open WhatsApp Web specifically (explicit method)
+    openWhatsAppWeb: (phoneNumber, message = '') => {
+        return Utils.openWhatsAppChat(phoneNumber, message, true);
+    },
+
+    // Open WhatsApp mobile/desktop app (explicit method)
+    openWhatsAppApp: (phoneNumber, message = '') => {
+        return Utils.openWhatsAppChat(phoneNumber, message, false);
+    },
+
+    // WhatsApp notification message templates
+    getWhatsAppTemplates: () => ({
+        joiningFeeApproved: (userName, userFinancials = null) => {
+            let message = `🛡️ درع العائلة - اعتماد العضوية
+
+مبروك ${userName}! 🎉
+
+تم اعتماد رسوم الانضمام وأصبحت عضواً فعالاً في صندوق درع العائلة.`;
+
+            if (userFinancials) {
+                message += `\n\n💰 الوضع المالي الحالي:
+• رصيدك الحالي: ${userFinancials.currentBalance} د.ك
+• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+
+                const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
+                if (remaining > 0) {
+                    message += `\n• المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
+                } else {
+                    message += `\n• 🎉 وصلت للحد المطلوب للقروض!`;
+                }
+            }
+
+            message += `\n\n✅ الخطوات التالية:
+• ابدأ بدفع الاشتراكات الشهرية
+• الهدف: 240 د.ك خلال 24 شهر للتأهل للقروض
+• بعد سنة كاملة ستصبح مؤهلاً لطلب القروض
+• احتفظ برصيد 500 د.ك على الأقل
+
+أهلاً وسهلاً بك في عائلة درع العائلة
+إدارة الصندوق`;
+            return message;
+        },
+
+        joiningFeeRejected: (userName) => `🛡️ درع العائلة - تحديث العضوية
+
+مرحباً ${userName}
+
+للأسف لم يتم اعتماد رسوم الانضمام في الوقت الحالي.
+
+📞 يرجى التواصل معنا للاستفسار عن الأسباب والخطوات المطلوبة.
+
+شكراً لتفهمك
+إدارة درع العائلة`,
+
+        loanApproved: (userName, loanAmount, installmentAmount, numberOfInstallments, userFinancials = null) => {
+            let message = `🛡️ درع العائلة - اعتماد القرض
+
+مبروك ${userName}! 💰
+
+تم اعتماد طلب القرض بالتفاصيل التالية:
+
+💰 مبلغ القرض: ${loanAmount} د.ك
+📅 القسط الشهري: ${installmentAmount} د.ك
+🔢 عدد الأقساط: ${numberOfInstallments} قسط`;
+
+            if (userFinancials) {
+                message += `\n\n💳 وضعك المالي:
+• رصيدك الحالي: ${userFinancials.currentBalance} د.ك
+• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+            }
+
+            message += `\n\n✅ يمكنك الآن:
+• البدء بدفع الأقساط من خلال النظام
+• متابعة حالة القرض من حسابك
+• التواصل معنا عند الحاجة
+
+تهانينا وبالتوفيق!
+إدارة درع العائلة`;
+            return message;
+        },
+
+        loanRejected: (userName, loanAmount) => `🛡️ درع العائلة - تحديث طلب القرض
+
+مرحباً ${userName}
+
+للأسف لم يتم اعتماد طلب القرض بمبلغ ${loanAmount} د.ك في الوقت الحالي.
+
+📞 يرجى التواصل معنا للاستفسار عن الأسباب وإمكانية إعادة التقديم لاحقاً.
+
+شكراً لتفهمك
+إدارة درع العائلة`,
+
+        transactionApproved: (userName, amount, transactionType, userFinancials = null) => {
+            const typeText = {
+                'deposit': 'الإيداع',
+                'withdrawal': 'السحب', 
+                'subscription': 'الاشتراك',
+                'joining_fee': 'رسوم الانضمام'
+            }[transactionType] || 'المعاملة';
+
+            let message = `🛡️ درع العائلة - قبول ${typeText}
+
+مرحباً ${userName} ✅
+
+تم قبول ${typeText} بمبلغ ${amount} د.ك بنجاح.`;
+
+            if (userFinancials) {
+                message += `\n\n💰 وضعك المالي الحالي:
+• رصيدك الحالي: ${userFinancials.currentBalance} د.ك
+• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+                
+                if (transactionType === 'subscription') {
+                    const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
+                    if (remaining > 0) {
+                        message += `\n• المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
+                    } else {
+                        message += `\n• 🎉 مبروك! وصلت للحد المطلوب للتأهل للقروض`;
+                    }
+                }
+            }
+
+            message += `\n\nشكراً لك
+إدارة درع العائلة`;
+            return message;
+        },
+
+        transactionRejected: (userName, amount, transactionType) => {
+            const typeText = {
+                'deposit': 'الإيداع',
+                'withdrawal': 'السحب',
+                'subscription': 'الاشتراك', 
+                'joining_fee': 'رسوم الانضمام'
+            }[transactionType] || 'المعاملة';
+
+            return `🛡️ درع العائلة - رفض ${typeText}
+
+مرحباً ${userName}
+
+للأسف لم يتم قبول ${typeText} بمبلغ ${amount} د.ك.
+
+📞 يرجى التواصل معنا للاستفسار عن الأسباب.
+
+شكراً لتفهمك
+إدارة درع العائلة`;
+        },
+
+        loanPaymentApproved: (userName, paymentAmount, totalPaid, loanAmount, remainingAmount, userFinancials = null) => {
+            const completionPercentage = Math.round((parseFloat(totalPaid) / parseFloat(loanAmount)) * 100);
+            const isCompleted = parseFloat(remainingAmount) <= 0;
+
+            let message = `🛡️ درع العائلة - قبول دفعة القرض
+
+مرحباً ${userName} ✅
+
+تم قبول دفعة القرض بمبلغ ${paymentAmount}.
+
+📊 ملخص القرض:
+• إجمالي القرض: ${loanAmount}
+• المدفوع: ${totalPaid}
+• المتبقي: ${remainingAmount}
+• نسبة الإنجاز: ${completionPercentage}%`;
+
+            if (userFinancials) {
+                message += `\n\n💰 وضعك المالي:
+• رصيدك الحالي: ${userFinancials.currentBalance}`;
+                
+                // Only show subscription total if it's greater than 0
+                const subscriptionAmount = parseFloat(userFinancials.totalSubscriptions);
+                if (subscriptionAmount > 0) {
+                    message += `\n• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+                }
+            }
+
+            if (isCompleted) {
+                message += `\n\n🎉 مبروك! تم سداد القرض بالكامل
+🗓️ يمكنك طلب قرض جديد بعد 30 يوماً`;
+            } else {
+                message += `\n\n💡 استمر في دفع الأقساط حسب الجدول المحدد`;
+            }
+
+            message += `\n\nشكراً لك
+إدارة درع العائلة`;
+            return message;
+        },
+
+        loanPaymentRejected: (userName, paymentAmount) => `🛡️ درع العائلة - رفض دفعة القرض
+
+مرحباً ${userName}
+
+للأسف لم يتم قبول دفعة القرض بمبلغ ${paymentAmount} د.ك.
+
+📞 يرجى التواصل معنا للاستفسار عن الأسباب وإعادة تقديم الدفعة.
+
+شكراً لتفهمك
+إدارة درع العائلة`
+    }),
+
+    // Send WhatsApp notification after approval
+    sendWhatsAppNotification: (phoneNumber, userName, templateType, userFinancials = null, ...templateArgs) => {
+        const templates = Utils.getWhatsAppTemplates();
+        let message = '';
+
+        try {
+            switch (templateType) {
+                case 'joiningFeeApproved':
+                    message = templates.joiningFeeApproved(userName, userFinancials);
+                    break;
+                case 'joiningFeeRejected':
+                    message = templates.joiningFeeRejected(userName);
+                    break;
+                case 'loanApproved':
+                    message = templates.loanApproved(userName, templateArgs[0], templateArgs[1], templateArgs[2], userFinancials);
+                    break;
+                case 'loanRejected':
+                    message = templates.loanRejected(userName, templateArgs[0]);
+                    break;
+                case 'transactionApproved':
+                    message = templates.transactionApproved(userName, templateArgs[0], templateArgs[1], userFinancials);
+                    break;
+                case 'transactionRejected':
+                    message = templates.transactionRejected(userName, templateArgs[0], templateArgs[1]);
+                    break;
+                case 'loanPaymentApproved':
+                    message = templates.loanPaymentApproved(userName, templateArgs[0], templateArgs[1], templateArgs[2], templateArgs[3], userFinancials);
+                    break;
+                case 'loanPaymentRejected':
+                    message = templates.loanPaymentRejected(userName, templateArgs[0]);
+                    break;
+                default:
+                    console.warn('Unknown WhatsApp template type:', templateType);
+                    return false;
+            }
+
+            // Open WhatsApp Web with the message
+            return Utils.openWhatsAppWeb(phoneNumber, message);
+        } catch (error) {
+            console.error('Error sending WhatsApp notification:', error);
+            return false;
+        }
     }
 };
 
