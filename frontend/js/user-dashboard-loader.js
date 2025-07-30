@@ -115,6 +115,12 @@ class UserDashboardLoader {
                 window.loanHistoryTab = this.tabs['loan-history'];
             }
 
+            // Initialize Family Management Tab
+            if (window.FamilyManagementTab) {
+                this.tabs['family'] = new window.FamilyManagementTab(this);
+                window.familyManagementTab = this.tabs['family'];
+            }
+
             console.log('All dashboard tabs initialized:', Object.keys(this.tabs));
         } catch (error) {
             console.error('Error initializing tabs:', error);

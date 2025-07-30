@@ -831,3 +831,169 @@
         width: 40px; height: 40px; font-size: 18px;
     }
 }
+
+/* =================== Family Management Styles =================== */
+
+/* Family Member Cards */
+.family-members-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.family-member-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.family-member-card:hover {
+    background: #ffffff;
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.member-info h5 {
+    margin: 0 0 8px 0;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.member-balance {
+    color: #27ae60;
+    font-weight: 600;
+    margin: 4px 0;
+}
+
+.member-date {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin: 4px 0 0 0;
+}
+
+.member-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.action-btn.small {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: auto;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+/* Loading State */
+.loading-state {
+    text-align: center;
+    padding: 20px;
+    color: #7f8c8d;
+}
+
+.loading-state i {
+    margin-right: 8px;
+}
+
+/* Error State */
+.error-state {
+    text-align: center;
+    padding: 20px;
+    color: #e74c3c;
+}
+
+.error-state i {
+    margin-bottom: 8px;
+    font-size: 24px;
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.revoked {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Card Header */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.card-header h4 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+/* Info Box */
+.info-box {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.info-box h5 {
+    margin: 0 0 8px 0;
+    color: #1976d2;
+}
+
+.info-box p {
+    margin: 8px 0;
+    color: #424242;
+    line-height: 1.5;
+}
+
+/* Payment Interface Toggle */
+.payment-interface {
+    margin-top: 20px;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+/* Family Container Variants */
+.family-head-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.family-member-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.no-family-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+}

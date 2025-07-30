@@ -211,9 +211,7 @@ const Utils = {
 تم اعتماد رسوم الانضمام وأصبحت عضواً فعالاً في صندوق درع العائلة.`;
 
             if (userFinancials) {
-                message += `\n\n💰 الوضع المالي الحالي:
-• رصيدك الحالي: ${userFinancials.currentBalance} د.ك
-• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+                message += `\n\n💰 إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
 
                 const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
                 if (remaining > 0) {
@@ -227,7 +225,6 @@ const Utils = {
 • ابدأ بدفع الاشتراكات الشهرية
 • الهدف: 240 د.ك خلال 24 شهر للتأهل للقروض
 • بعد سنة كاملة ستصبح مؤهلاً لطلب القروض
-• احتفظ برصيد 500 د.ك على الأقل
 
 أهلاً وسهلاً بك في عائلة درع العائلة
 إدارة الصندوق`;
@@ -252,15 +249,9 @@ const Utils = {
 
 تم اعتماد طلب القرض بالتفاصيل التالية:
 
-💰 مبلغ القرض: ${loanAmount} د.ك
-📅 القسط الشهري: ${installmentAmount} د.ك
+💰 مبلغ القرض: ${loanAmount}
+📅 القسط الشهري: ${installmentAmount}
 🔢 عدد الأقساط: ${numberOfInstallments} قسط`;
-
-            if (userFinancials) {
-                message += `\n\n💳 وضعك المالي:
-• رصيدك الحالي: ${userFinancials.currentBalance} د.ك
-• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
-            }
 
             message += `\n\n✅ يمكنك الآن:
 • البدء بدفع الأقساط من خلال النظام
@@ -276,7 +267,7 @@ const Utils = {
 
 مرحباً ${userName}
 
-للأسف لم يتم اعتماد طلب القرض بمبلغ ${loanAmount} د.ك في الوقت الحالي.
+للأسف لم يتم اعتماد طلب القرض بمبلغ ${loanAmount} في الوقت الحالي.
 
 📞 يرجى التواصل معنا للاستفسار عن الأسباب وإمكانية إعادة التقديم لاحقاً.
 
@@ -295,20 +286,16 @@ const Utils = {
 
 مرحباً ${userName} ✅
 
-تم قبول ${typeText} بمبلغ ${amount} د.ك بنجاح.`;
+تم قبول ${typeText} بمبلغ ${amount} بنجاح.`;
 
-            if (userFinancials) {
-                message += `\n\n💰 وضعك المالي الحالي:
-• رصيدك الحالي: ${userFinancials.currentBalance} د.ك
-• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+            if (userFinancials && transactionType === 'subscription') {
+                message += `\n\n💰 إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
                 
-                if (transactionType === 'subscription') {
-                    const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
-                    if (remaining > 0) {
-                        message += `\n• المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
-                    } else {
-                        message += `\n• 🎉 مبروك! وصلت للحد المطلوب للتأهل للقروض`;
-                    }
+                const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
+                if (remaining > 0) {
+                    message += `\n• المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
+                } else {
+                    message += `\n• 🎉 مبروك! وصلت للحد المطلوب للتأهل للقروض`;
                 }
             }
 
@@ -329,7 +316,7 @@ const Utils = {
 
 مرحباً ${userName}
 
-للأسف لم يتم قبول ${typeText} بمبلغ ${amount} د.ك.
+للأسف لم يتم قبول ${typeText} بمبلغ ${amount}.
 
 📞 يرجى التواصل معنا للاستفسار عن الأسباب.
 
@@ -353,17 +340,6 @@ const Utils = {
 • المتبقي: ${remainingAmount}
 • نسبة الإنجاز: ${completionPercentage}%`;
 
-            if (userFinancials) {
-                message += `\n\n💰 وضعك المالي:
-• رصيدك الحالي: ${userFinancials.currentBalance}`;
-                
-                // Only show subscription total if it's greater than 0
-                const subscriptionAmount = parseFloat(userFinancials.totalSubscriptions);
-                if (subscriptionAmount > 0) {
-                    message += `\n• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
-                }
-            }
-
             if (isCompleted) {
                 message += `\n\n🎉 مبروك! تم سداد القرض بالكامل
 🗓️ يمكنك طلب قرض جديد بعد 30 يوماً`;
@@ -380,7 +356,7 @@ const Utils = {
 
 مرحباً ${userName}
 
-للأسف لم يتم قبول دفعة القرض بمبلغ ${paymentAmount} د.ك.
+للأسف لم يتم قبول دفعة القرض بمبلغ ${paymentAmount}.
 
 📞 يرجى التواصل معنا للاستفسار عن الأسباب وإعادة تقديم الدفعة.
 

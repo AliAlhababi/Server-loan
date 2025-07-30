@@ -497,6 +497,106 @@
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
+/* Family Delegation Status Styles */
+.delegation-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    max-width: 180px;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.delegation-status i {
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.delegation-status small {
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-top: 2px;
+}
+
+/* Family Head Status */
+.delegation-status.family-head {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: 2px solid #28a745;
+}
+
+.delegation-status.family-head i {
+    color: #ffffff;
+}
+
+/* Family Member Status */
+.delegation-status.family-member {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    color: white;
+    border: 2px solid #007bff;
+}
+
+.delegation-status.family-member i {
+    color: #ffffff;
+}
+
+/* Pending Status */
+.delegation-status.pending {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+    color: #212529;
+    border: 2px solid #ffc107;
+}
+
+.delegation-status.pending i {
+    color: #856404;
+}
+
+/* No Delegation Status */
+.delegation-status.none {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 2px solid #dee2e6;
+}
+
+.delegation-status.none i {
+    color: #adb5bd;
+}
+
+/* Unknown Status */
+.delegation-status.unknown {
+    background: #e9ecef;
+    color: #495057;
+    border: 2px solid #ced4da;
+}
+
+.delegation-status.unknown i {
+    color: #6c757d;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .delegation-status {
+        padding: 4px 8px;
+        font-size: 11px;
+        max-width: 140px;
+    }
+    
+    .delegation-status i {
+        font-size: 12px;
+    }
+    
+    .delegation-status small {
+        font-size: 9px;
+    }
+}
+
 .report-card .report-icon.transactions {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
@@ -943,5 +1043,515 @@
     
     .user-tab {
         min-width: 50%;
+    }
+}
+
+/* =================== Family Delegations Management Styles =================== */
+
+.family-delegations-management {
+    padding: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #495057;
+    font-size: 24px;
+}
+
+.view-toggle {
+    display: flex;
+    gap: 10px;
+}
+
+.toggle-btn {
+    padding: 8px 16px;
+    border: 2px solid #6f42c1;
+    background: transparent;
+    color: #6f42c1;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.toggle-btn.active {
+    background: #6f42c1;
+    color: white;
+}
+
+.toggle-btn:hover {
+    background: #6f42c1;
+    color: white;
+}
+
+.delegations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.delegation-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.delegation-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.delegation-card.pending {
+    border-left: 4px solid #ffc107;
+}
+
+.delegation-card.approved {
+    border-left: 4px solid #28a745;
+}
+
+.delegation-card.rejected {
+    border-left: 4px solid #dc3545;
+}
+
+.delegation-card.revoked {
+    border-left: 4px solid #6c757d;
+}
+
+.delegation-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.delegation-info h5 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 16px;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge.revoked {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.delegation-date {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.delegation-details {
+    margin-bottom: 20px;
+}
+
+.detail-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 12px;
+}
+
+.detail-item {
+    flex: 1;
+}
+
+.detail-item.full-width {
+    flex: none;
+    width: 100%;
+}
+
+.detail-item label {
+    display: block;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.user-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.user-name i {
+    color: #6c757d;
+}
+
+.balance {
+    display: block;
+    font-size: 12px;
+    color: #28a745;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.notes, .admin-notes {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #495057;
+    margin: 4px 0 0 0;
+    line-height: 1.4;
+}
+
+.admin-notes {
+    background: #e3f2fd;
+    border-left: 3px solid #2196f3;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+}
+
+.status-group {
+    margin-bottom: 40px;
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.status-header i {
+    font-size: 18px;
+}
+
+.status-header.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-header.approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-header.rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-header.revoked {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state i {
+    display: block;
+    margin-bottom: 15px;
+}
+
+.empty-state h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Modal Styles for Family Delegations */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 20px 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h4 {
+    margin: 0;
+    color: #495057;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    color: #495057;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-body p {
+    margin: 0 0 10px 0;
+}
+
+.modal-body .form-group {
+    margin-top: 20px;
+}
+
+.modal-body label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.modal-body textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.modal-footer {
+    padding: 15px 20px 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .delegations-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .card-actions {
+        flex-direction: column;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+}
+
+/* =================== System Reports & Backup Styles =================== */
+
+.system-reports-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 25px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+}
+
+.system-reports-section h3 {
+    color: #495057;
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.reports-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.system-report-btn {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: right;
+    font-family: inherit;
+    position: relative;
+    overflow: hidden;
+}
+
+.system-report-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.system-report-btn:active {
+    transform: translateY(-1px);
+}
+
+.system-report-btn i {
+    font-size: 24px;
+    opacity: 0.9;
+    min-width: 30px;
+}
+
+.btn-content {
+    flex: 1;
+    text-align: right;
+}
+
+.btn-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.btn-desc {
+    display: block;
+    font-size: 12px;
+    opacity: 0.8;
+    line-height: 1.3;
+}
+
+.system-report-btn#sqlBackupBtn {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.system-report-btn#sqlBackupBtn:hover {
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+}
+
+.system-report-btn#financialReportBtn {
+    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+}
+
+.system-report-btn#financialReportBtn:hover {
+    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+}
+
+/* Loading state for buttons */
+.system-report-btn.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.system-report-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .reports-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .system-report-btn {
+        padding: 15px;
+        gap: 12px;
+    }
+    
+    .btn-title {
+        font-size: 15px;
+    }
+    
+    .btn-desc {
+        font-size: 11px;
     }
 }

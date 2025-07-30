@@ -80,9 +80,41 @@ class UserService {
   static async getUsersByType(userType = null, limit = null) {
     let query = `
       SELECT u.*, 
-             admin.Aname as approved_by_admin_name
+             admin.Aname as approved_by_admin_name,
+             -- Family delegation information
+             CASE 
+               WHEN fd_head.delegation_status = 'approved' AND fd_head.delegation_type = 'family_head_request' THEN 'family_head'
+               WHEN fd_member.delegation_status = 'approved' AND fd_member.delegation_type = 'member_delegation' THEN 'family_member' 
+               WHEN fd_pending_head.delegation_status = 'pending' AND fd_pending_head.delegation_type = 'family_head_request' THEN 'pending_head_request'
+               WHEN fd_pending_member.delegation_status = 'pending' AND fd_pending_member.delegation_type = 'member_delegation' THEN 'pending_member_request'
+               ELSE NULL
+             END as family_delegation_type,
+             COALESCE(family_head.Aname, family_member_head.Aname) as family_head_name,
+             COALESCE(fd_head.delegation_id, fd_member.delegation_id, fd_pending_head.delegation_id, fd_pending_member.delegation_id) as delegation_id,
+             -- Count of family members for family heads
+             (SELECT COUNT(*) FROM family_delegations WHERE family_head_id = u.user_id AND delegation_status = 'approved' AND delegation_type = 'member_delegation') as family_members_count
       FROM users u
       LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+      -- Check if user is an approved family head
+      LEFT JOIN family_delegations fd_head ON u.user_id = fd_head.family_head_id 
+        AND u.user_id = fd_head.family_member_id 
+        AND fd_head.delegation_status = 'approved' 
+        AND fd_head.delegation_type = 'family_head_request'
+      -- Check if user is an approved family member
+      LEFT JOIN family_delegations fd_member ON u.user_id = fd_member.family_member_id 
+        AND fd_member.delegation_status = 'approved' 
+        AND fd_member.delegation_type = 'member_delegation'
+      LEFT JOIN users family_member_head ON fd_member.family_head_id = family_member_head.user_id
+      -- Check for pending family head requests
+      LEFT JOIN family_delegations fd_pending_head ON u.user_id = fd_pending_head.family_head_id 
+        AND u.user_id = fd_pending_head.family_member_id 
+        AND fd_pending_head.delegation_status = 'pending' 
+        AND fd_pending_head.delegation_type = 'family_head_request'
+      -- Check for pending member requests  
+      LEFT JOIN family_delegations fd_pending_member ON u.user_id = fd_pending_member.family_member_id 
+        AND fd_pending_member.delegation_status = 'pending' 
+        AND fd_pending_member.delegation_type = 'member_delegation'
+      LEFT JOIN users family_head ON fd_pending_member.family_head_id = family_head.user_id
     `;
     
     const params = [];
@@ -313,6 +345,135 @@ class UserService {
     console.log(`📝 UserService: Updating user ${userId} with fields:`, updateFields);
     
     return await DatabaseService.update('users', updateFields, { user_id: userId });
+  }
+
+  // Family delegation methods
+  static async getFamilyDelegationStatus(userId) {
+    // Check if user is a family head
+    const familyMembersQuery = `
+      SELECT fd.delegation_id, fd.family_member_id, u.Aname as member_name, 
+             u.balance as member_balance, fd.created_date, fd.delegation_status
+      FROM family_delegations fd
+      JOIN users u ON fd.family_member_id = u.user_id
+      WHERE fd.family_head_id = ? AND fd.delegation_status = 'active'
+      ORDER BY fd.created_date DESC
+    `;
+    
+    // Check if user is under delegation
+    const delegationInfoQuery = `
+      SELECT fd.delegation_id, fd.family_head_id, u.Aname as head_name,
+             fd.created_date, fd.delegation_status
+      FROM family_delegations fd
+      JOIN users u ON fd.family_head_id = u.user_id
+      WHERE fd.family_member_id = ? AND fd.delegation_status = 'active'
+    `;
+    
+    const [familyMembers, delegationInfo] = await Promise.all([
+      DatabaseService.executeQuery(familyMembersQuery, [userId]),
+      DatabaseService.executeQuery(delegationInfoQuery, [userId])
+    ]);
+    
+    return {
+      isFamilyHead: familyMembers.length > 0,
+      hasFamilyDelegation: delegationInfo.length > 0,
+      familyMembers,
+      delegationInfo: delegationInfo[0] || null
+    };
+  }
+
+  static async createFamilyDelegation(familyHeadId, familyMemberId, notes = null) {
+    // Validate users exist
+    const [headUser, memberUser] = await Promise.all([
+      this.getBasicUserInfo(familyHeadId, 'user_id, Aname'),
+      this.getBasicUserInfo(familyMemberId, 'user_id, Aname')
+    ]);
+    
+    if (!headUser || !memberUser) {
+      throw new AppError('أحد المستخدمين غير موجود', 404);
+    }
+    
+    if (familyHeadId === familyMemberId) {
+      throw new AppError('لا يمكن للمستخدم تفويض نفسه', 400);
+    }
+    
+    // Check if delegation already exists
+    const existingDelegation = await DatabaseService.findOne('family_delegations', {
+      family_head_id: familyHeadId,
+      family_member_id: familyMemberId,
+      delegation_status: 'active'
+    });
+    
+    if (existingDelegation) {
+      throw new AppError('التفويض موجود بالفعل لهذا العضو', 400);
+    }
+    
+    // Create delegation
+    const result = await DatabaseService.create('family_delegations', {
+      family_head_id: familyHeadId,
+      family_member_id: familyMemberId,
+      notes,
+      delegation_status: 'active'
+    });
+    
+    return result.insertId;
+  }
+
+  static async revokeFamilyDelegation(delegationId, requestingUserId, isAdmin = false) {
+    // Get delegation details
+    const delegation = await DatabaseService.findOne('family_delegations', { 
+      delegation_id: delegationId 
+    });
+    
+    if (!delegation) {
+      throw new AppError('التفويض غير موجود', 404);
+    }
+    
+    // Check authorization - admin, family head, or family member can revoke
+    if (!isAdmin && 
+        requestingUserId !== delegation.family_head_id && 
+        requestingUserId !== delegation.family_member_id) {
+      throw new AppError('غير مخول لإلغاء هذا التفويض', 403);
+    }
+    
+    // Revoke delegation
+    const affectedRows = await DatabaseService.update('family_delegations', 
+      { 
+        delegation_status: 'revoked',
+        revoked_date: new Date()
+      },
+      { delegation_id: delegationId }
+    );
+    
+    if (affectedRows === 0) {
+      throw new AppError('فشل في إلغاء التفويض', 500);
+    }
+    
+    return true;
+  }
+
+  static async validateFamilyDelegation(familyHeadId, familyMemberId) {
+    const delegation = await DatabaseService.findOne('family_delegations', {
+      family_head_id: familyHeadId,
+      family_member_id: familyMemberId,
+      delegation_status: 'active'
+    });
+    
+    return !!delegation;
+  }
+
+  static async getFamilyMemberActiveLoans(familyMemberId) {
+    const query = `
+      SELECT rl.loan_id, rl.loan_amount, rl.installment_amount,
+             COALESCE(SUM(CASE WHEN l.status = 'accepted' THEN l.credit ELSE 0 END), 0) as total_paid,
+             (rl.loan_amount - COALESCE(SUM(CASE WHEN l.status = 'accepted' THEN l.credit ELSE 0 END), 0)) as remaining_balance
+      FROM requested_loan rl
+      LEFT JOIN loan l ON rl.loan_id = l.target_loan_id
+      WHERE rl.user_id = ? AND rl.status = 'approved' AND rl.loan_closed_date IS NULL
+      GROUP BY rl.loan_id, rl.loan_amount, rl.installment_amount
+      HAVING remaining_balance > 0
+    `;
+    
+    return await DatabaseService.executeQuery(query, [familyMemberId]);
   }
 }
 

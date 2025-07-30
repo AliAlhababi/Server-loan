@@ -12,19 +12,22 @@ class DashboardController {
       totalUsers,
       pendingLoans,
       pendingSubscriptions,
-      pendingLoanPayments
+      pendingLoanPayments,
+      pendingFamilyDelegations
     ] = await Promise.all([
       DatabaseService.count('users'),
       DatabaseService.count('requested_loan', { status: 'pending' }),
       DatabaseService.count('transaction', { status: 'pending' }),
-      DatabaseService.count('loan', { status: 'pending' })
+      DatabaseService.count('loan', { status: 'pending' }),
+      DatabaseService.count('family_delegations', { delegation_status: 'pending' })
     ]);
 
     console.log('Dashboard stats:', {
       totalUsers,
       pendingLoans,
       pendingSubscriptions,
-      pendingLoanPayments
+      pendingLoanPayments,
+      pendingFamilyDelegations
     });
 
     const stats = {
@@ -32,6 +35,7 @@ class DashboardController {
       pendingLoans,
       pendingSubscriptions,
       pendingLoanPayments,
+      pendingFamilyDelegations,
       pendingTransactions: pendingSubscriptions + pendingLoanPayments, // Keep for backward compatibility
       pendingRegistrations: 0 // Keep for frontend compatibility
     };

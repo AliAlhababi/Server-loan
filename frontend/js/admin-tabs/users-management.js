@@ -117,6 +117,7 @@ class UsersManagement {
                             <th>معرف المستخدم</th>
                             <th>الاسم</th>
                             <th>نوع العضوية</th>
+                            <th>التفويض العائلي</th>
                             <th>المدير المعتمد</th>
                             <th>البريد الإلكتروني</th>
                             <th>الهاتف</th>
@@ -142,6 +143,9 @@ class UsersManagement {
                                         <i class="fas ${user.user_type === 'admin' ? 'fa-user-shield' : 'fa-user'}"></i>
                                         ${user.user_type === 'employee' ? 'عضو' : 'إداري'}
                                     </span>
+                                </td>
+                                <td>
+                                    ${this.generateFamilyDelegationStatus(user)}
                                 </td>
                                 <td>
                                     ${user.user_type === 'employee' && user.approved_by_admin_name ? 
@@ -927,6 +931,52 @@ class UsersManagement {
             showToast(`تم فتح واتساب ويب للمحادثة مع ${userName}`, 'success');
         } else {
             showToast('خطأ في فتح واتساب ويب - تأكد من صحة رقم الهاتف', 'error');
+        }
+    }
+
+    // Generate family delegation status display
+    generateFamilyDelegationStatus(user) {
+        const delegationType = user.family_delegation_type;
+        
+        if (!delegationType) {
+            return '<span class="delegation-status none"><i class="fas fa-minus"></i> لا يوجد</span>';
+        }
+        
+        switch (delegationType) {
+            case 'family_head':
+                const memberCount = user.family_members_count || 0;
+                return `
+                    <span class="delegation-status family-head" title="رب أسرة معتمد">
+                        <i class="fas fa-user-shield"></i>
+                        رب أسرة
+                        ${memberCount > 0 ? `<small>(${memberCount} أعضاء)</small>` : ''}
+                    </span>
+                `;
+            case 'family_member':
+                return `
+                    <span class="delegation-status family-member" title="عضو في عائلة ${user.family_head_name || ''}">
+                        <i class="fas fa-handshake"></i>
+                        عضو عائلة
+                        ${user.family_head_name ? `<small>تحت: ${user.family_head_name}</small>` : ''}
+                    </span>
+                `;
+            case 'pending_head_request':
+                return `
+                    <span class="delegation-status pending" title="طلب رب أسرة معلق">
+                        <i class="fas fa-clock"></i>
+                        طلب رب أسرة معلق
+                    </span>
+                `;
+            case 'pending_member_request':
+                return `
+                    <span class="delegation-status pending" title="طلب انضمام عائلة معلق">
+                        <i class="fas fa-clock"></i>
+                        طلب انضمام معلق
+                        ${user.family_head_name ? `<small>إلى: ${user.family_head_name}</small>` : ''}
+                    </span>
+                `;
+            default:
+                return '<span class="delegation-status unknown"><i class="fas fa-question"></i> غير محدد</span>';
         }
     }
 

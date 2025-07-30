@@ -22,6 +22,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/loans', require('./routes/loans'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/family', require('./routes/family'));
 
 // Default route - serve main page
 app.get('/', (req, res) => {

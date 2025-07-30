@@ -215,6 +215,9 @@
                             <button class="user-tab" data-tab="loan-history">
                                 <i class="fas fa-history"></i> تاريخ القروض
                             </button>
+                            <button class="user-tab" data-tab="family">
+                                <i class="fas fa-users"></i> العائلة
+                            </button>
                         </div>
                         
                         <div class="tab-contents">
@@ -235,6 +238,9 @@
                             </div>
                             <div id="loan-historyTab" class="user-tab-content">
                                 <div id="loanHistoryContent" class="loading-content"></div>
+                            </div>
+                            <div id="familyTab" class="user-tab-content">
+                                <div id="familyContent" class="loading-content"></div>
                             </div>
                         </div>
                     </div>
@@ -368,6 +374,15 @@
                                 <span class="stat-value" id="pendingLoanPayments">0</span>
                             </div>
                         </div>
+                        <div class="stat-card">
+                            <div class="stat-icon admin">
+                                <i class="fas fa-users-cog"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">طلبات تفويض عائلي</span>
+                                <span class="stat-value" id="pendingFamilyDelegations">0</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Admin Actions - Reorganized -->
@@ -412,6 +427,11 @@
                                     <span>إدارة الأعضاء</span>
                                     <small>قائمة الأعضاء وتسجيل جديد</small>
                                 </button>
+                                <button class="action-btn admin purple" data-action="family-delegations">
+                                    <i class="fas fa-handshake"></i>
+                                    <span>إدارة التفويض العائلي</span>
+                                    <small>طلبات التفويض المعلقة والموافق عليها</small>
+                                </button>
                             </div>
                         </div>
 
@@ -433,25 +453,37 @@
 
                     <div id="admin-content-area" class="admin-content-area" style="margin-top: 20px;"></div>
 
-
-                    <!-- Admin System Tools -->
-                    <div class="admin-system-tools">
-                        <h3><i class="fas fa-tools"></i> أدوات النظام</h3>
-                        <div class="system-tools-grid">
-                            <button class="system-tool-btn" onclick="downloadFullDatabase()">
+                    <!-- System Reports & Backup -->
+                    <div class="system-reports-section">
+                        <h3><i class="fas fa-download"></i> التقارير والنسخ الاحتياطية</h3>
+                        <div class="reports-actions">
+                            <button class="system-report-btn" id="sqlBackupBtn">
                                 <i class="fas fa-database"></i>
-                                <span>تحميل قاعدة البيانات JSON</span>
-                                <small>نسخة احتياطية بصيغة JSON</small>
+                                <div class="btn-content">
+                                    <span class="btn-title">نسخة احتياطية SQL</span>
+                                    <small class="btn-desc">تحميل نسخة كاملة من قاعدة البيانات</small>
+                                </div>
                             </button>
-                            <button class="system-tool-btn" onclick="downloadSQLBackup()">
-                                <i class="fas fa-server"></i>
-                                <span>تحميل قاعدة البيانات SQL</span>
-                                <small>نسخة احتياطية بصيغة SQL</small>
+                            <button class="system-report-btn" id="excelBackupBtn">
+                                <i class="fas fa-file-excel"></i>
+                                <div class="btn-content">
+                                    <span class="btn-title">Excel Database Backup</span>
+                                    <small class="btn-desc">Complete database backup in Excel format with Arabic support</small>
+                                </div>
                             </button>
-                            <button class="system-tool-btn" onclick="generateTransactionsPDF()">
+                            <button class="system-report-btn" id="excelToPdfBtn">
                                 <i class="fas fa-file-pdf"></i>
-                                <span>تقرير المعاملات PDF</span>
-                                <small>تقرير شامل بجميع المعاملات</small>
+                                <div class="btn-content">
+                                    <span class="btn-title">Excel to PDF Backup</span>
+                                    <small class="btn-desc">Excel backup converted to PDF with proper Arabic formatting</small>
+                                </div>
+                            </button>
+                            <button class="system-report-btn" id="financialReportBtn">
+                                <i class="fas fa-file-alt"></i>
+                                <div class="btn-content">
+                                    <span class="btn-title">التقرير المالي الشامل</span>
+                                    <small class="btn-desc">جميع المعاملات والقروض والأرصدة (نص عربي)</small>
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -761,6 +793,7 @@
     <script src="js/user-tabs/loan-payments-tab.js"></script>
     <script src="js/user-tabs/loan-request-tab.js"></script>
     <script src="js/user-tabs/loan-history-tab.js"></script>
+    <script src="js/user-tabs/family-management-tab.js"></script>
     
     <!-- User dashboard modules -->
     <script src="js/user-dashboard-loader.js"></script>
@@ -770,6 +803,7 @@
     <script src="js/admin-tabs/transactions-management.js"></script>
     <script src="js/admin-tabs/users-management.js"></script>
     <script src="js/admin-tabs/reports-management.js"></script>
+    <script src="js/admin-tabs/family-delegations-management.js"></script>
     
     <!-- Utility modules (load first) -->
     <script src="js/config.js"></script>
