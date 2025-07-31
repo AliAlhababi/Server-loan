@@ -6,10 +6,10 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Create database
-CREATE DATABASE IF NOT EXISTS `loan_management_system` 
+CREATE DATABASE IF NOT EXISTS `family1_loan_management` 
 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE `loan_management_system`;
+USE `family1_loan_management`;
 
 -- =====================================================
 -- TABLE STRUCTURE
