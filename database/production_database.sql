@@ -115,6 +115,31 @@ CREATE TABLE `transaction` (
   CONSTRAINT `fk_transaction_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=4001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Family delegations table (Family Account Delegation System)
+DROP TABLE IF EXISTS `family_delegations`;
+CREATE TABLE `family_delegations` (
+  `delegation_id` int NOT NULL AUTO_INCREMENT,
+  `family_head_id` int NOT NULL COMMENT 'User who can make payments for family members',
+  `family_member_id` int NOT NULL COMMENT 'User receiving delegation',
+  `delegation_status` enum('pending','approved','rejected','revoked') NOT NULL DEFAULT 'pending',
+  `created_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `approved_date` timestamp NULL DEFAULT NULL,
+  `revoked_date` timestamp NULL DEFAULT NULL,
+  `approved_by_admin_id` int DEFAULT NULL COMMENT 'Admin who approved the delegation',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Optional notes about the delegation',
+  `admin_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Admin notes during approval/rejection',
+  PRIMARY KEY (`delegation_id`),
+  UNIQUE KEY `unique_delegation` (`family_head_id`,`family_member_id`),
+  KEY `idx_family_head` (`family_head_id`),
+  KEY `idx_family_member` (`family_member_id`),
+  KEY `idx_delegation_status` (`delegation_status`),
+  KEY `idx_approved_by_admin` (`approved_by_admin_id`),
+  CONSTRAINT `fk_family_head` FOREIGN KEY (`family_head_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_family_member` FOREIGN KEY (`family_member_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_delegation_admin` FOREIGN KEY (`approved_by_admin_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_no_self_delegation` CHECK ((`family_head_id` <> `family_member_id`))
+) ENGINE=InnoDB AUTO_INCREMENT=5001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Attribute table (System Configuration)
 DROP TABLE IF EXISTS `attribute`;
 CREATE TABLE `attribute` (
