@@ -237,7 +237,7 @@ class BackupController {
       reportContent += '=====================================\n';
       reportContent += '       درع العائلة - التقرير المالي الشامل\n';
       reportContent += '=====================================\n';
-      reportContent += `تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')}\n\n`;
+      reportContent += `تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}\n\n`;
       
       // Summary statistics in Arabic
       console.log('Calculating summary statistics...');
@@ -269,7 +269,7 @@ class BackupController {
         reportContent += `📧 البريد الإلكتروني: ${user.email || 'غير محدد'}\n`;
         reportContent += `📞 الهاتف: ${user.phone || 'غير محدد'}\n`;
         reportContent += `💰 الرصيد الحالي: ${parseFloat(user.balance || 0).toFixed(3)} د.ك\n`;
-        reportContent += `📅 تاريخ التسجيل: ${new Date(user.registration_date).toLocaleDateString('ar-SA')}\n`;
+        reportContent += `📅 تاريخ التسجيل: ${new Date(user.registration_date).toLocaleDateString('en-US')}\n`;
         reportContent += `✅ رسوم الانضمام: ${user.joining_fee_approved === 'approved' ? 'معتمدة' : 'معلقة'}\n`;
         reportContent += `💵 إجمالي الاشتراكات: ${parseFloat(user.total_subscriptions || 0).toFixed(3)} د.ك\n`;
         reportContent += `💳 مدفوعات القروض: ${parseFloat(user.total_loan_payments || 0).toFixed(3)} د.ك\n`;

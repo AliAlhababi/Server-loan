@@ -300,7 +300,40 @@ class TransactionController {
       // Don't fail the request if email fails
     }
 
-    ResponseHelper.success(res, null,
+    // Return updated loan summary for WhatsApp notification if approved
+    let responseData = null;
+    if (normalizedAction === 'accept') {
+      // Get updated loan summary
+      const updatedSummaryQuery = `
+        SELECT 
+          l.credit as payment_amount,
+          rl.loan_amount,
+          COALESCE(paid_summary.total_paid, 0) as total_paid_for_loan,
+          (rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount
+        FROM loan l
+        JOIN requested_loan rl ON l.target_loan_id = rl.loan_id
+        LEFT JOIN (
+          SELECT target_loan_id, SUM(credit) as total_paid
+          FROM loan
+          WHERE status = 'accepted'
+          GROUP BY target_loan_id
+        ) paid_summary ON l.target_loan_id = paid_summary.target_loan_id
+        WHERE l.loan_id = ?
+      `;
+      
+      try {
+        const summaryResults = await DatabaseService.executeQuery(updatedSummaryQuery, [loanPaymentId]);
+        if (summaryResults.length > 0) {
+          responseData = {
+            loanSummary: summaryResults[0]
+          };
+        }
+      } catch (summaryError) {
+        console.error('Error fetching updated loan summary:', summaryError);
+      }
+    }
+
+    ResponseHelper.success(res, responseData,
       normalizedAction === 'accept' ? 'تم قبول دفعة القرض' : 'تم رفض دفعة القرض'
     );
   });

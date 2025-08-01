@@ -65,11 +65,21 @@ router.get('/status', verifyToken, async (req, res) => {
     // Get family members if user is a family head
     const [familyMembers] = await pool.execute(`
       SELECT fd.delegation_id, fd.family_member_id, u.Aname as member_name, 
-             u.balance as member_balance, fd.created_date, fd.delegation_status
+             u.balance as member_balance, fd.created_date, fd.delegation_status,
+             rl.loan_id, rl.loan_amount, rl.installment_amount, rl.status as loan_status,
+             rl.loan_closed_date, COALESCE(loan_payments.total_paid, 0) as total_paid,
+             (rl.loan_amount - COALESCE(loan_payments.total_paid, 0)) as remaining_amount
       FROM family_delegations fd
       JOIN users u ON fd.family_member_id = u.user_id
+      LEFT JOIN requested_loan rl ON u.user_id = rl.user_id AND rl.status = 'approved' AND rl.loan_closed_date IS NULL
+      LEFT JOIN (
+        SELECT target_loan_id, SUM(credit) as total_paid
+        FROM loan
+        WHERE status = 'accepted'
+        GROUP BY target_loan_id
+      ) loan_payments ON rl.loan_id = loan_payments.target_loan_id
       WHERE fd.family_head_id = ? AND fd.delegation_status = 'approved' 
-      AND fd.delegation_type = 'member_delegation'
+      AND fd.delegation_type = 'delegation_request'
       ORDER BY fd.created_date DESC
     `, [userId]);
     
@@ -80,7 +90,7 @@ router.get('/status', verifyToken, async (req, res) => {
       FROM family_delegations fd
       JOIN users u ON fd.family_head_id = u.user_id
       WHERE fd.family_member_id = ? AND fd.delegation_status = 'approved'
-      AND fd.delegation_type = 'member_delegation'
+      AND fd.delegation_type = 'delegation_request'
     `, [userId]);
 
     // Check if user has pending family head request
@@ -207,7 +217,7 @@ router.post('/request-join-family', verifyToken, async (req, res) => {
       INSERT INTO family_delegations (
         family_head_id, family_member_id, delegation_status, 
         delegation_type, notes, created_date
-      ) VALUES (?, ?, 'pending', 'member_delegation', ?, NOW())
+      ) VALUES (?, ?, 'pending', 'delegation_request', ?, NOW())
     `, [familyHeadId, memberId, notes || 'طلب انضمام للعائلة']);
     
     res.json({
@@ -286,7 +296,7 @@ router.post('/add-member', verifyToken, async (req, res) => {
       INSERT INTO family_delegations (
         family_head_id, family_member_id, delegation_status, 
         delegation_type, notes, created_date
-      ) VALUES (?, ?, 'pending', 'member_delegation', ?, NOW())
+      ) VALUES (?, ?, 'pending', 'delegation_request', ?, NOW())
     `, [familyHeadId, memberId, notes || `إضافة عضو من قبل رب الأسرة`]);
     
     res.json({
@@ -322,7 +332,7 @@ router.post('/make-payment', verifyToken, async (req, res) => {
     const [delegationResults] = await pool.execute(`
       SELECT delegation_id FROM family_delegations 
       WHERE family_head_id = ? AND family_member_id = ? 
-      AND delegation_status = 'approved' AND delegation_type = 'member_delegation'
+      AND delegation_status = 'approved' AND delegation_type = 'delegation_request'
     `, [familyHeadId, memberId]);
     
     if (delegationResults.length === 0) {

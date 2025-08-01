@@ -444,7 +444,7 @@ class EmailService {
                 <h3 style="color: ${statusColor};">${statusIcon} حالة رسوم الانضمام: ${statusText}</h3>
                 <div class="status-details">
                     <p><strong>المبلغ:</strong> 10.000 د.ك</p>
-                    <p><strong>التاريخ:</strong> ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p><strong>التاريخ:</strong> ${new Date().toLocaleDateString('en-US')}</p>
                     <p><strong>الحالة:</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></p>
                 </div>
             </div>
@@ -539,7 +539,7 @@ class EmailService {
                     </div>
                     <div class="detail-row">
                         <span>تاريخ الطلب:</span>
-                        <span>${new Date(loanData.requestDate).toLocaleDateString('ar-KW')}</span>
+                        <span>${new Date(loanData.requestDate).toLocaleDateString('en-US')}</span>
                     </div>
                 </div>
             </div>
@@ -623,7 +623,7 @@ class EmailService {
                     </div>
                     <div class="detail-row">
                         <span>تاريخ المعاملة:</span>
-                        <span>${new Date(transactionData.date).toLocaleDateString('ar-KW')}</span>
+                        <span>${new Date(transactionData.date).toLocaleDateString('en-US')}</span>
                     </div>
                 </div>
             </div>
@@ -714,7 +714,7 @@ class EmailService {
                     </div>
                     <div class="detail-row">
                         <span>تاريخ الدفعة:</span>
-                        <span>${new Date(paymentData.date).toLocaleDateString('ar-KW')}</span>
+                        <span>${new Date(paymentData.date).toLocaleDateString('en-US')}</span>
                     </div>
                 </div>
             </div>
@@ -772,7 +772,7 @@ class EmailService {
     // Helper methods for text versions
     getJoiningFeeEmailText(fullName, status) {
         const statusText = status === 'approved' ? 'معتمدة' : 'مرفوضة';
-        return `درع العائلة - تحديث حالة رسوم الانضمام\n\nمرحباً ${fullName}\n\nحالة رسوم الانضمام: ${statusText}\nالمبلغ: 10.000 د.ك\nالتاريخ: ${new Date().toLocaleDateString('ar-KW')}\n\nدرع العائلة\nنظام إدارة القروض والمعاملات المالية`;
+        return `درع العائلة - تحديث حالة رسوم الانضمام\n\nمرحباً ${fullName}\n\nحالة رسوم الانضمام: ${statusText}\nالمبلغ: 10.000 د.ك\nالتاريخ: ${new Date().toLocaleDateString('en-US')}\n\nدرع العائلة\nنظام إدارة القروض والمعاملات المالية`;
     }
 
     getLoanStatusEmailText(fullName, loanData, status, adminName) {

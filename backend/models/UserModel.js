@@ -170,10 +170,10 @@ class UserModel {
         GROUP BY rl.loan_id, rl.user_id, rl.loan_amount, rl.installment_amount, rl.status, 
                  rl.request_date, rl.approval_date, rl.loan_closed_date, rl.admin_id, u.Aname
         ORDER BY rl.request_date DESC
-        LIMIT ?
+        LIMIT ${parseInt(limit)}
       `;
 
-      const [loans] = await pool.execute(query, [userId, limit]);
+      const [loans] = await pool.execute(query, [userId]);
       return loans;
     } catch (error) {
       throw new Error(`خطأ في جلب تاريخ القروض: ${error.message}`);
@@ -196,8 +196,7 @@ class UserModel {
         params.push(transactionType);
       }
       
-      query += ' ORDER BY t.date DESC LIMIT ?';
-      params.push(limit);
+      query += ` ORDER BY t.date DESC LIMIT ${parseInt(limit)}`;
 
       const [transactions] = await pool.execute(query, params);
       return transactions;

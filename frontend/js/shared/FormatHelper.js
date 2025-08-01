@@ -7,7 +7,7 @@ class FormatHelper {
         return showSymbol ? `${formatted} د.ك` : formatted;
     }
     
-    // Format date with Arabic locale support
+    // Format date with English locale support
     static formatDate(dateString, includeTime = false) {
         if (!dateString) return 'غير محدد';
         
@@ -28,7 +28,7 @@ class FormatHelper {
                 options.hour12 = false;
             }
             
-            return date.toLocaleDateString('ar-KW', options);
+            return date.toLocaleDateString('en-US', options);
         } catch (error) {
             console.warn('Date formatting error:', error);
             return 'تاريخ غير صحيح';

@@ -135,7 +135,7 @@ class TransactionsManagement {
                                     <span class="memo">${transaction.memo || 'غير محدد'}</span>
                                 </td>
                                 <td>
-                                    <span class="date">${new Date(transaction.date).toLocaleDateString('ar-KW')}</span>
+                                    <span class="date">${new Date(transaction.date).toLocaleDateString('en-US')}</span>
                                     <small>${new Date(transaction.date).toLocaleTimeString('ar-KW')}</small>
                                 </td>
                                 <td class="actions-cell">
@@ -233,7 +233,7 @@ class TransactionsManagement {
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="date">${new Date(transaction.date).toLocaleDateString('ar-KW')}</span>
+                                    <span class="date">${new Date(transaction.date).toLocaleDateString('en-US')}</span>
                                 </td>
                                 <td class="actions-cell">
                                     <button class="btn btn-sm btn-info" onclick="transactionsManagement.viewTransactionDetails(${transaction.transaction_id || transaction.id}, 'transaction')" title="التفاصيل">
@@ -355,8 +355,11 @@ class TransactionsManagement {
                     if (type === 'loan_payment') {
                         // Loan payment notification
                         // Get loan summary for progress tracking
-                        const totalPaid = transactionDetails.total_paid_for_loan || transactionDetails.credit || 0;
-                        const loanAmount = transactionDetails.loan_amount || 0;
+                        // Use updated loan summary from approval response if available, otherwise use original data
+                        const loanSummary = result.loanSummary || transactionDetails;
+                        const paymentAmount = loanSummary.payment_amount || transactionDetails.credit || 0;
+                        const totalPaid = loanSummary.total_paid_for_loan || 0;
+                        const loanAmount = loanSummary.loan_amount || 0;
                         const remainingAmount = Math.max(0, loanAmount - totalPaid);
                         
                         const whatsappSent = Utils.sendWhatsAppNotification(
@@ -364,7 +367,7 @@ class TransactionsManagement {
                             userName,
                             'loanPaymentApproved',
                             userFinancials,
-                            FormatHelper.formatCurrency(transactionDetails.credit),
+                            FormatHelper.formatCurrency(paymentAmount),
                             FormatHelper.formatCurrency(totalPaid),
                             FormatHelper.formatCurrency(loanAmount),
                             FormatHelper.formatCurrency(remainingAmount)

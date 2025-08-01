@@ -102,7 +102,7 @@ class FamilyDelegationsManagement {
 
         // Group by delegation type for better organization
         const familyHeadRequests = this.pendingDelegations.filter(d => d.delegation_type === 'family_head_request');
-        const memberDelegations = this.pendingDelegations.filter(d => d.delegation_type === 'member_delegation');
+        const memberDelegations = this.pendingDelegations.filter(d => d.delegation_type === 'delegation_request');
 
         return `
             <div class="pending-delegations">
@@ -198,7 +198,7 @@ class FamilyDelegationsManagement {
                     </div>
                     <div class="delegation-date">
                         <i class="fas fa-calendar-alt"></i>
-                        ${new Date(delegation.created_date).toLocaleDateString('ar-SA')}
+                        ${new Date(delegation.created_date).toLocaleDateString('en-US')}
                     </div>
                 </div>
 
@@ -232,7 +232,7 @@ class FamilyDelegationsManagement {
                                 ${delegation.approved_date ? `
                                     <div class="admin-details">
                                         <label><i class="fas fa-clock"></i> تاريخ المعالجة:</label>
-                                        <span>${new Date(delegation.approved_date).toLocaleDateString('ar-SA')}</span>
+                                        <span>${new Date(delegation.approved_date).toLocaleDateString('en-US')}</span>
                                     </div>
                                 ` : ''}
                             </div>

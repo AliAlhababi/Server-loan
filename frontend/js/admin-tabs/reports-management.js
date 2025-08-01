@@ -157,7 +157,7 @@ class ReportsManagement {
             <div class="report-content">
                 <div class="report-header">
                     <h2><i class="fas fa-users"></i> تقرير الأعضاء</h2>
-                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}</p>
                 </div>
                 
                 <div class="report-summary">
@@ -250,7 +250,7 @@ class ReportsManagement {
             <div class="report-content">
                 <div class="report-header">
                     <h2><i class="fas fa-money-bill-wave"></i> تقرير القروض</h2>
-                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}</p>
                 </div>
                 
                 <div class="report-summary">
@@ -308,7 +308,7 @@ class ReportsManagement {
                                         ${loan.status === 'pending' ? 'معلق' :
                                           loan.status === 'approved' ? 'موافق' : 'مرفوض'}
                                     </td>
-                                    <td>${new Date(loan.request_date).toLocaleDateString('ar-KW')}</td>
+                                    <td>${new Date(loan.request_date).toLocaleDateString('en-US')}</td>
                                     <td>${loan.admin_name || '-'}</td>
                                 </tr>
                             `).join('')}
@@ -328,7 +328,7 @@ class ReportsManagement {
             <div class="report-content">
                 <div class="report-header">
                     <h2><i class="fas fa-exchange-alt"></i> تقرير المعاملات</h2>
-                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}</p>
                 </div>
                 <div class="report-summary">
                     <p>إجمالي المعاملات: ${transactions.length}</p>
@@ -344,7 +344,7 @@ class ReportsManagement {
             <div class="report-content">
                 <div class="report-header">
                     <h2><i class="fas fa-chart-pie"></i> التقرير المالي الشامل</h2>
-                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}</p>
                 </div>
                 <div class="report-summary">
                     <p>التقرير المالي الشامل - قيد التطوير</p>
@@ -360,7 +360,7 @@ class ReportsManagement {
             <div class="report-content">
                 <div class="report-header">
                     <h2><i class="fas fa-calendar-month"></i> التقرير الشهري</h2>
-                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}</p>
                 </div>
                 <div class="report-summary">
                     <p>التقرير الشهري - قيد التطوير</p>
@@ -376,7 +376,7 @@ class ReportsManagement {
             <div class="report-content">
                 <div class="report-header">
                     <h2><i class="fas fa-hand-holding-usd"></i> تقرير القروض النشطة</h2>
-                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('ar-KW')}</p>
+                    <p class="report-date">تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}</p>
                 </div>
                 <div class="report-summary">
                     <p>تقرير القروض النشطة - قيد التطوير</p>

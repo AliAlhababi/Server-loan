@@ -19,13 +19,13 @@
                     <h1>درع العائلة</h1>
                 </div>
                 <div class="user-info" id="userInfo" style="display: none;">
+                    <span id="userName">مرحباً بك</span>
                     <a href="#" onclick="showLoanTermsModal()" class="terms-link">
                         <i class="fas fa-file-contract"></i> الشروط والأحكام
                     </a>
                     <a href="#" onclick="scrollToCalculator(); return false;" class="calculator-shortcut" id="calculatorShortcut" style="display: none;" title="حاسبة القروض">
                         <i class="fas fa-calculator"></i>
                     </a>
-                    <span id="userName">مرحباً بك</span>
                     <button id="logoutBtn" class="btn btn-secondary">
                         <i class="fas fa-sign-out-alt"></i> خروج
                     </button>
@@ -298,37 +298,7 @@
                         </div>
                     </div>
 
-                    <!-- Loan Request Conditions -->
-                    <div class="loan-conditions">
-                        <h3>شروط طلب قرض</h3>
-                        <div class="conditions-list" id="loanConditions">
-                            <div class="condition-item">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <span>جاري التحقق من الشروط...</span>
-                            </div>
-                        </div>
-                        
-                        <div class="additional-terms">
-                            <h4><i class="fas fa-info-circle"></i> معلومات إضافية مهمة</h4>
-                            <div class="terms-content-placeholder"></div>
-                        </div>
-                        <div class="loan-request-form" style="display: none;" id="loanRequestForm">
-                            <h4>طلب قرض</h4>
-                            <p>إجمالي المسدد يساوي مبلغ القرض بالضبط (بدون فوائد)</p>
-                            <form id="simpleLoanForm">
-                                <div class="form-group">
-                                    <label for="simpleLoanAmount">مبلغ القرض المطلوب</label>
-                                    <input type="number" id="simpleLoanAmount" name="simpleLoanAmount" step="0.001" min="100" required>
-                                    <small>الحد الأقصى: <span id="maxLoanDisplay">0</span> دينار</small>
-                                </div>
-
-                                
-                                <button type="button" class="btn btn-primary" id="calculateLoanBtn" style="width: 100%; margin-bottom: 15px;">
-                                    <i class="fas fa-calculator"></i> حساب تفاصيل القرض
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                    <!-- Loan conditions moved to loan request tab for better organization -->
 
                 </div>
 

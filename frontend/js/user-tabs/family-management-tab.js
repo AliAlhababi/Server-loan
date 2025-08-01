@@ -131,7 +131,7 @@ class FamilyManagementTab {
                         </div>
                         <div class="detail-row">
                             <label>تاريخ التفويض:</label>
-                            <span>${new Date(delegationInfo.created_date).toLocaleDateString('ar-SA')}</span>
+                            <span>${new Date(delegationInfo.created_date).toLocaleDateString('en-US')}</span>
                         </div>
                         <div class="detail-row">
                             <label>الحالة:</label>
@@ -181,7 +181,7 @@ class FamilyManagementTab {
                     <div class="request-details">
                         <div class="detail-row">
                             <label>تاريخ الطلب:</label>
-                            <span>${new Date(pendingRequest.created_date).toLocaleDateString('ar-SA')}</span>
+                            <span>${new Date(pendingRequest.created_date).toLocaleDateString('en-US')}</span>
                         </div>
                         <div class="detail-row">
                             <label>الحالة:</label>
@@ -272,6 +272,9 @@ class FamilyManagementTab {
 
     // Generate individual family member card
     generateFamilyMemberCard(member) {
+        const hasLoan = member.loan_id && member.loan_status === 'approved' && !member.loan_closed_date;
+        const loanProgress = hasLoan ? Math.round((parseFloat(member.total_paid) / parseFloat(member.loan_amount)) * 100) : 0;
+        
         return `
             <div class="member-card">
                 <div class="member-info">
@@ -284,17 +287,65 @@ class FamilyManagementTab {
                         <span class="status-badge approved">نشط</span>
                     </div>
                 </div>
+                
+                ${hasLoan ? `
+                    <div class="member-loan-info">
+                        <div class="loan-overview-card" style="background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%); margin: 12px 0; padding: 16px; border-radius: 8px;">
+                            <div class="loan-header">
+                                <div class="loan-icon">
+                                    <i class="fas fa-hand-holding-usd" style="font-size: 18px; color: white;"></i>
+                                </div>
+                                <div class="loan-info">
+                                    <h6 style="color: white; margin: 0;">قرض نشط</h6>
+                                    <small style="color: rgba(255,255,255,0.8);">القرض #${member.loan_id}</small>
+                                </div>
+                            </div>
+                            <div class="loan-stats" style="margin-top: 12px;">
+                                <div class="stat-row">
+                                    <div class="stat-item">
+                                        <span class="stat-value" style="color: white;">${formatCurrency(member.loan_amount)}</span>
+                                        <span class="stat-label" style="color: rgba(255,255,255,0.8);">إجمالي القرض</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" style="color: white;">${formatCurrency(member.total_paid)}</span>
+                                        <span class="stat-label" style="color: rgba(255,255,255,0.8);">المسدد</span>
+                                    </div>
+                                </div>
+                                <div class="stat-row">
+                                    <div class="stat-item">
+                                        <span class="stat-value" style="color: white;">${formatCurrency(member.remaining_amount)}</span>
+                                        <span class="stat-label" style="color: rgba(255,255,255,0.8);">المتبقي</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" style="color: white;">${loanProgress}%</span>
+                                        <span class="stat-label" style="color: rgba(255,255,255,0.8);">مكتمل</span>
+                                    </div>
+                                </div>
+                                <div class="loan-progress" style="margin-top: 8px;">
+                                    <div class="progress-bar" style="background: rgba(255,255,255,0.2); height: 4px; border-radius: 2px; overflow: hidden;">
+                                        <div class="progress-fill" style="background: white; height: 100%; width: ${loanProgress}%; transition: width 0.3s ease;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
                 <div class="member-actions">
                     <button class="action-btn primary small pay-subscription-btn" 
                             data-member-id="${member.family_member_id}" 
                             data-member-name="${member.member_name}">
                         <i class="fas fa-credit-card"></i> دفع اشتراك
                     </button>
-                    <button class="action-btn secondary small pay-loan-btn" 
-                            data-member-id="${member.family_member_id}" 
-                            data-member-name="${member.member_name}">
-                        <i class="fas fa-hand-holding-usd"></i> دفع قسط
-                    </button>
+                    ${hasLoan ? `
+                        <button class="action-btn secondary small pay-loan-btn" 
+                                data-member-id="${member.family_member_id}" 
+                                data-member-name="${member.member_name}"
+                                data-loan-id="${member.loan_id}"
+                                data-installment="${member.installment_amount}">
+                            <i class="fas fa-hand-holding-usd"></i> دفع قسط (${formatCurrency(member.installment_amount)})
+                        </button>
+                    ` : ''}
                     <button class="action-btn danger small remove-member-btn" 
                             data-delegation-id="${member.delegation_id}"
                             data-member-name="${member.member_name}">
@@ -413,7 +464,9 @@ class FamilyManagementTab {
             btn.addEventListener('click', (e) => {
                 const memberId = e.target.dataset.memberId;
                 const memberName = e.target.dataset.memberName;
-                this.showPaymentInterface(memberId, memberName, 'loan');
+                const loanId = e.target.dataset.loanId;
+                const installment = e.target.dataset.installment;
+                this.showPaymentInterface(memberId, memberName, 'loan', { loanId, installment });
             });
         });
 
@@ -594,10 +647,11 @@ class FamilyManagementTab {
     }
 
     // Show payment interface
-    showPaymentInterface(memberId, memberName, paymentType) {
+    showPaymentInterface(memberId, memberName, paymentType, loanData = null) {
         const paymentInterface = document.getElementById('paymentInterface');
         const selectedMember = document.getElementById('selectedMember');
         const paymentTypeSelect = document.getElementById('paymentType');
+        const paymentAmount = document.getElementById('paymentAmount');
         
         if (paymentInterface && selectedMember && paymentTypeSelect) {
             selectedMember.value = memberId;
@@ -606,6 +660,17 @@ class FamilyManagementTab {
             if (paymentType === 'loan') {
                 document.getElementById('loanSelectGroup').style.display = 'block';
                 this.loadMemberLoans(memberId);
+                
+                // Pre-fill with installment amount if available
+                if (loanData && loanData.installment && paymentAmount) {
+                    paymentAmount.value = loanData.installment;
+                }
+            } else {
+                // Clear amount for subscription payments
+                if (paymentAmount) {
+                    paymentAmount.value = '';
+                    paymentAmount.setAttribute('placeholder', 'أدخل المبلغ');
+                }
             }
             
             paymentInterface.style.display = 'block';
@@ -625,9 +690,41 @@ class FamilyManagementTab {
 
     // Load member loans for loan payment
     async loadMemberLoans(memberId) {
-        // Implementation would load active loans for the selected member
-        // This is a placeholder - you would implement based on your loan system
-        console.log('Loading loans for member:', memberId);
+        try {
+            const selectedLoan = document.getElementById('selectedLoan');
+            if (!selectedLoan) return;
+            
+            // Clear existing options
+            selectedLoan.innerHTML = '<option value="">اختر القرض</option>';
+            
+            // Find the member's loan info from family status
+            const member = this.familyStatus.familyMembers.find(m => m.family_member_id == memberId);
+            if (member && member.loan_id && member.loan_status === 'approved' && !member.loan_closed_date) {
+                const loanOption = document.createElement('option');
+                loanOption.value = member.loan_id;
+                loanOption.textContent = `القرض #${member.loan_id} - ${formatCurrency(member.remaining_amount)} متبقي`;
+                selectedLoan.appendChild(loanOption);
+                
+                // Auto-select the loan if it's the only one
+                selectedLoan.value = member.loan_id;
+                
+                // Set suggested payment amount to installment amount
+                const paymentAmount = document.getElementById('paymentAmount');
+                if (paymentAmount && member.installment_amount) {
+                    paymentAmount.value = member.installment_amount;
+                    paymentAmount.setAttribute('placeholder', `الحد الأدنى: ${formatCurrency(member.installment_amount)}`);
+                }
+            } else {
+                const noLoanOption = document.createElement('option');
+                noLoanOption.value = '';
+                noLoanOption.textContent = 'لا يوجد قروض نشطة';
+                noLoanOption.disabled = true;
+                selectedLoan.appendChild(noLoanOption);
+            }
+        } catch (error) {
+            console.error('خطأ في تحميل قروض العضو:', error);
+            Utils.showToast('خطأ في تحميل بيانات القروض', 'error');
+        }
     }
 
     // Handle payment form submission

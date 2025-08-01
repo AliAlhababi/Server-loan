@@ -181,7 +181,7 @@ class SubscriptionsTab {
 
     // Transaction card instead of table row
     renderTransactionCard(transaction) {
-        const date = new Date(transaction.date || transaction.transaction_date).toLocaleDateString('ar-KW');
+        const date = new Date(transaction.date || transaction.transaction_date).toLocaleDateString('en-US');
         
         return `
             <div class="transaction-card">

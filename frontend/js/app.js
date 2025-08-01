@@ -34,7 +34,7 @@ function setupEventListeners() {
         ['logoutBtn', 'click', handleLogout],
         ['registerForm', 'submit', handleRegistration],
         ['editProfileForm', 'submit', handleEditProfile],
-        ['calculateLoanBtn', 'click', handleLoanCalculation],
+        // calculateLoanBtn removed - now handled in loan request tab
         ['modalLoanConfirmation', 'change', toggleModalSubmitButton],
         ['confirmLoanRequestBtn', 'click', handleLoanRequestFromModal]
     ];
@@ -921,6 +921,42 @@ function showForgotPassword() {
     }
 }
 
+// Terms Modal Functions
+function showLoanTermsModal() {
+    const modal = document.getElementById('loanTermsModal');
+    const content = document.querySelector('.terms-content-modal');
+    
+    if (modal && content) {
+        // Load terms content
+        content.innerHTML = Utils.getTermsContent();
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeLoanTermsModal() {
+    const modal = document.getElementById('loanTermsModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Close modal when clicking outside content
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('loanTermsModal');
+    if (e.target === modal) {
+        closeLoanTermsModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLoanTermsModal();
+    }
+});
+
 // Make functions global for HTML onclick handlers
 window.hideModal = hideModal;
 window.copyToClipboard = copyToClipboard;
@@ -930,3 +966,5 @@ window.performLoanCalculation = performLoanCalculation;
 window.clearLoanCalculator = clearLoanCalculator;
 window.refreshUserData = refreshUserData;
 window.showForgotPassword = showForgotPassword;
+window.showLoanTermsModal = showLoanTermsModal;
+window.closeLoanTermsModal = closeLoanTermsModal;

@@ -10,7 +10,7 @@ const Utils = {
     formatDate: (dateString) => {
         if (!dateString) return 'غير محدد';
         const date = new Date(dateString);
-        return isNaN(date.getTime()) ? 'غير محدد' : date.toLocaleDateString('ar-KW');
+        return isNaN(date.getTime()) ? 'غير محدد' : date.toLocaleDateString('en-US');
     },
     
     // Loading state
@@ -325,8 +325,15 @@ const Utils = {
         },
 
         loanPaymentApproved: (userName, paymentAmount, totalPaid, loanAmount, remainingAmount, userFinancials = null) => {
-            const completionPercentage = Math.round((parseFloat(totalPaid) / parseFloat(loanAmount)) * 100);
-            const isCompleted = parseFloat(remainingAmount) <= 0;
+            // Extract numeric values for calculations (remove 'د.ك' suffix)
+            const numericTotalPaid = parseFloat(totalPaid.toString().replace(/[^\d.-]/g, '')) || 0;
+            const numericLoanAmount = parseFloat(loanAmount.toString().replace(/[^\d.-]/g, '')) || 0;
+            const numericPaymentAmount = parseFloat(paymentAmount.toString().replace(/[^\d.-]/g, '')) || 0;
+            
+            // Recalculate remaining amount to ensure consistency
+            const recalculatedRemaining = Math.max(0, numericLoanAmount - numericTotalPaid);
+            const completionPercentage = numericLoanAmount > 0 ? Math.round((numericTotalPaid / numericLoanAmount) * 100) : 0;
+            const isCompleted = recalculatedRemaining <= 0.01; // Allow for small decimal precision errors
 
             let message = `🛡️ درع العائلة - قبول دفعة القرض
 
@@ -337,7 +344,7 @@ const Utils = {
 📊 ملخص القرض:
 • إجمالي القرض: ${loanAmount}
 • المدفوع: ${totalPaid}
-• المتبقي: ${remainingAmount}
+• المتبقي: ${recalculatedRemaining.toFixed(3)} د.ك
 • نسبة الإنجاز: ${completionPercentage}%`;
 
             if (isCompleted) {

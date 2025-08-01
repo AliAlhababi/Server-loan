@@ -149,7 +149,7 @@ class LoansManagement {
                                     <span class="balance">${formatCurrency(loan.current_balance)}</span>
                                 </td>
                                 <td>
-                                    <span class="date">${new Date(loan.request_date).toLocaleDateString('ar-KW')}</span>
+                                    <span class="date">${new Date(loan.request_date).toLocaleDateString('en-US')}</span>
                                     <small>${new Date(loan.request_date).toLocaleTimeString('ar-KW')}</small>
                                 </td>
                                 <td class="actions-cell">
@@ -233,7 +233,7 @@ class LoansManagement {
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="date">${new Date(loan.request_date).toLocaleDateString('ar-KW')}</span>
+                                    <span class="date">${new Date(loan.request_date).toLocaleDateString('en-US')}</span>
                                 </td>
                                 <td>
                                     <span class="admin-name">${loan.admin_name || 'غير محدد'}</span>
@@ -309,7 +309,7 @@ class LoansManagement {
                                     <span class="amount-badge primary">${formatCurrency(payment.credit)}</span>
                                 </td>
                                 <td>
-                                    <small>${new Date(payment.date).toLocaleDateString('ar-SA')}</small>
+                                    <small>${new Date(payment.date).toLocaleDateString('en-US')}</small>
                                 </td>
                                 <td>
                                     <small>${payment.memo || 'لا توجد ملاحظات'}</small>
@@ -632,9 +632,11 @@ class LoansManagement {
                     }
                     
                     // Get loan summary for progress tracking
-                    const paymentAmount = paymentDetails.credit || 0;
-                    const totalPaid = paymentDetails.total_paid_for_loan || 0;
-                    const loanAmount = paymentDetails.loan_amount || 0;
+                    // Use updated loan summary from approval response if available, otherwise use original data
+                    const loanSummary = result.loanSummary || paymentDetails;
+                    const paymentAmount = loanSummary.payment_amount || paymentDetails.credit || 0;
+                    const totalPaid = loanSummary.total_paid_for_loan || 0;
+                    const loanAmount = loanSummary.loan_amount || 0;
                     const remainingAmount = Math.max(0, loanAmount - totalPaid);
                     
                     // Debug log for payment data
@@ -882,7 +884,7 @@ class LoansManagement {
                                 </td>
                                 <td>
                                     <div class="date-info">
-                                        ${new Date(payment.payment_date).toLocaleDateString('ar-KW')}
+                                        ${new Date(payment.payment_date).toLocaleDateString('en-US')}
                                         <small>${new Date(payment.payment_date).toLocaleTimeString('ar-KW', {hour: '2-digit', minute: '2-digit'})}</small>
                                     </div>
                                 </td>

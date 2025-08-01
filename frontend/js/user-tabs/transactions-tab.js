@@ -227,7 +227,7 @@ class TransactionsTab {
             <tr class="transaction-row ${transaction.status}">
                 <td class="date-cell">
                     <i class="fas fa-calendar-alt"></i>
-                    ${new Date(transaction.date || transaction.transaction_date).toLocaleDateString('ar-KW')}
+                    ${new Date(transaction.date || transaction.transaction_date).toLocaleDateString('en-US')}
                     <small>${new Date(transaction.date || transaction.transaction_date).toLocaleTimeString('ar-KW', {
                         hour: '2-digit',
                         minute: '2-digit'
