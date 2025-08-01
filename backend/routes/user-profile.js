@@ -39,10 +39,7 @@ router.put('/:userId', verifyToken, requireOwnershipOrAdmin, asyncHandler(async 
     return ResponseHelper.error(res, 'رقم الهاتف والبريد الإلكتروني مطلوبان', 400);
   }
 
-  // Check if email already exists for another user
-  if (await UserService.isEmailTaken(email, userId)) {
-    return ResponseHelper.error(res, 'البريد الإلكتروني مستخدم من قبل مستخدم آخر', 400);
-  }
+  // Email duplicates are now allowed - no validation needed
 
   const profileData = {
     mobile1, mobile2, email,
@@ -65,10 +62,7 @@ router.put('/', verifyToken, asyncHandler(async (req, res) => {
     return ResponseHelper.error(res, 'الاسم والبريد الإلكتروني ورقم الهاتف مطلوبان', 400);
   }
 
-  // Check if email already exists for another user
-  if (await UserService.isEmailTaken(email, userId)) {
-    return ResponseHelper.error(res, 'البريد الإلكتروني مستخدم من قبل مستخدم آخر', 400);
-  }
+  // Email duplicates are now allowed - no validation needed
 
   const profileData = {
     Aname: name,

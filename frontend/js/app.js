@@ -377,9 +377,9 @@ function handleCalculatorInput() {
     if (window.LoanCalculator && loanAmount > 0 && balance > 0) {
         try {
             const calculator = new window.LoanCalculator();
-            const result = calculator.calculateFromLoanAndBalance(loanAmount, balance);
+            const result = calculator.calculateInstallment(loanAmount, balance);
             
-            if (result.valid && installment === 0) {
+            if (result && installment === 0) {
                 document.getElementById('calcInstallment').value = result.installment.toFixed(3);
             }
         } catch (error) {
@@ -403,19 +403,17 @@ function performLoanCalculation() {
     let scenario = '';
     
     try {
-        if (loanAmount > 0 && balance > 0 && installment === 0) {
-            // Calculate installment from loan amount and balance
-            result = calculator.calculateFromLoanAndBalance(loanAmount, balance);
-            scenario = 'تم حساب القسط من مبلغ القرض والرصيد';
-        } else if (balance > 0 && installment > 0 && loanAmount === 0) {
-            // Calculate loan amount from balance and installment
-            result = calculator.calculateFromBalanceAndInstallment(balance, installment);
-            scenario = 'تم حساب مبلغ القرض من الرصيد والقسط';
-        } else if (loanAmount > 0 && installment > 0 && balance === 0) {
-            // Calculate balance from loan amount and installment
-            result = calculator.calculateFromLoanAndInstallment(loanAmount, installment);
-            scenario = 'تم حساب الرصيد من مبلغ القرض والقسط';
-        } else if (loanAmount > 0 && balance > 0 && installment > 0) {
+        // Use autoCalculate method which handles all scenarios
+        const inputs = {
+            loanAmount: loanAmount > 0 ? loanAmount : null,
+            balance: balance > 0 ? balance : null,
+            installment: installment > 0 ? installment : null
+        };
+        
+        result = calculator.autoCalculate(inputs);
+        scenario = result.scenario || 'حساب تلقائي';
+        
+        if (loanAmount > 0 && balance > 0 && installment > 0) {
             // Verify all three values
             result = calculator.calculateFromLoanAndBalance(loanAmount, balance);
             scenario = 'تم التحقق من صحة القيم المدخلة';
@@ -957,6 +955,119 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+// Admin Calculator Functions
+function handleAdminCalculatorInput() {
+    // Auto-calculate when admin inputs values
+    const loanAmount = parseFloat(document.getElementById('adminCalcLoanAmount').value) || 0;
+    const balance = parseFloat(document.getElementById('adminCalcBalance').value) || 0;
+    const installment = parseFloat(document.getElementById('adminCalcInstallment').value) || 0;
+    
+    // Use the loan calculator class if available
+    if (window.LoanCalculator && loanAmount > 0 && balance > 0) {
+        try {
+            const calculator = new window.LoanCalculator();
+            const result = calculator.calculateInstallment(loanAmount, balance);
+            
+            if (result && installment === 0) {
+                document.getElementById('adminCalcInstallment').value = result.installment.toFixed(3);
+            }
+        } catch (error) {
+            console.error('Admin calculator error:', error);
+        }
+    }
+}
+
+function performAdminLoanCalculation() {
+    const loanAmount = parseFloat(document.getElementById('adminCalcLoanAmount').value) || 0;
+    const balance = parseFloat(document.getElementById('adminCalcBalance').value) || 0;
+    const installment = parseFloat(document.getElementById('adminCalcInstallment').value) || 0;
+    
+    if (!window.LoanCalculator) {
+        showToast('حاسبة القروض غير متاحة', 'error');
+        return;
+    }
+    
+    const calculator = new window.LoanCalculator();
+    let result = null;
+    let scenario = '';
+    
+    try {
+        // Use autoCalculate method which handles all scenarios
+        const inputs = {
+            loanAmount: loanAmount > 0 ? loanAmount : null,
+            balance: balance > 0 ? balance : null,
+            installment: installment > 0 ? installment : null
+        };
+        
+        result = calculator.autoCalculate(inputs);
+        scenario = result.scenario || 'حساب تلقائي';
+        
+        if (loanAmount > 0 && balance > 0 && installment > 0) {
+            // Verify all three values
+            scenario = result.note || 'تحقق من صحة القيم المدخلة';
+        }
+        
+        // Update form fields with calculated values
+        if (result.loanAmount) {
+            document.getElementById('adminCalcLoanAmount').value = result.loanAmount.toFixed(3);
+        }
+        if (result.balance) {
+            document.getElementById('adminCalcBalance').value = result.balance.toFixed(3);
+        }
+        if (result.installment) {
+            document.getElementById('adminCalcInstallment').value = result.installment.toFixed(3);
+        }
+        
+        // Calculate installment period
+        const period = result.installmentPeriod || Math.max(6, Math.ceil(result.loanAmount / result.installment));
+        const totalRepayment = result.loanAmount; // Always equals loan amount
+        
+        // Show results
+        const resultsHtml = `
+            <div class="calculation-summary">
+                <div class="summary-item">
+                    <label>مبلغ القرض:</label>
+                    <span class="amount">${formatCurrency(result.loanAmount)}</span>
+                </div>
+                <div class="summary-item">
+                    <label>رصيد المستخدم:</label>
+                    <span class="amount">${formatCurrency(result.balance)}</span>
+                </div>
+                <div class="summary-item">
+                    <label>القسط الشهري:</label>
+                    <span class="amount">${formatCurrency(result.installment)}</span>
+                </div>
+                <div class="summary-item">
+                    <label>مدة السداد:</label>
+                    <span>${period} شهر</span>
+                </div>
+                <div class="summary-item">
+                    <label>إجمالي المبلغ المسدد:</label>
+                    <span class="amount">${formatCurrency(totalRepayment)}</span>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('adminCalculationDetails').innerHTML = resultsHtml;
+        document.getElementById('adminCalculationScenario').textContent = scenario;
+        document.getElementById('adminCalculationResult').style.display = 'block';
+        
+        showToast('تم الحساب بنجاح', 'success');
+        
+    } catch (error) {
+        console.error('Admin calculation error:', error);
+        showToast(error.message || 'خطأ في عملية الحساب', 'error');
+        document.getElementById('adminCalculationResult').style.display = 'none';
+    }
+}
+
+function clearAdminLoanCalculator() {
+    document.getElementById('adminCalcLoanAmount').value = '';
+    document.getElementById('adminCalcBalance').value = '';
+    document.getElementById('adminCalcInstallment').value = '';
+    document.getElementById('adminCalculationResult').style.display = 'none';
+}
+
 // Make functions global for HTML onclick handlers
 window.hideModal = hideModal;
 window.copyToClipboard = copyToClipboard;
@@ -968,3 +1079,6 @@ window.refreshUserData = refreshUserData;
 window.showForgotPassword = showForgotPassword;
 window.showLoanTermsModal = showLoanTermsModal;
 window.closeLoanTermsModal = closeLoanTermsModal;
+window.handleAdminCalculatorInput = handleAdminCalculatorInput;
+window.performAdminLoanCalculation = performAdminLoanCalculation;
+window.clearAdminLoanCalculator = clearAdminLoanCalculator;

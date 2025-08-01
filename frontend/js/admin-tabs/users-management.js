@@ -282,7 +282,7 @@ class UsersManagement {
                         <div class="form-group">
                             <label for="regPassword">كلمة المرور</label>
                             <div class="password-input-group">
-                                <input type="password" id="regPassword" name="password" minlength="6">
+                                <input type="password" id="regPassword" name="password" minlength="1">
                                 <button type="button" id="generatePasswordBtn" class="btn btn-secondary">
                                     <i class="fas fa-random"></i> توليد تلقائي
                                 </button>
@@ -773,12 +773,12 @@ class UsersManagement {
 
     // Reset user password
     async resetUserPassword(userId, userName) {
-        const newPassword = prompt(`إعادة تعيين كلمة المرور للمستخدم: ${userName}\n\nأدخل كلمة المرور الجديدة (6 أحرف على الأقل):`);
+        const newPassword = prompt(`إعادة تعيين كلمة المرور للمستخدم: ${userName}\n\nأدخل كلمة المرور الجديدة:`);
         
         if (!newPassword) return; // User cancelled
         
-        if (newPassword.length < 6) {
-            showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+        if (newPassword.length < 1) {
+            showToast('كلمة المرور مطلوبة', 'error');
             return;
         }
         

@@ -27,10 +27,7 @@ class UserManagementController {
     console.log('👤 Admin registering new user...');
     const { fullName, email, phone, whatsapp, balance, joiningFeeApproved, password } = req.body;
     
-    // Check if email is already taken
-    if (await UserService.isEmailTaken(email)) {
-      return ResponseHelper.error(res, 'البريد الإلكتروني مستخدم مسبقاً', 409);
-    }
+    // Email duplicates are now allowed - no validation needed
 
     const userData = {
       Aname: fullName,
@@ -44,6 +41,30 @@ class UserManagementController {
 
     const userId = await UserService.createUser(userData);
     console.log(`✅ User registered with ID: ${userId}`);
+    
+    // Create initial subscription transaction if balance is provided
+    if (balance && balance > 0) {
+      const DatabaseService = require('../services/DatabaseService');
+      const adminId = req.user.user_id; // Get admin ID from JWT token
+      
+      const transactionData = {
+        user_id: userId,
+        credit: balance,
+        memo: 'اشتراك أولي عند التسجيل',
+        status: 'accepted', // Auto-approved since admin is creating it
+        transaction_type: 'subscription',
+        admin_id: adminId,
+        date: new Date()
+      };
+      
+      try {
+        const transactionResult = await DatabaseService.create('transaction', transactionData);
+        console.log(`✅ Initial subscription transaction created with ID: ${transactionResult.insertId}`);
+      } catch (transactionError) {
+        console.error('❌ Failed to create initial subscription transaction:', transactionError);
+        // Don't fail user creation if transaction fails, but log the error
+      }
+    }
     
     // Send welcome email with credentials (if email service is configured)
     let emailMessage = '';
@@ -156,11 +177,7 @@ class UserManagementController {
     }
 
     // Check email uniqueness if email is being updated
-    if (updateData.email && updateData.email !== existingUser.email) {
-      if (await UserService.isEmailTaken(updateData.email)) {
-        return ResponseHelper.error(res, 'البريد الإلكتروني مستخدم مسبقاً', 409);
-      }
-    }
+    // Email duplicates are now allowed - no validation needed for email updates
 
     // Update user
     await UserService.updateUser(userId, updateData);

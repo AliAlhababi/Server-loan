@@ -20,7 +20,7 @@ class LoanCalculator {
             get ratio() { 
                 // Corrected ratio to match exact examples: 10K loan + 3550 balance = 200 installment
                 // Formula: ratio = (200 * 3550) / (10000 * 10000) = 0.006667
-                return 0.02 / 3; // 0.006667 - exact mathematical ratio
+                return 0.006667; // Fixed ratio to match backend exactly
             }
         };
     }
@@ -360,4 +360,9 @@ class LoanCalculator {
 // Export for use in other files
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = LoanCalculator;
+}
+
+// Make available globally in browser
+if (typeof window !== 'undefined') {
+    window.LoanCalculator = LoanCalculator;
 }

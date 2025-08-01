@@ -13,7 +13,7 @@ router.post('/register', [
   body('fullName').isLength({ min: 2 }).withMessage('الاسم يجب أن يكون حرفين على الأقل'),
   body('email').isEmail().withMessage('يرجى إدخال بريد إلكتروني صحيح'),
   body('phone').isLength({ min: 8 }).withMessage('رقم الهاتف يجب أن يكون 8 أرقام على الأقل'),
-  body('password').isLength({ min: 6 }).withMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
+  body('password').isLength({ min: 1 }).withMessage('كلمة المرور مطلوبة')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -100,7 +100,7 @@ router.post('/register', [
 // Login route
 router.post('/login', [
   body('userId').isInt().withMessage('User ID must be an integer'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  body('password').isLength({ min: 1 }).withMessage('Password is required')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -236,10 +236,10 @@ router.post('/change-password', verifyToken, async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 1) {
       return res.status(400).json({
         success: false,
-        message: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل'
+        message: 'كلمة المرور الجديدة مطلوبة'
       });
     }
 
@@ -317,10 +317,10 @@ router.post('/reset-password', verifyToken, async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 1) {
       return res.status(400).json({
         success: false,
-        message: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+        message: 'كلمة المرور مطلوبة'
       });
     }
 

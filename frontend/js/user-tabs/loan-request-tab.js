@@ -408,16 +408,37 @@ class LoanRequestTab {
         }
     }
 
-    // Calculate loan installment (same as UserDashboard)
+    // Calculate loan installment using centralized calculator
     calculateInstallment(loanAmount, userBalance) {
-        const ratio = 0.02 / 3; // 0.006667
+        if (window.LoanCalculator) {
+            try {
+                const calculator = new window.LoanCalculator();
+                const result = calculator.calculateInstallment(loanAmount, userBalance);
+                return result.installment;
+            } catch (error) {
+                console.error('Calculator error:', error);
+            }
+        }
+        
+        // Fallback calculation if calculator not available
+        const ratio = 0.006667; // 0.02 / 3
         const baseInstallment = ratio * (loanAmount * loanAmount) / userBalance;
         const roundedInstallment = Math.ceil(baseInstallment / 5) * 5;
         return Math.max(roundedInstallment, 20); // Minimum 20 KWD
     }
 
-    // Calculate installment period (same as backend)
+    // Calculate installment period using centralized calculator
     calculateInstallmentPeriod(loanAmount, installment) {
+        if (window.LoanCalculator) {
+            try {
+                const calculator = new window.LoanCalculator();
+                return calculator.calculateInstallmentPeriod(loanAmount, installment);
+            } catch (error) {
+                console.error('Period calculation error:', error);
+            }
+        }
+        
+        // Fallback calculation if calculator not available
         if (!loanAmount || !installment || installment <= 0) {
             return 24; // Default fallback
         }
@@ -456,16 +477,54 @@ class LoanRequestTab {
 
     // Embed loan calculator
     embedCalculator() {
-        // Load the loan calculator component
+        const container = document.getElementById('embeddedCalculator');
+        if (!container) return;
+        
+        // Create a simple embedded calculator interface
         if (window.LoanCalculator) {
-            const calculator = new window.LoanCalculator();
-            const container = document.getElementById('embeddedCalculator');
-            if (container) {
-                calculator.render(container);
-            }
+            container.innerHTML = `
+                <div class="embedded-calculator">
+                    <div class="calculator-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="embeddedLoanAmount">مبلغ القرض (د.ك)</label>
+                                <input type="number" id="embeddedLoanAmount" step="0.001" placeholder="أدخل مبلغ القرض" oninput="loanRequestTab.handleEmbeddedCalculatorInput()">
+                                <small class="field-hint">الحد الأقصى: 10,000 د.ك</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="embeddedBalance">الرصيد (د.ك)</label>
+                                <input type="number" id="embeddedBalance" step="0.001" placeholder="أدخل الرصيد" oninput="loanRequestTab.handleEmbeddedCalculatorInput()">
+                                <small class="field-hint">رصيد المستخدم في الصندوق</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="embeddedInstallment">قيمة القسط (د.ك)</label>
+                                <input type="number" id="embeddedInstallment" step="0.001" placeholder="قيمة القسط" oninput="loanRequestTab.handleEmbeddedCalculatorInput()">
+                                <small class="field-hint">القسط الشهري المطلوب</small>
+                            </div>
+                        </div>
+                        <div class="calculator-buttons">
+                            <button type="button" onclick="loanRequestTab.performEmbeddedCalculation()" class="btn btn-primary">
+                                <i class="fas fa-calculator"></i>
+                                احسب القيم
+                            </button>
+                            <button type="button" onclick="loanRequestTab.clearEmbeddedCalculator()" class="btn btn-secondary">
+                                <i class="fas fa-eraser"></i>
+                                مسح الكل
+                            </button>
+                        </div>
+                    </div>
+                    <div class="calculation-result" id="embeddedCalculationResult" style="display: none;">
+                        <div class="result-box">
+                            <h4>نتيجة الحساب:</h4>
+                            <div id="embeddedCalculationDetails"></div>
+                            <p id="embeddedCalculationScenario" class="scenario-text"></p>
+                        </div>
+                    </div>
+                </div>
+            `;
         } else {
             // Fallback if calculator not available
-            document.getElementById('embeddedCalculator').innerHTML = `
+            container.innerHTML = `
                 <div class="calculator-placeholder">
                     <i class="fas fa-calculator"></i>
                     <p>حاسبة القروض غير متاحة حالياً</p>
@@ -514,6 +573,109 @@ class LoanRequestTab {
         } finally {
             showLoading(false);
         }
+    }
+
+    // Embedded calculator methods
+    handleEmbeddedCalculatorInput() {
+        const loanAmount = parseFloat(document.getElementById('embeddedLoanAmount').value) || 0;
+        const balance = parseFloat(document.getElementById('embeddedBalance').value) || 0;
+        const installment = parseFloat(document.getElementById('embeddedInstallment').value) || 0;
+        
+        if (window.LoanCalculator && loanAmount > 0 && balance > 0) {
+            try {
+                const calculator = new window.LoanCalculator();
+                const result = calculator.calculateInstallment(loanAmount, balance);
+                
+                if (result && installment === 0) {
+                    document.getElementById('embeddedInstallment').value = result.installment.toFixed(3);
+                }
+            } catch (error) {
+                console.error('Embedded calculator error:', error);
+            }
+        }
+    }
+
+    performEmbeddedCalculation() {
+        const loanAmount = parseFloat(document.getElementById('embeddedLoanAmount').value) || 0;
+        const balance = parseFloat(document.getElementById('embeddedBalance').value) || 0;
+        const installment = parseFloat(document.getElementById('embeddedInstallment').value) || 0;
+        
+        if (!window.LoanCalculator) {
+            showToast('حاسبة القروض غير متاحة', 'error');
+            return;
+        }
+        
+        const calculator = new window.LoanCalculator();
+        
+        try {
+            const inputs = {
+                loanAmount: loanAmount > 0 ? loanAmount : null,
+                balance: balance > 0 ? balance : null,
+                installment: installment > 0 ? installment : null
+            };
+            
+            const result = calculator.autoCalculate(inputs);
+            const scenario = result.scenario || 'حساب تلقائي';
+            
+            // Update form fields with calculated values
+            if (result.loanAmount) {
+                document.getElementById('embeddedLoanAmount').value = result.loanAmount.toFixed(3);
+            }
+            if (result.balance) {
+                document.getElementById('embeddedBalance').value = result.balance.toFixed(3);
+            }
+            if (result.installment) {
+                document.getElementById('embeddedInstallment').value = result.installment.toFixed(3);
+            }
+            
+            // Calculate installment period
+            const period = result.installmentPeriod || Math.max(6, Math.ceil(result.loanAmount / result.installment));
+            const totalRepayment = result.loanAmount; // Always equals loan amount
+            
+            // Show results
+            const resultsHtml = `
+                <div class="calculation-summary">
+                    <div class="summary-item">
+                        <label>مبلغ القرض:</label>
+                        <span class="amount">${formatCurrency(result.loanAmount)}</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>رصيد المستخدم:</label>
+                        <span class="amount">${formatCurrency(result.balance)}</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>القسط الشهري:</label>
+                        <span class="amount">${formatCurrency(result.installment)}</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>مدة السداد:</label>
+                        <span>${period} شهر</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>إجمالي المبلغ المسدد:</label>
+                        <span class="amount">${formatCurrency(totalRepayment)}</span>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('embeddedCalculationDetails').innerHTML = resultsHtml;
+            document.getElementById('embeddedCalculationScenario').textContent = scenario;
+            document.getElementById('embeddedCalculationResult').style.display = 'block';
+            
+            showToast('تم الحساب بنجاح', 'success');
+            
+        } catch (error) {
+            console.error('Embedded calculation error:', error);
+            showToast(error.message || 'خطأ في عملية الحساب', 'error');
+            document.getElementById('embeddedCalculationResult').style.display = 'none';
+        }
+    }
+
+    clearEmbeddedCalculator() {
+        document.getElementById('embeddedLoanAmount').value = '';
+        document.getElementById('embeddedBalance').value = '';
+        document.getElementById('embeddedInstallment').value = '';
+        document.getElementById('embeddedCalculationResult').style.display = 'none';
     }
 }
 

@@ -89,8 +89,8 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
     return ResponseHelper.error(res, 'البريد الإلكتروني ورقم الهاتف وكلمة المرور الجديدة مطلوبة', 400);
   }
 
-  if (newPassword.length < 6) {
-    return ResponseHelper.error(res, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', 400);
+  if (newPassword.length < 1) {
+    return ResponseHelper.error(res, 'كلمة المرور مطلوبة', 400);
   }
 
   // Check if user exists with matching email and phone

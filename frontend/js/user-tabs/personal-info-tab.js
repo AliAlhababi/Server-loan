@@ -148,11 +148,11 @@ class PersonalInfoTab {
                     </div>
                     <div class="form-group">
                         <label for="newPassword">كلمة المرور الجديدة</label>
-                        <input type="password" id="newPassword" name="newPassword" minlength="6" required>
+                        <input type="password" id="newPassword" name="newPassword" minlength="1" required>
                     </div>
                     <div class="form-group">
                         <label for="confirmPassword">تأكيد كلمة المرور الجديدة</label>
-                        <input type="password" id="confirmPassword" name="confirmPassword" minlength="6" required>
+                        <input type="password" id="confirmPassword" name="confirmPassword" minlength="1" required>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">

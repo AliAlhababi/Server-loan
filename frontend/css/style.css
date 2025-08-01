@@ -66,6 +66,20 @@
 .result-item.period { border-right: 4px solid var(--warning); }
 .result-item.total { border-right: 4px solid var(--danger); }
 
+.result-item label {
+    color: #000000 !important; /* Black text for labels */
+    font-weight: normal;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.result-item .amount,
+.result-item span {
+    font-weight: bold;
+    color: #28a745 !important; /* Green for amounts/numbers */
+    font-size: 1.1em;
+}
+
 .important-notes {
     padding: var(--gap); background: #fff3cd; border-radius: var(--radius);
     border-right: 4px solid var(--warning); color: #856404;
@@ -1437,6 +1451,30 @@ textarea:focus {
     display: grid;
     gap: 10px;
     margin-bottom: 15px;
+}
+
+.calculation-summary .summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.calculation-summary .summary-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.calculation-summary .summary-item label {
+    color: #000000 !important; /* Black text for labels */
+    font-weight: normal;
+}
+
+.calculation-summary .summary-item .amount,
+.calculation-summary .summary-item span {
+    font-weight: bold;
+    color: #28a745 !important; /* Green for amounts/numbers */
 }
 
 .calc-item {
