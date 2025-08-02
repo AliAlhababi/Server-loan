@@ -1,13 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
+
+// Load brand configuration first (this handles .env loading)
+const brandConfig = require('../config/brandConfig');
 
 const { testConnection } = require('./config/database');
 const { errorHandler } = require('./utils/ErrorHandler');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = brandConfig.getSection('server').port;
 
 // Middleware
 app.use(cors());
@@ -47,7 +49,7 @@ async function startServer() {
     await testConnection();
     
     app.listen(PORT, () => {
-      console.log(`🚀 الخادم يعمل على المنفذ ${PORT}`);
+      console.log(`🚀 ${brandConfig.getBrandDisplayName()} يعمل على المنفذ ${PORT}`);
       console.log(`🌐 الرابط: http://localhost:${PORT}`);
       console.log(`📱 نظام إدارة القروض - ${process.env.APP_NAME}`);
     });

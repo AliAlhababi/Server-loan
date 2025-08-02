@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const brandConfig = require('./brandConfig');
+const brandConfig = require('../../config/brandConfig');
 
 // Get database configuration from brand config
 const dbConfig = brandConfig.getDatabaseConfig();
