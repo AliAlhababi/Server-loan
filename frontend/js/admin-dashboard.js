@@ -97,15 +97,6 @@ class AdminDashboard {
 
     // Setup event listeners for admin buttons
     setupEventListeners() {
-        // Main admin tab listeners
-        const mainTabs = document.querySelectorAll('.main-admin-tab');
-        mainTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const tabName = e.currentTarget.dataset.tab;
-                this.switchToMainTab(tabName);
-            });
-        });
-
         // Add event listeners using data attributes
         const buttons = document.querySelectorAll('.action-btn.admin[data-action]');
         buttons.forEach(button => {
@@ -132,59 +123,6 @@ class AdminDashboard {
                 }
             });
         });
-    }
-
-    // Switch between main admin tabs
-    switchToMainTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.main-admin-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-
-        // Update content areas
-        document.querySelectorAll('.main-tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-
-        const targetContent = document.getElementById(`${tabName}-content`);
-        if (targetContent) {
-            targetContent.classList.add('active');
-
-            // Load specific content based on tab
-            switch(tabName) {
-                case 'loans':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.loansManagement.show();
-                    break;
-                case 'transactions':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.transactionsManagement.show();
-                    break;
-                case 'users':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.usersManagement.show();
-                    break;
-                case 'reports':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.reportsManagement.show();
-                    break;
-                case 'family':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.familyDelegationsManagement.load();
-                    break;
-                case 'dashboard':
-                default:
-                    this.contentArea = document.getElementById('admin-content-area');
-                    this.showMainView();
-                    break;
-            }
-        }
     }
 
     // Show main dashboard view
