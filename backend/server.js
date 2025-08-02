@@ -26,6 +26,20 @@ app.use('/api/loans', require('./routes/loans'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/family', require('./routes/family'));
 
+// Brand configuration endpoint
+app.get('/api/config/brand', (req, res) => {
+  const config = brandConfig.get();
+  res.json({
+    success: true,
+    data: {
+      displayName: config.brand.displayName,
+      logoUrl: config.brand.logoUrl,
+      colors: config.brand.colors,
+      domain: config.brand.domain
+    }
+  });
+});
+
 // Default route - serve main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));

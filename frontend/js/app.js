@@ -1,6 +1,7 @@
 // App State
 let currentUser = null;
 let token = localStorage.getItem('authToken');
+let brandConfig = null;
 
 // DOM Cache
 const DOM = {
@@ -13,8 +14,11 @@ const DOM = {
 };
 
 // Initialize app
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('App initialized, token:', token);
+    
+    // Load brand configuration first
+    await loadBrandConfig();
     
     if (token) {
         console.log('Token found, verifying...');
@@ -26,6 +30,44 @@ document.addEventListener('DOMContentLoaded', function() {
     
     setupEventListeners();
 });
+
+// Load brand configuration
+async function loadBrandConfig() {
+    try {
+        const response = await fetch('/api/config/brand');
+        const result = await response.json();
+        if (result.success) {
+            brandConfig = result.data;
+            updateBrandElements();
+            console.log('Brand config loaded:', brandConfig.displayName);
+        }
+    } catch (error) {
+        console.error('Failed to load brand config:', error);
+        // Fallback to default
+        brandConfig = { displayName: 'المجادي' };
+        updateBrandElements();
+    }
+}
+
+// Update brand elements in the UI
+function updateBrandElements() {
+    if (!brandConfig) return;
+    
+    // Update page title
+    document.title = `${brandConfig.displayName} - نظام إدارة القروض`;
+    
+    // Update header brand name
+    const headerBrand = document.querySelector('header h1');
+    if (headerBrand) {
+        headerBrand.textContent = brandConfig.displayName;
+    }
+    
+    // Update any other brand references
+    const brandElements = document.querySelectorAll('[data-brand-name]');
+    brandElements.forEach(el => {
+        el.textContent = brandConfig.displayName;
+    });
+}
 
 // Event listeners
 function setupEventListeners() {
