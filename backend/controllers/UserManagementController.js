@@ -11,14 +11,8 @@ class UserManagementController {
     const rawUsers = await UserService.getUsersByType();
     console.log(`👥 Found ${rawUsers.length} users`);
     
-    // Calculate max loan amount for each user
-    const users = rawUsers.map(user => {
-      const maxLoan = Math.min(user.balance * 3, 10000);
-      return {
-        ...user,
-        max_loan_amount: maxLoan
-      };
-    });
+    // Users now include current_loan_amount from the database query
+    const users = rawUsers;
     
     ResponseHelper.success(res, { users }, 'تم جلب قائمة المستخدمين بنجاح');
   });

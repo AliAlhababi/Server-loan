@@ -119,6 +119,8 @@ router.get('/subscription-status/:userId', verifyToken, requireOwnershipOrAdmin,
   const userId = parseInt(req.params.userId);
   const user = await UserService.getUserWithBalance(userId);
   
+  // TEMPORARILY DISABLED - 240 KWD requirement
+  /* 
   // Use the same logic as in UserModel.checkLoanEligibility for consistency
   const requiredAmount = 240; // Minimum 240 KWD for all users
   
@@ -126,6 +128,15 @@ router.get('/subscription-status/:userId', verifyToken, requireOwnershipOrAdmin,
   const { pool } = require('../config/database');
   const [subscriptionResults] = await pool.execute(
     'SELECT COALESCE(SUM(credit), 0) as total_paid FROM transaction WHERE user_id = ? AND status = "accepted" AND credit > 0 AND date >= DATE_SUB(NOW(), INTERVAL 24 MONTH)',
+    [userId]
+  );
+  */
+  
+  // TEMPORARILY: Skip subscription requirement
+  const requiredAmount = 0; // Disabled 240 KWD requirement
+  const { pool } = require('../config/database');
+  const [subscriptionResults] = await pool.execute(
+    'SELECT COALESCE(SUM(credit), 0) as total_paid FROM transaction WHERE user_id = ? AND status = "accepted" AND credit > 0',
     [userId]
   );
 

@@ -55,7 +55,7 @@ class SubscriptionsTab {
 
         try {
             const result = await apiCall(`/users/subscription-status/${this.userDashboard.getUser().user_id}`);
-            const status = result.status || { valid: false, timeValid: false, totalPaid: 0, requiredAmount: 240 };
+            const status = result.status || { valid: false, timeValid: false, totalPaid: 0, requiredAmount: 0 }; // TEMPORARILY DISABLED: was 240
             
             console.log('Fresh subscription status from API:', status);
             
@@ -63,7 +63,7 @@ class SubscriptionsTab {
             return status;
         } catch (error) {
             console.error('Error getting subscription status:', error);
-            return { valid: false, timeValid: false, totalPaid: 0, requiredAmount: 240 };
+            return { valid: false, timeValid: false, totalPaid: 0, requiredAmount: 0 }; // TEMPORARILY DISABLED: was 240
         }
     }
     
@@ -218,7 +218,8 @@ class SubscriptionsTab {
                 <div class="subscription-info">
                     <div class="info-item">
                         <i class="fas fa-coins"></i>
-                        <span>المطلوب: 240 د.ك خلال 24 شهر</span>
+                        <!-- <span>المطلوب: 240 د.ك خلال 24 شهر</span> --> <!-- TEMPORARILY DISABLED -->
+                        <span>الاشتراك مفتوح بدون حد أدنى</span>
                     </div>
                 </div>
                 <button onclick="subscriptionsTab.showPaymentModal()" class="btn btn-primary btn-large">

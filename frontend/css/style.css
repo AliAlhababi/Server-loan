@@ -46,6 +46,203 @@
     --gap: 15px;
 }
 
+/* Column Visibility Panel Styles */
+.table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.table-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.column-controls {
+    display: flex;
+    align-items: center;
+}
+
+.column-visibility-panel {
+    background: var(--white-alpha);
+    border: var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.column-visibility-panel .panel-header {
+    background: var(--bg-gradient);
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.column-visibility-panel .panel-header h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.column-visibility-panel .panel-header .btn {
+    color: white;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+}
+
+.column-visibility-panel .panel-header .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.column-visibility-panel .panel-content {
+    padding: 20px;
+}
+
+.column-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.column-checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: 14px;
+    border: 1px solid #e9ecef;
+}
+
+.column-checkboxes label:hover {
+    background: #e9ecef;
+    border-color: var(--primary);
+}
+
+.column-checkboxes input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+}
+
+.column-checkboxes label:has(input:checked) {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.panel-actions .btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+/* Responsive column visibility */
+@media (max-width: 768px) {
+    .table-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .table-filters {
+        justify-content: center;
+    }
+    
+    .column-checkboxes {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+    }
+    
+    .column-checkboxes label {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    
+    .panel-actions {
+        flex-direction: column;
+    }
+    
+    .panel-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Table column transition effects */
+#usersTable th, #usersTable td {
+    transition: all 0.2s ease;
+}
+
+#usersTable th[style*="display: none"], 
+#usersTable td[style*="display: none"] {
+    opacity: 0;
+    transform: scaleX(0);
+}
+
+/* Column visibility button states */
+.btn[onclick*="toggleColumnVisibility"] {
+    position: relative;
+}
+
+.btn[onclick*="toggleColumnVisibility"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn[onclick*="toggleColumnVisibility"].active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Enhanced table header for better column identification */
+#usersTable th {
+    position: relative;
+    white-space: nowrap;
+}
+
+#usersTable th:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+
+/* Current loan display styling */
+.current-loan-cell .no-loan {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 13px;
+}
+
+.current-loan-cell .current-loan {
+    font-weight: 600;
+    color: var(--primary);
+}
+
 /* Modal Styles */
 .loan-results-container {
     background: var(--success-gradient); padding: var(--padding-lg);

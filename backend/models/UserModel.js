@@ -87,7 +87,8 @@ class UserModel {
         messages.push('يوجد قرض نشط أو معلق');
       }
       
-      // Test 6: Subscription payment (240 KWD minimum within 24 months)
+      // Test 6: Subscription payment (240 KWD minimum within 24 months) - TEMPORARILY DISABLED
+      /* 
       const [subscriptionResults] = await pool.execute(
         'SELECT COALESCE(SUM(credit), 0) as total_paid FROM transaction WHERE user_id = ? AND status = "accepted" AND credit > 0 AND date >= DATE_SUB(NOW(), INTERVAL 24 MONTH)',
         [userId]
@@ -100,6 +101,10 @@ class UserModel {
         const shortfall = requiredAmount - totalPaid;
         messages.push(`نقص في دفع الاشتراكات (مطلوب: ${requiredAmount} د.ك، مدفوع: ${totalPaid.toFixed(3)} د.ك، باقي: ${shortfall.toFixed(3)} د.ك)`);
       }
+      */
+      
+      // TEMPORARILY: Skip subscription payment requirement
+      tests.hasSubscriptionPayment = true;
       
       // Test 7: 30 days since last loan closure
       const [lastClosureResults] = await pool.execute(

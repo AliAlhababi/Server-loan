@@ -96,58 +96,102 @@ class UsersManagement {
             <div class="data-table">
                 <div class="table-header">
                     <h4><i class="fas fa-users"></i> قائمة الأعضاء (${users.length})</h4>
-                    <div class="table-filters">
-                        <select id="statusFilter" onchange="usersManagement.filterUsers()">
-                            <option value="">جميع الحالات</option>
-                            <option value="active">نشط</option>
-                            <option value="inactive">غير نشط</option>
-                            <option value="blocked">محظور</option>
-                        </select>
-                        <select id="typeFilter" onchange="usersManagement.filterUsers()">
-                            <option value="">جميع الأنواع</option>
-                            <option value="employee">موظف</option>
-                            <option value="admin">إداري</option>
-                        </select>
-                        <input type="text" id="searchFilter" placeholder="البحث بالاسم..." onkeyup="usersManagement.filterUsers()">
+                    <div class="table-controls">
+                        <div class="table-filters">
+                            <select id="statusFilter" onchange="usersManagement.filterUsers()">
+                                <option value="">جميع الحالات</option>
+                                <option value="active">نشط</option>
+                                <option value="inactive">غير نشط</option>
+                                <option value="blocked">محظور</option>
+                            </select>
+                            <select id="typeFilter" onchange="usersManagement.filterUsers()">
+                                <option value="">جميع الأنواع</option>
+                                <option value="employee">موظف</option>
+                                <option value="admin">إداري</option>
+                            </select>
+                            <input type="text" id="searchFilter" placeholder="البحث بالاسم..." onkeyup="usersManagement.filterUsers()">
+                        </div>
+                        <div class="column-controls">
+                            <button class="btn btn-sm btn-secondary" onclick="usersManagement.toggleColumnVisibility()" title="إعدادات الأعمدة">
+                                <i class="fas fa-columns"></i> الأعمدة
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <table>
+                
+                <!-- Column Visibility Panel -->
+                <div id="columnVisibilityPanel" class="column-visibility-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h5><i class="fas fa-eye"></i> إظهار/إخفاء الأعمدة</h5>
+                        <button class="btn btn-sm btn-link" onclick="usersManagement.toggleColumnVisibility()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="column-checkboxes">
+                            <label><input type="checkbox" value="user_id" checked> معرف المستخدم</label>
+                            <label><input type="checkbox" value="name" checked> الاسم</label>
+                            <label><input type="checkbox" value="user_type" checked> نوع العضوية</label>
+                            <label><input type="checkbox" value="family_delegation" checked> التفويض العائلي</label>
+                            <label><input type="checkbox" value="approved_admin" checked> المدير المعتمد</label>
+                            <label><input type="checkbox" value="email" checked> البريد الإلكتروني</label>
+                            <label><input type="checkbox" value="phone" checked> الهاتف</label>
+                            <label><input type="checkbox" value="balance" checked> الرصيد</label>
+                            <label><input type="checkbox" value="current_loan" checked> القرض الحالي</label>
+                            <label><input type="checkbox" value="registration_date" checked> تاريخ التسجيل</label>
+                            <label><input type="checkbox" value="status" checked> الحالة</label>
+                            <label><input type="checkbox" value="actions" checked> الإجراءات</label>
+                        </div>
+                        <div class="panel-actions">
+                            <button class="btn btn-sm btn-primary" onclick="usersManagement.showAllColumns()">
+                                <i class="fas fa-eye"></i> إظهار الكل
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="usersManagement.hideAllColumns()">
+                                <i class="fas fa-eye-slash"></i> إخفاء الكل
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="usersManagement.resetColumnVisibility()">
+                                <i class="fas fa-undo"></i> إعادة تعيين
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <table id="usersTable">
                     <thead>
                         <tr>
-                            <th>معرف المستخدم</th>
-                            <th>الاسم</th>
-                            <th>نوع العضوية</th>
-                            <th>التفويض العائلي</th>
-                            <th>المدير المعتمد</th>
-                            <th>البريد الإلكتروني</th>
-                            <th>الهاتف</th>
-                            <th>الرصيد</th>
-                            <th>أقصى قرض</th>
-                            <th>تاريخ التسجيل</th>
-                            <th>الحالة</th>
-                            <th>الإجراءات</th>
+                            <th data-column="user_id">معرف المستخدم</th>
+                            <th data-column="name">الاسم</th>
+                            <th data-column="user_type">نوع العضوية</th>
+                            <th data-column="family_delegation">التفويض العائلي</th>
+                            <th data-column="approved_admin">المدير المعتمد</th>
+                            <th data-column="email">البريد الإلكتروني</th>
+                            <th data-column="phone">الهاتف</th>
+                            <th data-column="balance">الرصيد</th>
+                            <th data-column="current_loan">القرض الحالي</th>
+                            <th data-column="registration_date">تاريخ التسجيل</th>
+                            <th data-column="status">الحالة</th>
+                            <th data-column="actions">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${users.map(user => `
                             <tr data-status="${user.status}" data-type="${user.user_type}" data-name="${(user.Aname || '').toLowerCase()}">
-                                <td><strong>#${user.user_id}</strong></td>
-                                <td>
+                                <td data-column="user_id"><strong>#${user.user_id}</strong></td>
+                                <td data-column="name">
                                     <div class="user-info">
                                         <span class="user-name">${user.Aname || 'غير محدد'}</span>
                                         ${user.is_blocked ? '<small class="blocked-indicator">محظور</small>' : ''}
                                     </div>
                                 </td>
-                                <td>
+                                <td data-column="user_type">
                                     <span class="user-type ${user.user_type}">
                                         <i class="fas ${user.user_type === 'admin' ? 'fa-user-shield' : 'fa-user'}"></i>
                                         ${user.user_type === 'employee' ? 'عضو' : 'إداري'}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-column="family_delegation">
                                     ${this.generateFamilyDelegationStatus(user)}
                                 </td>
-                                <td>
+                                <td data-column="approved_admin">
                                     ${user.user_type === 'employee' && user.approved_by_admin_name ? 
                                         `<span class="admin-name">
                                             <i class="fas fa-user-check"></i>
@@ -156,28 +200,33 @@ class UsersManagement {
                                         '<span class="no-admin">غير محدد</span>'
                                     }
                                 </td>
-                                <td>
+                                <td data-column="email">
                                     <span class="email">${user.email || 'غير محدد'}</span>
                                 </td>
-                                <td>
+                                <td data-column="phone">
                                     <span class="phone">${user.phone || 'غير محدد'}</span>
                                 </td>
-                                <td class="balance-cell">
+                                <td data-column="balance" class="balance-cell">
                                     <span class="balance">${FormatHelper.formatCurrency(user.balance)}</span>
                                 </td>
-                                <td class="max-loan-cell">
-                                    <span class="max-loan">${FormatHelper.formatCurrency(user.max_loan_amount)}</span>
+                                <td data-column="current_loan" class="current-loan-cell">
+                                    <span class="current-loan">
+                                        ${user.current_loan_amount && user.current_loan_amount > 0 ? 
+                                            FormatHelper.formatCurrency(user.current_loan_amount) : 
+                                            '<span class="no-loan">لا يوجد</span>'
+                                        }
+                                    </span>
                                 </td>
-                                <td>
+                                <td data-column="registration_date">
                                     <span class="date">${FormatHelper.formatDate(user.registration_date)}</span>
                                 </td>
-                                <td>
+                                <td data-column="status">
                                     <span class="status-badge ${user.is_blocked ? 'blocked' : user.status}">
                                         ${user.is_blocked ? 'محظور' : 
                                           user.joining_fee_approved === 'approved' ? 'نشط' : 'غير مفعل'}
                                     </span>
                                 </td>
-                                <td class="actions-cell">
+                                <td data-column="actions" class="actions-cell">
                                     <button class="btn btn-sm btn-info" onclick="usersManagement.viewUserDetails(${user.user_id})" title="التفاصيل">
                                         <i class="fas fa-eye"></i>
                                     </button>
@@ -210,6 +259,9 @@ class UsersManagement {
             </div>
         `;
         container.innerHTML = html;
+        
+        // Setup column visibility functionality
+        this.setupColumnVisibility();
     }
 
     // Display user registration form
@@ -977,6 +1029,125 @@ class UsersManagement {
                 `;
             default:
                 return '<span class="delegation-status unknown"><i class="fas fa-question"></i> غير محدد</span>';
+        }
+    }
+
+    // === Column Visibility Management ===
+    
+    // Setup column visibility functionality
+    setupColumnVisibility() {
+        setTimeout(() => {
+            // Load saved column preferences
+            this.loadColumnPreferences();
+            
+            // Setup checkbox event listeners
+            const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    this.updateColumnVisibility();
+                    this.saveColumnPreferences();
+                });
+            });
+        }, 100);
+    }
+
+    // Toggle column visibility panel
+    toggleColumnVisibility() {
+        const panel = document.getElementById('columnVisibilityPanel');
+        if (panel) {
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    // Update column visibility based on checkboxes
+    updateColumnVisibility() {
+        const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+        const table = document.getElementById('usersTable');
+        
+        if (!table) return;
+
+        checkboxes.forEach(checkbox => {
+            const columnName = checkbox.value;
+            const isVisible = checkbox.checked;
+            
+            // Hide/show header
+            const headerCell = table.querySelector(`th[data-column="${columnName}"]`);
+            if (headerCell) {
+                headerCell.style.display = isVisible ? '' : 'none';
+            }
+            
+            // Hide/show data cells
+            const dataCells = table.querySelectorAll(`td[data-column="${columnName}"]`);
+            dataCells.forEach(cell => {
+                cell.style.display = isVisible ? '' : 'none';
+            });
+        });
+    }
+
+    // Show all columns
+    showAllColumns() {
+        const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        this.updateColumnVisibility();
+        this.saveColumnPreferences();
+    }
+
+    // Hide all columns except essential ones
+    hideAllColumns() {
+        const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+        const essentialColumns = ['user_id', 'name', 'actions']; // Always keep these visible
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = essentialColumns.includes(checkbox.value);
+        });
+        this.updateColumnVisibility();
+        this.saveColumnPreferences();
+    }
+
+    // Reset to default column visibility
+    resetColumnVisibility() {
+        const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true; // Default: all visible
+        });
+        this.updateColumnVisibility();
+        this.saveColumnPreferences();
+    }
+
+    // Save column preferences to localStorage
+    saveColumnPreferences() {
+        const preferences = {};
+        const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+        
+        checkboxes.forEach(checkbox => {
+            preferences[checkbox.value] = checkbox.checked;
+        });
+        
+        localStorage.setItem('usersTableColumnPreferences', JSON.stringify(preferences));
+    }
+
+    // Load column preferences from localStorage
+    loadColumnPreferences() {
+        const savedPreferences = localStorage.getItem('usersTableColumnPreferences');
+        
+        if (savedPreferences) {
+            try {
+                const preferences = JSON.parse(savedPreferences);
+                const checkboxes = document.querySelectorAll('#columnVisibilityPanel input[type="checkbox"]');
+                
+                checkboxes.forEach(checkbox => {
+                    if (preferences.hasOwnProperty(checkbox.value)) {
+                        checkbox.checked = preferences[checkbox.value];
+                    }
+                });
+                
+                // Apply the loaded preferences
+                this.updateColumnVisibility();
+            } catch (error) {
+                console.warn('Error loading column preferences:', error);
+            }
         }
     }
 

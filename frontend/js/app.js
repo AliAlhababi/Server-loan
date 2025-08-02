@@ -647,6 +647,7 @@ function showRegistrationRulesPopup() {
                     </div>
                 </div>
                 
+                <!-- TEMPORARILY DISABLED - 240 KWD requirement
                 <div class="rule-card">
                     <div class="rule-icon">📊</div>
                     <div class="rule-content">
@@ -654,6 +655,7 @@ function showRegistrationRulesPopup() {
                         <p>240 د.ك خلال 24 شهر لإمكانية طلب القروض</p>
                     </div>
                 </div>
+                -->
                 
                 <div class="rule-card">
                     <div class="rule-icon">⚖️</div>

@@ -167,7 +167,7 @@ class LoanRequestTab {
             { key: 'hasMinimumBalance', label: 'الرصيد أكبر من 500 د.ك', icon: 'fa-wallet' },
             { key: 'oneYearRegistration', label: 'مضى عام على التسجيل', icon: 'fa-calendar' },
             { key: 'noActiveLoans', label: 'لا يوجد قرض نشط', icon: 'fa-ban' },
-            { key: 'hasSubscriptionPayment', label: 'دفع الاشتراكات', icon: 'fa-credit-card' },
+            // { key: 'hasSubscriptionPayment', label: 'دفع الاشتراكات', icon: 'fa-credit-card' }, // TEMPORARILY DISABLED
             { key: 'thirtyDaysSinceClosure', label: '30 يوم من إغلاق آخر قرض', icon: 'fa-clock' }
         ];
 
@@ -227,7 +227,7 @@ class LoanRequestTab {
             { key: 'hasMinimumBalance', label: 'الرصيد أكبر من 500 د.ك', icon: 'fa-wallet' },
             { key: 'oneYearRegistration', label: 'مضى عام على التسجيل', icon: 'fa-calendar' },
             { key: 'noActiveLoans', label: 'لا يوجد قرض نشط', icon: 'fa-ban' },
-            { key: 'hasSubscriptionPayment', label: 'دفع الاشتراكات', icon: 'fa-credit-card' },
+            // { key: 'hasSubscriptionPayment', label: 'دفع الاشتراكات', icon: 'fa-credit-card' }, // TEMPORARILY DISABLED
             { key: 'thirtyDaysSinceClosure', label: '30 يوم من إغلاق آخر قرض', icon: 'fa-clock' }
         ];
 

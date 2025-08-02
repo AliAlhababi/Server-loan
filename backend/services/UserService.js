@@ -81,6 +81,8 @@ class UserService {
     let query = `
       SELECT u.*, 
              admin.Aname as approved_by_admin_name,
+             -- Active loan information
+             COALESCE(active_loan.loan_amount, 0) as current_loan_amount,
              -- Family delegation information
              CASE 
                WHEN fd_head.delegation_status = 'approved' AND fd_head.delegation_type = 'family_head_request' THEN 'family_head'
@@ -95,6 +97,10 @@ class UserService {
              (SELECT COUNT(*) FROM family_delegations WHERE family_head_id = u.user_id AND delegation_status = 'approved' AND delegation_type = 'member_delegation') as family_members_count
       FROM users u
       LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+      -- Get active loan information
+      LEFT JOIN requested_loan active_loan ON u.user_id = active_loan.user_id 
+        AND active_loan.status = 'approved' 
+        AND active_loan.loan_closed_date IS NULL
       -- Check if user is an approved family head
       LEFT JOIN family_delegations fd_head ON u.user_id = fd_head.family_head_id 
         AND u.user_id = fd_head.family_member_id 

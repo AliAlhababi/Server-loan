@@ -53,11 +53,13 @@ window.AppConfig = {
 
   // Business Rules
   business: {
-    // Subscription requirements
+    // Subscription requirements - TEMPORARILY DISABLED
+    /*
     subscription: {
       amount: 240,
       period: 24 // months
     },
+    */
     
     // Loan rules
     loan: {
@@ -87,7 +89,7 @@ window.AppConfig = {
     },
     employee: {
       label: 'عضو',
-      subscriptionAmount: 240,
+      // subscriptionAmount: 240, // TEMPORARILY DISABLED
       permissions: ['user']
     }
   },
