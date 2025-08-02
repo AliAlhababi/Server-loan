@@ -306,6 +306,52 @@
                 <div id="adminDashboard" class="dashboard-content" style="display: none;">
                     <h2>لوحة تحكم المدير</h2>
                     
+                    <!-- Main Admin Navigation Tabs -->
+                    <div class="main-admin-tabs">
+                        <button class="main-admin-tab active" data-tab="dashboard" title="الرئيسية">
+                            <div class="tab-icon">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </div>
+                            <span class="tab-text">الرئيسية</span>
+                        </button>
+                        <button class="main-admin-tab" data-tab="loans" title="إدارة القروض">
+                            <div class="tab-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <span class="tab-text">القروض</span>
+                        </button>
+                        <button class="main-admin-tab" data-tab="transactions" title="إدارة المعاملات">
+                            <div class="tab-icon">
+                                <i class="fas fa-exchange-alt"></i>
+                            </div>
+                            <span class="tab-text">المعاملات</span>
+                        </button>
+                        <button class="main-admin-tab" data-tab="users" title="إدارة الأعضاء">
+                            <div class="tab-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <span class="tab-text">الأعضاء</span>
+                        </button>
+                        <button class="main-admin-tab" data-tab="reports" title="التقارير">
+                            <div class="tab-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <span class="tab-text">التقارير</span>
+                        </button>
+                        <button class="main-admin-tab" data-tab="family" title="التفويض العائلي">
+                            <div class="tab-icon">
+                                <i class="fas fa-users-cog"></i>
+                            </div>
+                            <span class="tab-text">التفويض</span>
+                        </button>
+                    </div>
+
+                    <!-- Main Admin Content Container -->
+                    <div class="main-admin-content">
+                        
+                        <!-- Dashboard Tab Content (Default) -->
+                        <div id="dashboard-content" class="main-tab-content active">
+                            
                     <!-- Admin Stats -->
                     <div class="stats-grid">
                         <div class="stat-card">
@@ -354,9 +400,33 @@
                             </div>
                         </div>
                     </div>
+                        </div>
 
-                    <!-- Admin Actions - Reorganized -->
-                    <div class="admin-actions">
+                        <!-- Other tab contents will be loaded dynamically -->
+                        <div id="loans-content" class="main-tab-content">
+                            <!-- Loans management content will be loaded here -->
+                        </div>
+                        
+                        <div id="transactions-content" class="main-tab-content">
+                            <!-- Transactions management content will be loaded here -->
+                        </div>
+                        
+                        <div id="users-content" class="main-tab-content">
+                            <!-- Users management content will be loaded here -->
+                        </div>
+                        
+                        <div id="reports-content" class="main-tab-content">
+                            <!-- Reports content will be loaded here -->
+                        </div>
+                        
+                        <div id="family-content" class="main-tab-content">
+                            <!-- Family delegations content will be loaded here -->
+                        </div>
+                        
+                    </div>
+
+                    <!-- Legacy Admin Actions - Hidden (kept for compatibility) -->
+                    <div class="admin-actions" style="display: none;">
                         
                         <!-- Loan Management Section -->
                         <div class="admin-section">
