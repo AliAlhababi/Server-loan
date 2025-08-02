@@ -1,22 +1,26 @@
 const nodemailer = require('nodemailer');
+const handlebars = require('handlebars');
+const fs = require('fs');
+const path = require('path');
+const brandConfig = require('../../config/brandConfig');
 
 class EmailService {
     constructor() {
         this.transporter = null;
+        this.templateCache = new Map();
         this.initTransporter();
     }
 
     initTransporter() {
-        // Use TLS on port 587 instead of SSL on port 465 for better compatibility
+        // Get email configuration from brand config
+        const emailConfig = brandConfig.getEmailConfig();
+        
         const config = {
-            host: process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT) || 587,
-            secure: false, // Use TLS instead of SSL
+            host: emailConfig.host,
+            port: emailConfig.port,
+            secure: emailConfig.secure || false,
             requireTLS: true,
-            auth: {
-                user: process.env.EMAIL_USER || process.env.SMTP_USER || 'aal7babi2@gmail.com',
-                pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
-            },
+            auth: emailConfig.auth,
             // Extended timeout settings for slow networks
             connectionTimeout: 60000, // 60 seconds
             greetingTimeout: 30000,
@@ -64,23 +68,131 @@ class EmailService {
         }
     }
 
+    // Brand-aware template loading methods
+    loadTemplate(templateName, templateType = 'email') {
+        const cacheKey = `${templateType}_${templateName}_${brandConfig.getBrandName()}`;
+        
+        if (this.templateCache.has(cacheKey)) {
+            return this.templateCache.get(cacheKey);
+        }
+
+        const brand = brandConfig.getBrandName();
+        const templatesConfig = brandConfig.getSection('templates');
+        
+        // Try brand-specific template first
+        let templatePath = path.join(templatesConfig.emailPath, 'brands', brand, `${templateName}.hbs`);
+        
+        if (!fs.existsSync(templatePath)) {
+            // Fall back to shared template
+            templatePath = path.join(templatesConfig.sharedPath, `${templateName}.hbs`);
+        }
+
+        if (!fs.existsSync(templatePath)) {
+            console.warn(`Template not found: ${templateName} for brand ${brand}`);
+            return null;
+        }
+
+        try {
+            const templateSource = fs.readFileSync(templatePath, 'utf8');
+            const compiledTemplate = handlebars.compile(templateSource);
+            
+            this.templateCache.set(cacheKey, compiledTemplate);
+            return compiledTemplate;
+        } catch (error) {
+            console.error(`Error loading template ${templateName}:`, error);
+            return null;
+        }
+    }
+
+    loadLayoutTemplate() {
+        const cacheKey = `layout_${brandConfig.getBrandName()}`;
+        
+        if (this.templateCache.has(cacheKey)) {
+            return this.templateCache.get(cacheKey);
+        }
+
+        const templatesConfig = brandConfig.getSection('templates');
+        const layoutPath = path.join(templatesConfig.sharedPath, 'layout.hbs');
+
+        if (!fs.existsSync(layoutPath)) {
+            console.warn('Layout template not found, using fallback');
+            return null;
+        }
+
+        try {
+            const layoutSource = fs.readFileSync(layoutPath, 'utf8');
+            const compiledLayout = handlebars.compile(layoutSource);
+            
+            this.templateCache.set(cacheKey, compiledLayout);
+            return compiledLayout;
+        } catch (error) {
+            console.error('Error loading layout template:', error);
+            return null;
+        }
+    }
+
+    renderEmailWithTemplate(templateName, data) {
+        const template = this.loadTemplate(templateName);
+        const layout = this.loadLayoutTemplate();
+        
+        if (!template) {
+            console.warn(`Falling back to hardcoded template for ${templateName}`);
+            return null;
+        }
+
+        // Prepare template data with brand information
+        const templateData = {
+            ...data,
+            brand: brandConfig.getSection('brand'),
+            currentDate: new Date().toLocaleDateString('en-US')
+        };
+
+        try {
+            const bodyContent = template(templateData);
+            
+            if (layout) {
+                return layout({
+                    ...templateData,
+                    body: bodyContent,
+                    subject: data.subject || `رسالة من ${brandConfig.getBrandDisplayName()}`
+                });
+            } else {
+                return bodyContent;
+            }
+        } catch (error) {
+            console.error(`Error rendering template ${templateName}:`, error);
+            return null;
+        }
+    }
+
     async sendWelcomeEmail(email, fullName, userId, password) {
-        const htmlContent = this.getWelcomeEmailHTML(fullName, userId, password);
+        const brandDisplayName = brandConfig.getBrandDisplayName();
+        const emailConfig = brandConfig.getEmailConfig();
+        
+        // Try to use dynamic template first
+        const htmlContent = this.renderEmailWithTemplate('welcome', {
+            userName: fullName,
+            userId: userId,
+            email: email,
+            emailDelivered: true,
+            subject: `مرحباً بك في ${brandDisplayName} - تفاصيل حسابك الجديد`
+        }) || this.getWelcomeEmailHTML(fullName, userId, password); // Fallback to hardcoded
+        
         const textContent = this.getWelcomeEmailText(fullName, userId, password);
 
         const mailOptions = {
             from: {
-                name: process.env.EMAIL_FROM_NAME || 'درع العائلة',
-                address: process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || process.env.SMTP_USER || 'aal7babi2@gmail.com'
+                name: emailConfig.from.name,
+                address: emailConfig.from.address
             },
             to: email,
-            subject: 'مرحباً بك في درع العائلة - تفاصيل حسابك الجديد',
+            subject: `مرحباً بك في ${brandDisplayName} - تفاصيل حسابك الجديد`,
             html: htmlContent,
             text: textContent,
             headers: {
-                'Message-ID': `<${Date.now()}-${userId}@daraalfamilia.com>`,
-                'X-Mailer': 'درع العائلة System',
-                'List-Unsubscribe': '<mailto:unsubscribe@daraalfamilia.com>'
+                'Message-ID': `<${Date.now()}-${userId}@${brandConfig.getSection('brand').domain}>`,
+                'X-Mailer': `${brandDisplayName} System`,
+                'List-Unsubscribe': `<mailto:unsubscribe@${brandConfig.getSection('brand').domain}>`
             }
         };
 

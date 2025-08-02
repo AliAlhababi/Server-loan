@@ -1,17 +1,21 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const brandConfig = require('./brandConfig');
+
+// Get database configuration from brand config
+const dbConfig = brandConfig.getDatabaseConfig();
 
 // Create connection pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  password: dbConfig.password,
+  database: dbConfig.database,
   waitForConnections: true,
   connectionLimit: process.env.DB_CONNECTION_LIMIT || 10,
   queueLimit: 0,
-  charset: 'utf8mb4',
+  charset: dbConfig.charset,
+  timezone: dbConfig.timezone,
   ssl: process.env.NODE_ENV === 'production' ? { 
     rejectUnauthorized: false,
     minVersion: 'TLSv1.2'
@@ -22,10 +26,12 @@ const pool = mysql.createPool({
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ قاعدة البيانات متصلة بنجاح');
+    console.log(`✅ قاعدة البيانات متصلة بنجاح - ${brandConfig.getBrandDisplayName()}`);
+    console.log(`📊 Database: ${dbConfig.database} on ${dbConfig.host}:${dbConfig.port}`);
     connection.release();
   } catch (error) {
     console.error('❌ خطأ في الاتصال بقاعدة البيانات:', error.message);
+    console.error(`Database config: ${dbConfig.database} on ${dbConfig.host}:${dbConfig.port}`);
     process.exit(1);
   }
 }
