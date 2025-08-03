@@ -134,6 +134,79 @@ class DashboardController {
 
     ResponseHelper.success(res, { activity: allActivity }, 'تم جلب النشاط الأخير بنجاح');
   });
+
+  static getFinancialSummary = asyncHandler(async (req, res) => {
+    console.log('💰 Admin requesting financial summary...');
+    
+    try {
+      // Calculate total subscriptions from all user balances
+      const subscriptionsQuery = `
+        SELECT COALESCE(SUM(balance), 0) as totalSubscriptions
+        FROM users
+      `;
+      
+      // Calculate total active loans remaining amount
+      const activeLoansQuery = `
+        SELECT 
+          COALESCE(SUM(rl.loan_amount - COALESCE(loan_payments.total_paid, 0)), 0) as totalActiveLoansRemaining
+        FROM requested_loan rl
+        LEFT JOIN (
+          SELECT 
+            target_loan_id,
+            SUM(credit) as total_paid
+          FROM loan 
+          WHERE status = 'accepted'
+          GROUP BY target_loan_id
+        ) loan_payments ON rl.loan_id = loan_payments.target_loan_id
+        WHERE rl.status = 'approved'
+        AND (rl.loan_amount - COALESCE(loan_payments.total_paid, 0)) > 0
+      `;
+      
+      // Calculate total pending loans
+      const pendingLoansQuery = `
+        SELECT COALESCE(SUM(loan_amount), 0) as totalPendingLoans
+        FROM requested_loan
+        WHERE status = 'pending'
+      `;
+      
+      // Calculate total fees paid (10 KWD joining fees)
+      const feesPaidQuery = `
+        SELECT COALESCE(SUM(t.credit), 0) as totalFeesPaid
+        FROM transaction t
+        WHERE t.status = 'accepted' 
+        AND t.transaction_type = 'subscription'
+        AND t.credit = 10.00
+      `;
+      
+      // Execute all queries in parallel
+      const [
+        subscriptionsResult,
+        activeLoansResult,
+        pendingLoansResult,
+        feesPaidResult
+      ] = await Promise.all([
+        DatabaseService.executeQuery(subscriptionsQuery),
+        DatabaseService.executeQuery(activeLoansQuery),
+        DatabaseService.executeQuery(pendingLoansQuery),
+        DatabaseService.executeQuery(feesPaidQuery)
+      ]);
+      
+      const financialData = {
+        totalSubscriptions: parseFloat(subscriptionsResult[0]?.totalSubscriptions || 0),
+        totalActiveLoansRemaining: parseFloat(activeLoansResult[0]?.totalActiveLoansRemaining || 0),
+        totalPendingLoans: parseFloat(pendingLoansResult[0]?.totalPendingLoans || 0),
+        totalFeesPaid: parseFloat(feesPaidResult[0]?.totalFeesPaid || 0)
+      };
+      
+      console.log('Financial summary data:', financialData);
+      
+      ResponseHelper.success(res, { data: financialData }, 'تم جلب الملخص المالي بنجاح');
+      
+    } catch (error) {
+      console.error('Error calculating financial summary:', error);
+      throw error;
+    }
+  });
 }
 
 module.exports = DashboardController;

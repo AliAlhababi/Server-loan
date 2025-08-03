@@ -158,23 +158,46 @@ class UsersManagement {
                 <table id="usersTable">
                     <thead>
                         <tr>
-                            <th data-column="user_id">معرف المستخدم</th>
-                            <th data-column="name">الاسم</th>
-                            <th data-column="user_type">نوع العضوية</th>
+                            <th data-column="user_id" class="sortable" onclick="usersManagement.sortTable('user_id', 'number')">
+                                معرف المستخدم <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="name" class="sortable" onclick="usersManagement.sortTable('name', 'text')">
+                                الاسم <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="user_type" class="sortable" onclick="usersManagement.sortTable('user_type', 'text')">
+                                نوع العضوية <i class="fas fa-sort sort-icon"></i>
+                            </th>
                             <th data-column="family_delegation">التفويض العائلي</th>
                             <th data-column="approved_admin">المدير المعتمد</th>
-                            <th data-column="email">البريد الإلكتروني</th>
-                            <th data-column="phone">الهاتف</th>
-                            <th data-column="balance">الرصيد</th>
-                            <th data-column="current_loan">القرض الحالي</th>
-                            <th data-column="registration_date">تاريخ التسجيل</th>
-                            <th data-column="status">الحالة</th>
+                            <th data-column="email" class="sortable" onclick="usersManagement.sortTable('email', 'text')">
+                                البريد الإلكتروني <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="phone" class="sortable" onclick="usersManagement.sortTable('phone', 'text')">
+                                الهاتف <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="balance" class="sortable" onclick="usersManagement.sortTable('balance', 'currency')">
+                                الرصيد <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="current_loan" class="sortable" onclick="usersManagement.sortTable('current_loan', 'currency')">
+                                القرض الحالي <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="registration_date" class="sortable" onclick="usersManagement.sortTable('registration_date', 'date')">
+                                تاريخ التسجيل <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th data-column="status" class="sortable" onclick="usersManagement.sortTable('status', 'text')">
+                                الحالة <i class="fas fa-sort sort-icon"></i>
+                            </th>
                             <th data-column="actions">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${users.map(user => `
-                            <tr data-status="${user.status}" data-type="${user.user_type}" data-name="${(user.Aname || '').toLowerCase()}">
+                            <tr data-status="${user.status}" data-type="${user.user_type}" data-name="${(user.Aname || '').toLowerCase()}" 
+                                data-user-id="${user.user_id}" data-email="${(user.email || '').toLowerCase()}" 
+                                data-phone="${user.phone || ''}" data-balance="${user.balance || 0}" 
+                                data-current-loan="${user.current_loan_amount || 0}" 
+                                data-registration-date="${user.registration_date}"
+                                data-status-text="${user.is_blocked ? 'محظور' : user.joining_fee_approved === 'approved' ? 'نشط' : 'غير مفعل'}">
                                 <td data-column="user_id"><strong>#${user.user_id}</strong></td>
                                 <td data-column="name">
                                     <div class="user-info">
@@ -1229,6 +1252,114 @@ class UsersManagement {
                 ` : ''}
             </div>
         `;
+    }
+
+    // === Table Sorting Functionality ===
+
+    // Sort table by column
+    sortTable(column, type) {
+        const table = document.getElementById('usersTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // Get current sort state
+        const currentSort = this.currentSort || { column: null, direction: 'asc' };
+        
+        // Determine sort direction
+        let direction = 'asc';
+        if (currentSort.column === column && currentSort.direction === 'asc') {
+            direction = 'desc';
+        }
+        
+        // Update current sort state
+        this.currentSort = { column, direction };
+        
+        // Update sort icons
+        this.updateSortIcons(column, direction);
+        
+        // Sort rows
+        rows.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch (column) {
+                case 'user_id':
+                    aValue = parseInt(a.getAttribute('data-user-id'));
+                    bValue = parseInt(b.getAttribute('data-user-id'));
+                    break;
+                case 'name':
+                    aValue = a.getAttribute('data-name') || '';
+                    bValue = b.getAttribute('data-name') || '';
+                    break;
+                case 'user_type':
+                    aValue = a.getAttribute('data-type') || '';
+                    bValue = b.getAttribute('data-type') || '';
+                    break;
+                case 'email':
+                    aValue = a.getAttribute('data-email') || '';
+                    bValue = b.getAttribute('data-email') || '';
+                    break;
+                case 'phone':
+                    aValue = a.getAttribute('data-phone') || '';
+                    bValue = b.getAttribute('data-phone') || '';
+                    break;
+                case 'balance':
+                    aValue = parseFloat(a.getAttribute('data-balance')) || 0;
+                    bValue = parseFloat(b.getAttribute('data-balance')) || 0;
+                    break;
+                case 'current_loan':
+                    aValue = parseFloat(a.getAttribute('data-current-loan')) || 0;
+                    bValue = parseFloat(b.getAttribute('data-current-loan')) || 0;
+                    break;
+                case 'registration_date':
+                    aValue = new Date(a.getAttribute('data-registration-date') || '1970-01-01');
+                    bValue = new Date(b.getAttribute('data-registration-date') || '1970-01-01');
+                    break;
+                case 'status':
+                    aValue = a.getAttribute('data-status-text') || '';
+                    bValue = b.getAttribute('data-status-text') || '';
+                    break;
+                default:
+                    return 0;
+            }
+            
+            // Compare values
+            let result = 0;
+            if (type === 'number' || type === 'currency') {
+                result = aValue - bValue;
+            } else if (type === 'date') {
+                result = aValue.getTime() - bValue.getTime();
+            } else {
+                result = aValue.localeCompare(bValue, 'ar', { sensitivity: 'base' });
+            }
+            
+            return direction === 'asc' ? result : -result;
+        });
+        
+        // Clear tbody and append sorted rows
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+        
+        console.log(`Sorted by ${column} (${direction}): ${rows.length} rows`);
+    }
+    
+    // Update sort icons
+    updateSortIcons(activeColumn, direction) {
+        const headers = document.querySelectorAll('#usersTable th.sortable');
+        
+        headers.forEach(header => {
+            const icon = header.querySelector('.sort-icon');
+            const column = header.getAttribute('onclick')?.match(/sortTable\('([^']+)'/)?.[1];
+            
+            if (icon) {
+                if (column === activeColumn) {
+                    icon.className = `fas fa-sort-${direction === 'asc' ? 'up' : 'down'} sort-icon active`;
+                    header.classList.add('sort-active');
+                } else {
+                    icon.className = 'fas fa-sort sort-icon';
+                    header.classList.remove('sort-active');
+                }
+            }
+        });
     }
 }
 

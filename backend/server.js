@@ -19,6 +19,17 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (frontend)
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+// Brand configuration endpoint
+app.get('/api/config', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      brand: brandConfig.getSection('brand'),
+      features: brandConfig.getSection('features')
+    }
+  });
+});
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));

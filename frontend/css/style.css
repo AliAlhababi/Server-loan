@@ -1167,6 +1167,7 @@ textarea:focus {
 }
 
 /* Stats Grid */
+/* Legacy stats grid - kept for compatibility */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1189,6 +1190,215 @@ textarea:focus {
 .stat-card:hover {
     transform: translateY(-5px);
 }
+
+/* New compact stats grid */
+.compact-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.compact-stat-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.compact-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.compact-stat-card i {
+    font-size: 20px;
+    color: #667eea;
+    margin-bottom: 8px;
+}
+
+.compact-stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2d3748;
+    margin-bottom: 4px;
+}
+
+.compact-stat-label {
+    font-size: 12px;
+    color: #718096;
+    line-height: 1.2;
+}
+
+/* Financial Summary Section */
+.financial-summary-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+
+.section-title {
+    color: #2d3748;
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-title i {
+    color: #667eea;
+}
+
+.financial-summary-table {
+    overflow-x: auto;
+}
+
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.summary-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 15px;
+    text-align: center;
+    font-weight: bold;
+    border: none;
+}
+
+.summary-table th:first-child {
+    border-radius: 8px 0 0 0;
+}
+
+.summary-table th:last-child {
+    border-radius: 0 8px 0 0;
+}
+
+.summary-row {
+    transition: background-color 0.3s ease;
+}
+
+.summary-row:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+}
+
+.summary-row td {
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    vertical-align: middle;
+}
+
+.summary-label {
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-value {
+    font-weight: bold;
+    font-size: 16px;
+    color: #2d3748;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+.summary-details {
+    color: #718096;
+    font-size: 13px;
+}
+
+.summary-input {
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+}
+
+.bank-input {
+    width: 150px;
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    transition: border-color 0.3s ease;
+}
+
+.bank-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-calculate {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-calculate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.calculation-row {
+    background-color: rgba(102, 126, 234, 0.05);
+    border-left: 4px solid #667eea;
+}
+
+.bank-row {
+    background-color: rgba(255, 193, 7, 0.05);
+    border-left: 4px solid #ffc107;
+}
+
+.difference-row.positive {
+    background-color: rgba(16, 185, 129, 0.05);
+    border-left: 4px solid #10b981;
+}
+
+.difference-row.negative {
+    background-color: rgba(239, 68, 68, 0.05);
+    border-left: 4px solid #ef4444;
+}
+
+.difference-row.zero {
+    background-color: rgba(34, 197, 94, 0.05);
+    border-left: 4px solid #22c55e;
+}
+
+/* Text color helpers */
+.text-success { color: #10b981; }
+.text-warning { color: #f59e0b; }
+.text-info { color: #3b82f6; }
+.text-primary { color: #667eea; }
+.text-secondary { color: #6b7280; }
+.text-dark { color: #374151; }
 
 .stat-icon {
     width: 60px;
@@ -2446,6 +2656,63 @@ textarea:focus {
     0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
     70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
     100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+
+/* === Table Sorting Styles === */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sortable:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.sort-icon {
+    margin-right: 8px;
+    font-size: 12px;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+}
+
+.sort-icon.active {
+    opacity: 1;
+    color: #ffc107;
+}
+
+.sortable:hover .sort-icon {
+    opacity: 0.8;
+}
+
+/* Enhanced table header styling for better visibility */
+#usersTable th.sortable {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 2px solid #5a6fd8;
+}
+
+#usersTable th.sortable:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+}
+
+/* Active sort column highlighting */
+#usersTable th.sortable.sort-active {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    color: #333;
+}
+
+/* Table row hover effect enhancement */
+#usersTable tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Family Management - Member Loan Display */

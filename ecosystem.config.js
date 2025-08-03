@@ -34,7 +34,7 @@ module.exports = {
       instance_var: 'INSTANCE_ID'
     },
     {
-      name: 'loan-system-aman',
+      name: 'loan-system-almijadi',
       script: 'backend/server.js',
       instances: 1,
       exec_mode: 'fork',

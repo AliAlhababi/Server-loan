@@ -8,6 +8,7 @@ const TransactionController = require('./TransactionController');
 exports.getDashboardStats = DashboardController.getDashboardStats;
 exports.getDetailedStats = DashboardController.getDetailedStats;  
 exports.getRecentActivity = DashboardController.getRecentActivity;
+exports.getFinancialSummary = DashboardController.getFinancialSummary;
 
 // Re-export user management methods
 exports.getAllUsers = UserManagementController.getAllUsers;

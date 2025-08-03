@@ -8,6 +8,9 @@ const router = express.Router();
 // Get dashboard statistics
 router.get('/dashboard-stats', verifyToken, requireAdmin, adminController.getDashboardStats);
 
+// Get financial summary
+router.get('/financial-summary', verifyToken, requireAdmin, adminController.getFinancialSummary);
+
 // Get pending loan requests
 router.get('/pending-loans', verifyToken, requireAdmin, adminController.getPendingLoans);
 

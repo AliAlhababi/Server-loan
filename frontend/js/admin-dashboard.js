@@ -9,8 +9,11 @@ class AdminDashboard {
 
     // Initialize admin dashboard
     async init() {
-        console.log('Initializing admin dashboard...');
+        console.log('🚀 Initializing admin dashboard...');
         await this.loadStats();
+        console.log('✅ Stats loaded, now loading financial summary...');
+        await this.loadFinancialSummary();
+        console.log('✅ Financial summary loaded, setting up views...');
         this.showMainView();
         this.setupEventListeners();
         this.initializeTabModules();
@@ -93,6 +96,68 @@ class AdminDashboard {
             if (pendingLoanPaymentsEl) pendingLoanPaymentsEl.textContent = 'خطأ';
             if (pendingFamilyDelegationsEl) pendingFamilyDelegationsEl.textContent = 'خطأ';
         }
+    }
+
+    // Load financial summary data
+    async loadFinancialSummary() {
+        try {
+            console.log('🔄 Loading financial summary...');
+            const result = await apiCall('/admin/financial-summary');
+            console.log('📊 Financial summary result:', result);
+            
+            if (result.success && result.data) {
+                const data = result.data;
+                
+                // Update financial summary elements
+                const totalSubscriptionsEl = document.getElementById('totalSubscriptions');
+                const totalActiveLoansRemainingEl = document.getElementById('totalActiveLoansRemaining');
+                const totalPendingLoansEl = document.getElementById('totalPendingLoans');
+                const totalFeesPaidEl = document.getElementById('totalFeesPaid');
+                const calculatedBalanceEl = document.getElementById('calculatedBalance');
+                
+                if (totalSubscriptionsEl) {
+                    totalSubscriptionsEl.textContent = this.formatCurrency(data.totalSubscriptions || 0);
+                }
+                
+                if (totalActiveLoansRemainingEl) {
+                    totalActiveLoansRemainingEl.textContent = this.formatCurrency(data.totalActiveLoansRemaining || 0);
+                }
+                
+                if (totalPendingLoansEl) {
+                    totalPendingLoansEl.textContent = this.formatCurrency(data.totalPendingLoans || 0);
+                }
+                
+                if (totalFeesPaidEl) {
+                    totalFeesPaidEl.textContent = this.formatCurrency(data.totalFeesPaid || 0);
+                }
+                
+                // Calculate and display the calculated balance
+                const calculatedBalance = (data.totalSubscriptions || 0) - (data.totalActiveLoansRemaining || 0);
+                if (calculatedBalanceEl) {
+                    calculatedBalanceEl.textContent = this.formatCurrency(calculatedBalance);
+                }
+                
+                // Store data globally for difference calculation
+                window.financialSummaryData = data;
+                window.financialSummaryData.calculatedBalance = calculatedBalance;
+                
+                console.log('Financial summary loaded:', data);
+            } else {
+                console.error('Financial summary API failed:', result);
+                showToast('فشل في تحميل الملخص المالي: ' + (result.message || 'خطأ غير معروف'), 'error');
+            }
+        } catch (error) {
+            console.error('Error loading financial summary:', error);
+            showToast('خطأ في تحميل الملخص المالي: ' + error.message, 'error');
+        }
+    }
+
+    // Format currency helper
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3
+        }).format(amount);
     }
 
     // Setup event listeners for admin buttons
@@ -237,6 +302,80 @@ window.AdminDashboard = AdminDashboard;
 
 // Global instance
 window.adminDashboard = null;
+
+// Global function for calculating bank difference
+function calculateDifference() {
+    const actualBankInput = document.getElementById('actualBankAmount');
+    const differenceRow = document.getElementById('differenceRow');
+    const differenceAmountEl = document.getElementById('differenceAmount');
+    const differenceStatusEl = document.getElementById('differenceStatus');
+    const differenceLabelEl = document.getElementById('differenceLabel');
+    
+    if (!actualBankInput || !window.financialSummaryData) {
+        showToast('لا توجد بيانات مالية متاحة', 'error');
+        return;
+    }
+    
+    const actualBankAmount = parseFloat(actualBankInput.value) || 0;
+    const calculatedBalance = window.financialSummaryData.calculatedBalance || 0;
+    
+    if (actualBankAmount === 0) {
+        showToast('يرجى إدخال الرصيد الفعلي للبنك', 'warning');
+        return;
+    }
+    
+    // Calculate difference
+    const difference = actualBankAmount - calculatedBalance;
+    
+    // Remove existing difference classes
+    differenceRow.classList.remove('positive', 'negative', 'zero');
+    
+    // Format and display difference
+    const formattedDifference = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3
+    }).format(Math.abs(difference));
+    
+    if (difference === 0) {
+        // Perfect match
+        differenceRow.classList.add('zero');
+        differenceLabelEl.innerHTML = '<i class="fas fa-check-circle"></i> متطابق تماماً';
+        differenceAmountEl.textContent = '0.000';
+        differenceAmountEl.style.color = '#22c55e';
+        differenceStatusEl.innerHTML = '<i class="fas fa-thumbs-up"></i> الأرصدة متطابقة بشكل مثالي';
+        differenceStatusEl.style.color = '#22c55e';
+    } else if (difference > 0) {
+        // Bank has more money
+        differenceRow.classList.add('positive');
+        differenceLabelEl.innerHTML = '<i class="fas fa-arrow-up"></i> زيادة في البنك';
+        differenceAmountEl.textContent = '+' + formattedDifference;
+        differenceAmountEl.style.color = '#10b981';
+        differenceStatusEl.innerHTML = '<i class="fas fa-plus-circle"></i> البنك لديه أموال إضافية';
+        differenceStatusEl.style.color = '#10b981';
+    } else {
+        // Bank has less money (deficit)
+        differenceRow.classList.add('negative');
+        differenceLabelEl.innerHTML = '<i class="fas fa-arrow-down"></i> نقص في البنك';
+        differenceAmountEl.textContent = '-' + formattedDifference;
+        differenceAmountEl.style.color = '#ef4444';
+        differenceStatusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> البنك لديه نقص في الأموال';
+        differenceStatusEl.style.color = '#ef4444';
+    }
+    
+    // Show the difference row
+    differenceRow.style.display = 'table-row';
+    
+    // Show appropriate toast message
+    if (difference === 0) {
+        showToast('🎉 ممتاز! الأرصدة متطابقة تماماً', 'success');
+    } else if (Math.abs(difference) < 1) {
+        showToast('✅ فرق طفيف: ' + formattedDifference + ' دينار', 'success');
+    } else if (Math.abs(difference) < 50) {
+        showToast('⚠️ فرق متوسط: ' + formattedDifference + ' دينار', 'warning');
+    } else {
+        showToast('🚨 فرق كبير: ' + formattedDifference + ' دينار - يحتاج مراجعة', 'error');
+    }
+}
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {

@@ -1,6 +1,7 @@
 // App State
 let currentUser = null;
 let token = localStorage.getItem('authToken');
+let brandConfig = null;
 
 // DOM Cache
 const DOM = {
@@ -12,9 +13,49 @@ const DOM = {
     loadingSpinner: document.getElementById('loadingSpinner')
 };
 
+// Load brand configuration
+async function loadBrandConfig() {
+    try {
+        const response = await fetch('/api/config');
+        const result = await response.json();
+        
+        if (result.success) {
+            brandConfig = result.data;
+            updateBrandElements();
+            console.log('Brand config loaded:', brandConfig.brand.displayName);
+        }
+    } catch (error) {
+        console.error('Failed to load brand config:', error);
+        // Fallback to default name
+        brandConfig = { brand: { displayName: 'درع العائلة' } };
+    }
+}
+
+// Update brand-specific elements in the DOM
+function updateBrandElements() {
+    if (!brandConfig) return;
+    
+    const brandName = brandConfig.brand.displayName;
+    
+    // Update page title
+    document.title = `${brandName} - نظام إدارة القروض`;
+    
+    // Update header brand name
+    const logoH1 = document.querySelector('.logo h1');
+    if (logoH1) {
+        logoH1.textContent = brandName;
+    }
+    
+    // Update any other brand-specific elements
+    console.log(`Brand updated to: ${brandName}`);
+}
+
 // Initialize app
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('App initialized, token:', token);
+    
+    // Load brand configuration first
+    await loadBrandConfig();
     
     if (token) {
         console.log('Token found, verifying...');
