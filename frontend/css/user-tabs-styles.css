@@ -1,3 +1,65 @@
+/* Minimal Eligibility Status Styles */
+.eligibility-status {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    border: 1px solid #e5e7eb;
+}
+
+.eligibility-success-minimal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #059669;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.eligibility-success-minimal i {
+    color: #10b981;
+}
+
+.eligibility-missing-minimal {
+    color: #dc2626;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.eligibility-missing-minimal i {
+    color: #ef4444;
+    margin-left: 8px;
+}
+
+.missing-items {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.missing-item {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid #fca5a5;
+}
+
+.eligibility-error-minimal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #b45309;
+    background: #fffbeb;
+    border-color: #fed7aa;
+}
+
+.eligibility-error-minimal i {
+    color: #f59e0b;
+}
+
 /* Modern Loan Payment Container */
 .loan-payment-container.modern {
     max-width: 800px;

@@ -160,18 +160,9 @@ class AdminDashboard {
         }).format(amount);
     }
 
-    // Setup event listeners for admin buttons
+    // Setup event listeners for admin buttons (simplified)
     setupEventListeners() {
-        // Main admin tab listeners
-        const mainTabs = document.querySelectorAll('.main-admin-tab');
-        mainTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const tabName = e.currentTarget.dataset.tab;
-                this.switchToMainTab(tabName);
-            });
-        });
-
-        // Add event listeners using data attributes
+        // Legacy admin action buttons (currently hidden but kept for compatibility)
         const buttons = document.querySelectorAll('.action-btn.admin[data-action]');
         buttons.forEach(button => {
             button.addEventListener('click', async (e) => {
@@ -199,58 +190,6 @@ class AdminDashboard {
         });
     }
 
-    // Switch between main admin tabs
-    switchToMainTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.main-admin-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-
-        // Update content areas
-        document.querySelectorAll('.main-tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-
-        const targetContent = document.getElementById(`${tabName}-content`);
-        if (targetContent) {
-            targetContent.classList.add('active');
-
-            // Load specific content based on tab
-            switch(tabName) {
-                case 'loans':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.loansManagement.show();
-                    break;
-                case 'transactions':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.transactionsManagement.show();
-                    break;
-                case 'users':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.usersManagement.show();
-                    break;
-                case 'reports':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.reportsManagement.show();
-                    break;
-                case 'family':
-                    targetContent.innerHTML = '';
-                    this.contentArea = targetContent;
-                    window.familyDelegationsManagement.load();
-                    break;
-                case 'dashboard':
-                default:
-                    this.contentArea = document.getElementById('admin-content-area');
-                    this.showMainView();
-                    break;
-            }
-        }
-    }
 
     // Show main dashboard view
     showMainView() {
@@ -262,39 +201,38 @@ class AdminDashboard {
                         <i class="fas fa-tachometer-alt"></i> لوحة تحكم المدير
                     </h3>
                     <p style="text-align: center; color: #555; font-size: 16px;">
-                        اختر قسماً من الأقسام أعلاه لإدارة القروض، المعاملات، الأعضاء، أو عرض التقارير
+                        انقر على البطاقات أعلاه للوصول إلى أقسام الإدارة المختلفة
                     </p>
                 </div>
                 
-                <div class="quick-actions" style="margin-top: 30px;">
-                    <h4 style="color: #333; margin-bottom: 15px;">
-                        <i class="fas fa-bolt"></i> إجراءات سريعة
-                    </h4>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                        <button class="quick-action-btn" onclick="loansManagement.show()">
-                            <i class="fas fa-clock"></i> الطلبات المعلقة (${document.getElementById('pendingLoans').textContent})
-                        </button>
-                        <button class="quick-action-btn" onclick="transactionsManagement.show()">
-                            <i class="fas fa-coins"></i> اشتراكات معلقة (${document.getElementById('pendingSubscriptions')?.textContent || '0'})
-                        </button>
-                        <button class="quick-action-btn" onclick="loansManagement.show('payments')">
-                            <i class="fas fa-credit-card"></i> أقساط قروض معلقة (${document.getElementById('pendingLoanPayments')?.textContent || '0'})
-                        </button>
-                        <button class="quick-action-btn" onclick="usersManagement.show()">
-                            <i class="fas fa-users"></i> إدارة الأعضاء
-                        </button>
-                        <button class="quick-action-btn" onclick="reportsManagement.show()">
-                            <i class="fas fa-chart-bar"></i> التقارير
-                        </button>
-                    </div>
-                </div>
             </div>
         `;
     }
 
-    // All tab management is now handled by separate files
+    // Smooth scroll to content area when management section loads
+    scrollToContentArea() {
+        const contentArea = document.getElementById('admin-content-area');
+        if (contentArea) {
+            contentArea.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start',
+                inline: 'nearest'
+            });
+        }
+    }
 
-    // All functionality moved to separate tab files
+    // Enhanced management navigation with smooth scrolling
+    async navigateToSection(sectionFunction, ...args) {
+        // Call the management function
+        await sectionFunction(...args);
+        
+        // Smooth scroll to the content area after a brief delay
+        setTimeout(() => {
+            this.scrollToContentArea();
+        }, 100);
+    }
+
+    // All tab management is now handled by separate files
 }
 
 // Make AdminDashboard globally available
@@ -307,6 +245,7 @@ window.adminDashboard = null;
 function calculateDifference() {
     const actualBankInput = document.getElementById('actualBankAmount');
     const differenceRow = document.getElementById('differenceRow');
+    const differenceStatusRow = document.getElementById('differenceStatusRow');
     const differenceAmountEl = document.getElementById('differenceAmount');
     const differenceStatusEl = document.getElementById('differenceStatus');
     const differenceLabelEl = document.getElementById('differenceLabel');
@@ -362,8 +301,9 @@ function calculateDifference() {
         differenceStatusEl.style.color = '#ef4444';
     }
     
-    // Show the difference row
+    // Show the difference rows
     differenceRow.style.display = 'table-row';
+    differenceStatusRow.style.display = 'table-row';
     
     // Show appropriate toast message
     if (difference === 0) {

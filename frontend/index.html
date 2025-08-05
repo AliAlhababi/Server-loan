@@ -306,45 +306,6 @@
                 <div id="adminDashboard" class="dashboard-content" style="display: none;">
                     <h2>لوحة تحكم المدير</h2>
                     
-                    <!-- Main Admin Navigation Tabs -->
-                    <div class="main-admin-tabs">
-                        <button class="main-admin-tab active" data-tab="dashboard" title="الرئيسية">
-                            <div class="tab-icon">
-                                <i class="fas fa-tachometer-alt"></i>
-                            </div>
-                            <span class="tab-text">الرئيسية</span>
-                        </button>
-                        <button class="main-admin-tab" data-tab="loans" title="إدارة القروض">
-                            <div class="tab-icon">
-                                <i class="fas fa-money-bill-wave"></i>
-                            </div>
-                            <span class="tab-text">القروض</span>
-                        </button>
-                        <button class="main-admin-tab" data-tab="transactions" title="إدارة المعاملات">
-                            <div class="tab-icon">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                            <span class="tab-text">المعاملات</span>
-                        </button>
-                        <button class="main-admin-tab" data-tab="users" title="إدارة الأعضاء">
-                            <div class="tab-icon">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <span class="tab-text">الأعضاء</span>
-                        </button>
-                        <button class="main-admin-tab" data-tab="reports" title="التقارير">
-                            <div class="tab-icon">
-                                <i class="fas fa-chart-bar"></i>
-                            </div>
-                            <span class="tab-text">التقارير</span>
-                        </button>
-                        <button class="main-admin-tab" data-tab="family" title="التفويض العائلي">
-                            <div class="tab-icon">
-                                <i class="fas fa-users-cog"></i>
-                            </div>
-                            <span class="tab-text">التفويض</span>
-                        </button>
-                    </div>
 
                     <!-- Main Admin Content Container -->
                     <div class="main-admin-content">
@@ -354,27 +315,27 @@
                             
                     <!-- Compact Admin Stats -->
                     <div class="compact-stats-grid">
-                        <div class="compact-stat-card">
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(usersManagement.show.bind(usersManagement))" title="إدارة الأعضاء">
                             <i class="fas fa-users"></i>
                             <span class="compact-stat-value" id="totalUsers">0</span>
                             <span class="compact-stat-label">أعضاء</span>
                         </div>
-                        <div class="compact-stat-card">
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement))" title="إدارة القروض">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span class="compact-stat-value" id="pendingLoans">0</span>
                             <span class="compact-stat-label">قروض معلقة</span>
                         </div>
-                        <div class="compact-stat-card">
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(transactionsManagement.show.bind(transactionsManagement))" title="إدارة المعاملات">
                             <i class="fas fa-coins"></i>
                             <span class="compact-stat-value" id="pendingSubscriptions">0</span>
                             <span class="compact-stat-label">اشتراكات معلقة</span>
                         </div>
-                        <div class="compact-stat-card">
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement), 'payments')" title="إدارة أقساط القروض">
                             <i class="fas fa-credit-card"></i>
                             <span class="compact-stat-value" id="pendingLoanPayments">0</span>
                             <span class="compact-stat-label">أقساط معلقة</span>
                         </div>
-                        <div class="compact-stat-card">
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(familyDelegationsManagement.load.bind(familyDelegationsManagement))" title="إدارة التفويض العائلي">
                             <i class="fas fa-users-cog"></i>
                             <span class="compact-stat-value" id="pendingFamilyDelegations">0</span>
                             <span class="compact-stat-label">تفويض عائلي</span>
@@ -451,32 +412,19 @@
                                         </td>
                                         <td class="summary-value" id="differenceAmount">--</td>
                                     </tr>
+                                    <tr class="summary-row difference-status-row" id="differenceStatusRow" style="display: none;">
+                                        <td class="summary-label">
+                                            <i class="fas fa-info-circle"></i>
+                                            الحالة
+                                        </td>
+                                        <td class="summary-value" id="differenceStatus">--</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                         </div>
 
-                        <!-- Other tab contents will be loaded dynamically -->
-                        <div id="loans-content" class="main-tab-content">
-                            <!-- Loans management content will be loaded here -->
-                        </div>
-                        
-                        <div id="transactions-content" class="main-tab-content">
-                            <!-- Transactions management content will be loaded here -->
-                        </div>
-                        
-                        <div id="users-content" class="main-tab-content">
-                            <!-- Users management content will be loaded here -->
-                        </div>
-                        
-                        <div id="reports-content" class="main-tab-content">
-                            <!-- Reports content will be loaded here -->
-                        </div>
-                        
-                        <div id="family-content" class="main-tab-content">
-                            <!-- Family delegations content will be loaded here -->
-                        </div>
                         
                     </div>
 
@@ -623,6 +571,14 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Reports Access Button - Bottom of Admin Dashboard -->
+                    <div style="text-align: center; margin: 30px 0 20px 0;">
+                        <button class="reports-access-btn" onclick="adminDashboard.navigateToSection(reportsManagement.show.bind(reportsManagement))" title="عرض التقارير والإحصائيات">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>التقارير والإحصائيات</span>
+                        </button>
                     </div>
                 </div>
             </section>

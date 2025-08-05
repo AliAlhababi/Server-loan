@@ -130,6 +130,10 @@ class UserModel {
       // Calculate max loan amount
       const maxLoanAmount = eligible ? Math.min(currentBalance * 3, 10000) : 0;
       
+      // Set default values for subscription tracking (temporarily disabled)
+      const totalPaid = 0;
+      const requiredAmount = 240;
+      
       return {
         eligible,
         isEligible: eligible,

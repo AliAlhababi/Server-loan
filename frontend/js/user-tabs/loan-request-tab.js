@@ -13,48 +13,9 @@ class LoanRequestTab {
         if (loanContent) {
             loanContent.innerHTML = `
                 <div class="loan-request-container">
-                    <!-- Priority Action Button -->
-                    <div class="priority-action-section">
-                        <button onclick="loanRequestTab.scrollToCalculator()" class="priority-btn loan-calc-btn">
-                            <div class="btn-icon">
-                                <i class="fas fa-calculator"></i>
-                            </div>
-                            <div class="btn-content">
-                                <h3>حاسبة القروض</h3>
-                                <p>احسب القسط المطلوب قبل طلب القرض</p>
-                            </div>
-                            <div class="btn-arrow">
-                                <i class="fas fa-chevron-left"></i>
-                            </div>
-                        </button>
-                    </div>
-
-                    <!-- Loan Eligibility Section -->
-                    <div class="loan-eligibility-section">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3><i class="fas fa-check-circle"></i> شروط طلب القرض</h3>
-                            <button onclick="loanRequestTab.refreshEligibility()" class="btn btn-secondary" style="padding: 8px 12px; font-size: 12px;" title="تحديث حالة الأهلية">
-                                <i class="fas fa-sync-alt"></i> تحديث
-                            </button>
-                        </div>
-                        <div class="eligibility-container" id="loanEligibilityContainer">
-                            <div class="loading-state">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <span>جاري التحقق من الأهلية...</span>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Loan Request Form -->
                     <div class="loan-request-form-section" id="loanRequestFormSection" style="display: none;">
                         <h3><i class="fas fa-file-contract"></i> طلب قرض جديد</h3>
-                        <div class="form-info-card">
-                            <i class="fas fa-info-circle"></i>
-                            <div>
-                                <strong>ملاحظة مهمة:</strong>
-                                <p>الحد الأدنى للقسط الشهري هو 2% من القرض المطلوب مقسوم على الرصيد، مع حد أدنى 20 د.ك</p>
-                            </div>
-                        </div>
                         
                         <form id="loanRequestForm">
                             <div class="form-group">
@@ -102,20 +63,25 @@ class LoanRequestTab {
                                     <i class="fas fa-paper-plane"></i> إرسال طلب القرض
                                 </button>
                             </div>
+                            
+                            <!-- Eligibility Status -->
+                            <div class="eligibility-status" id="eligibilityStatus">
+                                <div class="loading-state">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>جاري التحقق من الأهلية...</span>
+                                </div>
+                            </div>
                         </form>
                     </div>
 
-                    <!-- Loan Calculator Section -->
-                    <div class="loan-calculator-section" id="loanCalculatorSection">
-                        <h3><i class="fas fa-calculator"></i> حاسبة القروض</h3>
-                        <div class="calculator-container">
-                            <!-- This will be loaded from the loan calculator -->
-                            <div id="embeddedCalculator">
-                                <div class="loading-state">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    <span>جاري تحميل الحاسبة...</span>
-                                </div>
+                    <!-- Not Eligible Message -->
+                    <div class="not-eligible-section" id="notEligibleSection" style="display: none;">
+                        <div class="error-state">
+                            <div class="error-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
                             </div>
+                            <h4>غير مؤهل لطلب قرض حالياً</h4>
+                            <p>يرجى مراجعة الشروط والأحكام أو التواصل مع الإدارة</p>
                         </div>
                     </div>
                 </div>
@@ -123,7 +89,6 @@ class LoanRequestTab {
             
             await this.loadEligibility();
             this.setupEventListeners();
-            this.embedCalculator();
         }
     }
 
@@ -133,180 +98,73 @@ class LoanRequestTab {
             const result = await apiCall(`/users/loans/eligibility/${this.userDashboard.getUser().user_id}`);
             this.eligibility = result.eligibility;
             
-            
-            const container = document.getElementById('loanEligibilityContainer');
             const formSection = document.getElementById('loanRequestFormSection');
+            const notEligibleSection = document.getElementById('notEligibleSection');
+            const eligibilityStatus = document.getElementById('eligibilityStatus');
             
             if (this.eligibility.eligible) {
-                container.innerHTML = this.generateEligibilitySuccess();
                 formSection.style.display = 'block';
+                notEligibleSection.style.display = 'none';
                 
                 // Update max loan amount
                 document.getElementById('maxLoanDisplay').textContent = formatCurrency(this.eligibility.maxLoanAmount);
                 document.getElementById('requestedAmount').setAttribute('max', this.eligibility.maxLoanAmount);
                 
+                // Show success status
+                eligibilityStatus.innerHTML = `
+                    <div class="eligibility-success-minimal">
+                        <i class="fas fa-check-circle"></i>
+                        <span>مؤهل لطلب قرض - الحد الأقصى: ${formatCurrency(this.eligibility.maxLoanAmount)}</span>
+                    </div>
+                `;
+                
             } else {
-                container.innerHTML = this.generateEligibilityError();
-                formSection.style.display = 'none';
+                formSection.style.display = 'block'; // Keep form visible but show what's missing
+                notEligibleSection.style.display = 'none';
+                
+                // Show what's missing in minimal way
+                const failedTests = this.getFailedTests();
+                eligibilityStatus.innerHTML = `
+                    <div class="eligibility-missing-minimal">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>المطلوب لطلب القرض:</span>
+                        <div class="missing-items">
+                            ${failedTests.map(test => `<span class="missing-item">${test}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                // Disable submit button
+                document.getElementById('submitLoanBtn').disabled = true;
             }
             
         } catch (error) {
             console.error('Error loading loan eligibility:', error);
-            const container = document.getElementById('loanEligibilityContainer');
-            container.innerHTML = this.generateEligibilityErrorState(error.message);
+            const eligibilityStatus = document.getElementById('eligibilityStatus');
+            eligibilityStatus.innerHTML = `
+                <div class="eligibility-error-minimal">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>خطأ في التحقق من الأهلية</span>
+                </div>
+            `;
         }
     }
 
-    // Generate eligibility success message
-    generateEligibilitySuccess() {
-        const testResults = this.eligibility.tests || {};
+    // Get failed tests in simple Arabic
+    getFailedTests() {
+        const tests = this.eligibility.tests || {};
+        const failed = [];
         
-        const testList = [
-            { key: 'notBlocked', label: 'الحساب غير محظور', icon: 'fa-user-check' },
-            { key: 'joiningFeeApproved', label: 'رسوم الانضمام معتمدة', icon: 'fa-check-circle' },
-            { key: 'hasMinimumBalance', label: 'الرصيد أكبر من 500 د.ك', icon: 'fa-wallet' },
-            { key: 'oneYearRegistration', label: 'مضى عام على التسجيل', icon: 'fa-calendar' },
-            { key: 'noActiveLoans', label: 'لا يوجد قرض نشط', icon: 'fa-ban' },
-            // { key: 'hasSubscriptionPayment', label: 'دفع الاشتراكات', icon: 'fa-credit-card' }, // TEMPORARILY DISABLED
-            { key: 'thirtyDaysSinceClosure', label: '30 يوم من إغلاق آخر قرض', icon: 'fa-clock' }
-        ];
-
-        const testsList = testList.map(test => `
-            <li class="eligibility-test test-pass">
-                <div class="test-icon">
-                    <i class="fas ${test.icon}"></i>
-                </div>
-                <div class="test-content">
-                    <span class="test-label">${test.label}</span>
-                    <div class="test-status">
-                        <i class="fas fa-check"></i>
-                        <span>متحقق</span>
-                    </div>
-                </div>
-            </li>
-        `).join('');
-
-        return `
-            <div class="eligibility-success">
-                <div class="success-header">
-                    <i class="fas fa-check-circle"></i>
-                    <h4>مؤهل لطلب قرض</h4>
-                </div>
-                <div class="eligibility-tests">
-                    <ul class="tests-list">
-                        ${testsList}
-                    </ul>
-                </div>
-                <div class="eligibility-details">
-                    <div class="detail-item">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span>الحد الأقصى للقرض: <strong>${formatCurrency(this.eligibility.maxLoanAmount)}</strong></span>
-                    </div>
-                    <div class="detail-item">
-                        <i class="fas fa-calendar-check"></i>
-                        <span>مدة السداد: <strong>حسب مبلغ القرض والقسط</strong></span>
-                    </div>
-                    <div class="detail-item">
-                        <i class="fas fa-percentage"></i>
-                        <span>الحد الأدنى للقسط: <strong>2% من مربع القرض ÷ الرصيد</strong></span>
-                    </div>
-                </div>
-            </div>
-        `;
+        if (!tests.notBlocked) failed.push('إلغاء حظر الحساب');
+        if (!tests.joiningFeeApproved) failed.push('اعتماد رسوم الانضمام');
+        if (!tests.hasMinimumBalance) failed.push('رصيد 500 دينار كحد أدنى');
+        if (!tests.oneYearRegistration) failed.push('مرور عام على التسجيل');
+        if (!tests.noActiveLoans) failed.push('إغلاق القرض النشط');
+        if (!tests.thirtyDaysSinceClosure) failed.push('انتظار 30 يوم من إغلاق آخر قرض');
+        
+        return failed;
     }
 
-    // Generate eligibility error message with individual tests
-    generateEligibilityError() {
-        const testResults = this.eligibility.tests || {};
-        const messages = this.eligibility.messages || [];
-        
-        
-        const testList = [
-            { key: 'notBlocked', label: 'الحساب غير محظور', icon: 'fa-user-check' },
-            { key: 'joiningFeeApproved', label: 'رسوم الانضمام معتمدة', icon: 'fa-check-circle' },
-            { key: 'hasMinimumBalance', label: 'الرصيد أكبر من 500 د.ك', icon: 'fa-wallet' },
-            { key: 'oneYearRegistration', label: 'مضى عام على التسجيل', icon: 'fa-calendar' },
-            { key: 'noActiveLoans', label: 'لا يوجد قرض نشط', icon: 'fa-ban' },
-            // { key: 'hasSubscriptionPayment', label: 'دفع الاشتراكات', icon: 'fa-credit-card' }, // TEMPORARILY DISABLED
-            { key: 'thirtyDaysSinceClosure', label: '30 يوم من إغلاق آخر قرض', icon: 'fa-clock' }
-        ];
-
-        const testsList = testList.map(test => {
-            // Handle case where testResults might be undefined or the test key doesn't exist
-            const passed = testResults[test.key] === true;
-            const statusClass = passed ? 'test-pass' : 'test-fail';
-            const statusIcon = passed ? 'fa-check' : 'fa-times';
-            
-            
-            return `
-                <li class="eligibility-test ${statusClass}">
-                    <div class="test-icon">
-                        <i class="fas ${test.icon}"></i>
-                    </div>
-                    <div class="test-content">
-                        <span class="test-label">${test.label}</span>
-                        <div class="test-status">
-                            <i class="fas ${statusIcon}"></i>
-                            <span>${passed ? 'متحقق' : 'غير متحقق'}</span>
-                        </div>
-                    </div>
-                </li>
-            `;
-        }).join('');
-
-        return `
-            <div class="eligibility-error">
-                <div class="error-header">
-                    <i class="fas fa-list-check"></i>
-                    <h4>فحص شروط طلب القرض</h4>
-                </div>
-                <div class="eligibility-tests">
-                    <ul class="tests-list">
-                        ${testsList}
-                    </ul>
-                </div>
-                ${messages.length > 0 ? `
-                    <div class="error-messages">
-                        <h5>المشاكل التي تحتاج إصلاح:</h5>
-                        <ul class="messages-list">
-                            ${messages.map(msg => `<li><i class="fas fa-exclamation-circle"></i> ${msg}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-                </div>
-                <div class="error-help">
-                    <div class="help-card">
-                        <i class="fas fa-lightbulb"></i>
-                        <div>
-                            <strong>للحصول على المساعدة:</strong>
-                            <p>يرجى مراجعة الشروط والأحكام أو التواصل مع الإدارة لحل هذه المشاكل</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="error-actions">
-                    <button onclick="loanRequestTab.loadEligibility()" class="btn btn-secondary">
-                        <i class="fas fa-redo"></i> إعادة التحقق
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    // Generate eligibility error state
-    generateEligibilityErrorState(errorMessage) {
-        return `
-            <div class="error-state">
-                <div class="error-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <h4>خطأ في التحقق من الأهلية</h4>
-                <p>${errorMessage}</p>
-                <button onclick="loanRequestTab.loadEligibility()" class="btn btn-secondary">
-                    <i class="fas fa-redo"></i> إعادة المحاولة
-                </button>
-            </div>
-        `;
-    }
 
     // Setup event listeners
     setupEventListeners() {
@@ -475,208 +333,6 @@ class LoanRequestTab {
         }
     }
 
-    // Embed loan calculator
-    embedCalculator() {
-        const container = document.getElementById('embeddedCalculator');
-        if (!container) return;
-        
-        // Create a simple embedded calculator interface
-        if (window.LoanCalculator) {
-            container.innerHTML = `
-                <div class="embedded-calculator">
-                    <div class="calculator-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="embeddedLoanAmount">مبلغ القرض (د.ك)</label>
-                                <input type="number" id="embeddedLoanAmount" step="0.001" placeholder="أدخل مبلغ القرض" oninput="loanRequestTab.handleEmbeddedCalculatorInput()">
-                                <small class="field-hint">الحد الأقصى: 10,000 د.ك</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="embeddedBalance">الرصيد (د.ك)</label>
-                                <input type="number" id="embeddedBalance" step="0.001" placeholder="أدخل الرصيد" oninput="loanRequestTab.handleEmbeddedCalculatorInput()">
-                                <small class="field-hint">رصيد المستخدم في الصندوق</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="embeddedInstallment">قيمة القسط (د.ك)</label>
-                                <input type="number" id="embeddedInstallment" step="0.001" placeholder="قيمة القسط" oninput="loanRequestTab.handleEmbeddedCalculatorInput()">
-                                <small class="field-hint">القسط الشهري المطلوب</small>
-                            </div>
-                        </div>
-                        <div class="calculator-buttons">
-                            <button type="button" onclick="loanRequestTab.performEmbeddedCalculation()" class="btn btn-primary">
-                                <i class="fas fa-calculator"></i>
-                                احسب القيم
-                            </button>
-                            <button type="button" onclick="loanRequestTab.clearEmbeddedCalculator()" class="btn btn-secondary">
-                                <i class="fas fa-eraser"></i>
-                                مسح الكل
-                            </button>
-                        </div>
-                    </div>
-                    <div class="calculation-result" id="embeddedCalculationResult" style="display: none;">
-                        <div class="result-box">
-                            <h4>نتيجة الحساب:</h4>
-                            <div id="embeddedCalculationDetails"></div>
-                            <p id="embeddedCalculationScenario" class="scenario-text"></p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Fallback if calculator not available
-            container.innerHTML = `
-                <div class="calculator-placeholder">
-                    <i class="fas fa-calculator"></i>
-                    <p>حاسبة القروض غير متاحة حالياً</p>
-                    <small>يرجى استخدام نموذج طلب القرض أعلاه للحصول على التفاصيل</small>
-                </div>
-            `;
-        }
-    }
-
-    // Scroll to calculator
-    scrollToCalculator() {
-        const calculatorSection = document.getElementById('loanCalculatorSection');
-        if (calculatorSection) {
-            calculatorSection.scrollIntoView({ behavior: 'smooth' });
-            // Add highlight effect
-            calculatorSection.classList.add('highlight');
-            setTimeout(() => {
-                calculatorSection.classList.remove('highlight');
-            }, 2000);
-        }
-    }
-
-    // Scroll to form
-    scrollToForm() {
-        const formSection = document.getElementById('loanRequestFormSection');
-        if (formSection) {
-            formSection.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-
-    // Refresh eligibility status
-    async refreshEligibility() {
-        try {
-            showLoading(true);
-            
-            // First refresh user data to get latest information
-            await refreshUserData();
-            
-            // Then reload eligibility with fresh data
-            await this.loadEligibility();
-            
-            showToast('تم تحديث حالة الأهلية بنجاح', 'success');
-        } catch (error) {
-            console.error('Error refreshing eligibility:', error);
-            showToast('خطأ في تحديث حالة الأهلية', 'error');
-        } finally {
-            showLoading(false);
-        }
-    }
-
-    // Embedded calculator methods
-    handleEmbeddedCalculatorInput() {
-        const loanAmount = parseFloat(document.getElementById('embeddedLoanAmount').value) || 0;
-        const balance = parseFloat(document.getElementById('embeddedBalance').value) || 0;
-        const installment = parseFloat(document.getElementById('embeddedInstallment').value) || 0;
-        
-        if (window.LoanCalculator && loanAmount > 0 && balance > 0) {
-            try {
-                const calculator = new window.LoanCalculator();
-                const result = calculator.calculateInstallment(loanAmount, balance);
-                
-                if (result && installment === 0) {
-                    document.getElementById('embeddedInstallment').value = result.installment.toFixed(3);
-                }
-            } catch (error) {
-                console.error('Embedded calculator error:', error);
-            }
-        }
-    }
-
-    performEmbeddedCalculation() {
-        const loanAmount = parseFloat(document.getElementById('embeddedLoanAmount').value) || 0;
-        const balance = parseFloat(document.getElementById('embeddedBalance').value) || 0;
-        const installment = parseFloat(document.getElementById('embeddedInstallment').value) || 0;
-        
-        if (!window.LoanCalculator) {
-            showToast('حاسبة القروض غير متاحة', 'error');
-            return;
-        }
-        
-        const calculator = new window.LoanCalculator();
-        
-        try {
-            const inputs = {
-                loanAmount: loanAmount > 0 ? loanAmount : null,
-                balance: balance > 0 ? balance : null,
-                installment: installment > 0 ? installment : null
-            };
-            
-            const result = calculator.autoCalculate(inputs);
-            const scenario = result.scenario || 'حساب تلقائي';
-            
-            // Update form fields with calculated values
-            if (result.loanAmount) {
-                document.getElementById('embeddedLoanAmount').value = result.loanAmount.toFixed(3);
-            }
-            if (result.balance) {
-                document.getElementById('embeddedBalance').value = result.balance.toFixed(3);
-            }
-            if (result.installment) {
-                document.getElementById('embeddedInstallment').value = result.installment.toFixed(3);
-            }
-            
-            // Calculate installment period
-            const period = result.installmentPeriod || Math.max(6, Math.ceil(result.loanAmount / result.installment));
-            const totalRepayment = result.loanAmount; // Always equals loan amount
-            
-            // Show results
-            const resultsHtml = `
-                <div class="calculation-summary">
-                    <div class="summary-item">
-                        <label>مبلغ القرض:</label>
-                        <span class="amount">${formatCurrency(result.loanAmount)}</span>
-                    </div>
-                    <div class="summary-item">
-                        <label>رصيد المستخدم:</label>
-                        <span class="amount">${formatCurrency(result.balance)}</span>
-                    </div>
-                    <div class="summary-item">
-                        <label>القسط الشهري:</label>
-                        <span class="amount">${formatCurrency(result.installment)}</span>
-                    </div>
-                    <div class="summary-item">
-                        <label>مدة السداد:</label>
-                        <span>${period} شهر</span>
-                    </div>
-                    <div class="summary-item">
-                        <label>إجمالي المبلغ المسدد:</label>
-                        <span class="amount">${formatCurrency(totalRepayment)}</span>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('embeddedCalculationDetails').innerHTML = resultsHtml;
-            document.getElementById('embeddedCalculationScenario').textContent = scenario;
-            document.getElementById('embeddedCalculationResult').style.display = 'block';
-            
-            showToast('تم الحساب بنجاح', 'success');
-            
-        } catch (error) {
-            console.error('Embedded calculation error:', error);
-            showToast(error.message || 'خطأ في عملية الحساب', 'error');
-            document.getElementById('embeddedCalculationResult').style.display = 'none';
-        }
-    }
-
-    clearEmbeddedCalculator() {
-        document.getElementById('embeddedLoanAmount').value = '';
-        document.getElementById('embeddedBalance').value = '';
-        document.getElementById('embeddedInstallment').value = '';
-        document.getElementById('embeddedCalculationResult').style.display = 'none';
-    }
 }
 
 // Make LoanRequestTab globally available
