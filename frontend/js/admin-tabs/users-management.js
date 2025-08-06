@@ -257,7 +257,7 @@ class UsersManagement {
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     ${user.whatsapp || user.phone ? 
-                                        `<button class="btn btn-sm btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', '${user.Aname || 'المستخدم'}')" title="محادثة واتساب">
+                                        `<button class="btn btn-sm btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${(user.Aname || 'المستخدم').replace(/`/g, '\\`')}\`)" title="محادثة واتساب">
                                             <i class="fab fa-whatsapp"></i>
                                         </button>` : ''
                                     }
@@ -587,7 +587,7 @@ class UsersManagement {
                                         ${user.whatsapp || user.phone || 'غير محدد'}
                                         ${user.whatsapp || user.phone ? `
                                         <button class="btn btn-sm btn-success" style="margin-right: 10px; padding: 4px 8px; font-size: 12px;" 
-                                                onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', '${user.Aname}')" 
+                                                onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${user.Aname?.replace(/`/g, '\\`') || 'المستخدم'}\`)" 
                                                 title="فتح محادثة واتساب">
                                             <i class="fab fa-whatsapp"></i>
                                         </button>
@@ -680,13 +680,16 @@ class UsersManagement {
                             <button class="btn btn-primary" onclick="usersManagement.editUser(${user.user_id})">
                                 <i class="fas fa-edit"></i> تعديل البيانات
                             </button>
+                            <button class="btn btn-info" onclick="usersManagement.openLoanManagement(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'غير محدد'}\`)">
+                                <i class="fas fa-money-bill-wave"></i> إدارة القروض
+                            </button>
                             <button class="btn ${user.is_blocked ? 'btn-success' : 'btn-warning'}" 
                                     onclick="usersManagement.toggleUserBlock(${user.user_id}, ${!user.is_blocked})">
                                 <i class="fas ${user.is_blocked ? 'fa-unlock' : 'fa-ban'}"></i>
                                 ${user.is_blocked ? 'إلغاء الحظر' : 'حظر المستخدم'}
                             </button>
                             ${user.whatsapp || user.phone ? `
-                            <button class="btn btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', '${user.Aname}')">
+                            <button class="btn btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${user.Aname?.replace(/`/g, '\\`') || 'المستخدم'}\`)"
                                 <i class="fab fa-whatsapp"></i> محادثة واتساب
                             </button>
                             ` : ''}
@@ -781,7 +784,7 @@ class UsersManagement {
                                 <i class="fas fa-save"></i> حفظ التغييرات
                             </button>
                             <button type="button" class="btn btn-info" 
-                                    onclick="usersManagement.resetUserPassword(${user.user_id}, '${user.Aname}')">
+                                    onclick="usersManagement.resetUserPassword(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'المستخدم'}\`)">
                                 <i class="fas fa-key"></i> إعادة تعيين كلمة المرور
                             </button>
                             <button type="button" onclick="hideModal()" class="btn btn-secondary">
@@ -1360,6 +1363,133 @@ class UsersManagement {
                 }
             }
         });
+    }
+
+    // Open loan management for specific user
+    openLoanManagement(userId, userName) {
+        try {
+            console.log(`Opening loan management for user ${userId}: ${userName}`);
+            
+            // Hide current modal
+            hideModal();
+            
+            // Switch to loans management tab
+            if (window.adminDashboard && window.adminDashboard.switchToMainTab) {
+                window.adminDashboard.switchToMainTab('loans');
+                
+                // Wait for tab to load then search for user
+                setTimeout(() => {
+                    if (window.loansManagement) {
+                        console.log('Loans management found, initializing...');
+                        
+                        // Make sure loans management is properly shown
+                        if (window.loansManagement.show) {
+                            window.loansManagement.show();
+                        }
+                        
+                        // Wait a bit more for the interface to render
+                        setTimeout(() => {
+                            // Debug: Check available tabs
+                            const allTabs = document.querySelectorAll('[data-tab]');
+                            console.log('Available tabs:', Array.from(allTabs).map(tab => ({
+                                tab: tab.getAttribute('data-tab'),
+                                text: tab.textContent.trim(),
+                                visible: tab.offsetParent !== null
+                            })));
+                            
+                            // Switch to loan management tab within loans management
+                            const manageTab = document.querySelector('[data-tab="manage"]');
+                            if (manageTab) {
+                                console.log('Found manage tab, clicking...');
+                                manageTab.click();
+                                console.log('Clicked manage tab');
+                                
+                                // Wait for the manage tab content to load
+                                setTimeout(() => {
+                                    this.trySearchUser(userId, userName, 0);
+                                }, 500);
+                            } else {
+                                console.error('Manage tab not found, trying alternative approach...');
+                                // Try calling the loan management display directly
+                                if (window.loansManagement && window.loansManagement.showTab) {
+                                    window.loansManagement.showTab('manage');
+                                    setTimeout(() => {
+                                        this.trySearchUser(userId, userName, 0);
+                                    }, 500);
+                                } else {
+                                    showToast('خطأ: لم يتم العثور على تبويب إدارة القروض', 'error');
+                                }
+                            }
+                        }, 500);
+                    } else {
+                        console.error('loansManagement instance not found');
+                        showToast('خطأ: إدارة القروض غير متاحة', 'error');
+                    }
+                }, 300);
+            } else {
+                console.error('adminDashboard or switchToMainTab not found');
+                showToast('خطأ في الانتقال إلى إدارة القروض', 'error');
+            }
+        } catch (error) {
+            console.error('Error opening loan management:', error);
+            showToast('خطأ في فتح إدارة القروض: ' + error.message, 'error');
+        }
+    }
+
+    // Helper method to retry finding and filling the search input
+    trySearchUser(userId, userName, attempts = 0) {
+        const maxAttempts = 10;
+        
+        // Debug: Show current DOM state
+        console.log(`Attempt ${attempts + 1}/${maxAttempts} to find userSearchInput`);
+        console.log('Current active elements:', {
+            loansContent: !!document.getElementById('loans-content'),
+            adminContentArea: !!document.getElementById('admin-content-area'),
+            userSearchInput: !!document.getElementById('userSearchInput')
+        });
+        
+        const searchInput = document.getElementById('userSearchInput');
+        
+        if (searchInput) {
+            console.log(`✅ Found search input on attempt ${attempts + 1}`);
+            searchInput.value = userId.toString(); // Ensure it's a string
+            console.log(`Set search input to: "${userId}" (single-digit: ${userId.toString().length === 1})`);
+            
+            // Trigger search
+            if (window.loansManagement && window.loansManagement.searchUsers) {
+                console.log('Triggering search for user ID:', userId);
+                try {
+                    window.loansManagement.searchUsers();
+                    console.log('✅ Search triggered successfully');
+                    showToast(`تم الانتقال إلى إدارة القروض للعضو: ${userName}`, 'success');
+                } catch (searchError) {
+                    console.error('❌ Error during search execution:', searchError);
+                    showToast('خطأ أثناء تنفيذ البحث: ' + searchError.message, 'error');
+                }
+            } else {
+                console.error('❌ searchUsers method not found');
+                console.log('loansManagement methods:', window.loansManagement ? Object.getOwnPropertyNames(window.loansManagement) : 'loansManagement not found');
+                showToast('خطأ: طريقة البحث غير متاحة', 'error');
+            }
+        } else if (attempts < maxAttempts) {
+            console.log(`⏳ Search input not found, retrying... (attempt ${attempts + 1}/${maxAttempts})`);
+            
+            // Debug: Check what elements are available
+            const allInputs = document.querySelectorAll('input[type="text"]');
+            console.log('Available text inputs:', Array.from(allInputs).map(input => ({
+                id: input.id,
+                placeholder: input.placeholder,
+                visible: input.offsetParent !== null
+            })));
+            
+            setTimeout(() => {
+                this.trySearchUser(userId, userName, attempts + 1);
+            }, 300); // Increased delay
+        } else {
+            console.error('❌ userSearchInput element not found after maximum attempts');
+            console.log('Final DOM check - available IDs:', Array.from(document.querySelectorAll('[id]')).map(el => el.id).filter(id => id.includes('search') || id.includes('user')));
+            showToast('خطأ: لم يتم العثور على حقل البحث بعد عدة محاولات', 'error');
+        }
     }
 }
 

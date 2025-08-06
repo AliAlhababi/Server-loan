@@ -13,13 +13,15 @@ class DashboardController {
       pendingLoans,
       pendingSubscriptions,
       pendingLoanPayments,
-      pendingFamilyDelegations
+      pendingFamilyDelegations,
+      banksSummary
     ] = await Promise.all([
       DatabaseService.count('users'),
       DatabaseService.count('requested_loan', { status: 'pending' }),
       DatabaseService.count('transaction', { status: 'pending' }),
       DatabaseService.count('loan', { status: 'pending' }),
-      DatabaseService.count('family_delegations', { delegation_status: 'pending' })
+      DatabaseService.count('family_delegations', { delegation_status: 'pending' }),
+      this.getBanksSummary()
     ]);
 
     console.log('Dashboard stats:', {
@@ -27,7 +29,8 @@ class DashboardController {
       pendingLoans,
       pendingSubscriptions,
       pendingLoanPayments,
-      pendingFamilyDelegations
+      pendingFamilyDelegations,
+      banksSummary
     });
 
     const stats = {
@@ -36,6 +39,8 @@ class DashboardController {
       pendingSubscriptions,
       pendingLoanPayments,
       pendingFamilyDelegations,
+      totalBanks: banksSummary.totalBanks,
+      totalBanksBalance: banksSummary.totalBalance,
       pendingTransactions: pendingSubscriptions + pendingLoanPayments, // Keep for backward compatibility
       pendingRegistrations: 0 // Keep for frontend compatibility
     };
@@ -92,6 +97,31 @@ class DashboardController {
       accepted,
       rejected
     };
+  }
+
+  static async getBanksSummary() {
+    const { pool } = require('../config/database');
+    
+    try {
+      const [result] = await pool.execute(`
+        SELECT 
+          COUNT(*) as total_banks,
+          COALESCE(SUM(balance), 0) as total_balance
+        FROM banks 
+        WHERE is_active = 1
+      `);
+
+      return {
+        totalBanks: result[0].total_banks,
+        totalBalance: parseFloat(result[0].total_balance)
+      };
+    } catch (error) {
+      console.error('Error getting banks summary:', error);
+      return {
+        totalBanks: 0,
+        totalBalance: 0
+      };
+    }
   }
 
   static getRecentActivity = asyncHandler(async (req, res) => {
@@ -183,20 +213,33 @@ class DashboardController {
         subscriptionsResult,
         activeLoansResult,
         pendingLoansResult,
-        feesPaidResult
+        feesPaidResult,
+        banksSummary
       ] = await Promise.all([
         DatabaseService.executeQuery(subscriptionsQuery),
         DatabaseService.executeQuery(activeLoansQuery),
         DatabaseService.executeQuery(pendingLoansQuery),
-        DatabaseService.executeQuery(feesPaidQuery)
+        DatabaseService.executeQuery(feesPaidQuery),
+        this.getBanksSummary()
       ]);
       
       const financialData = {
         totalSubscriptions: parseFloat(subscriptionsResult[0]?.totalSubscriptions || 0),
         totalActiveLoansRemaining: parseFloat(activeLoansResult[0]?.totalActiveLoansRemaining || 0),
         totalPendingLoans: parseFloat(pendingLoansResult[0]?.totalPendingLoans || 0),
-        totalFeesPaid: parseFloat(feesPaidResult[0]?.totalFeesPaid || 0)
+        totalFeesPaid: parseFloat(feesPaidResult[0]?.totalFeesPaid || 0),
+        totalBanks: banksSummary.totalBanks,
+        totalBanksBalance: banksSummary.totalBalance
       };
+      
+      // Calculate the theoretical balance (subscriptions - active loans - pending loans + fees)
+      const calculatedBalance = financialData.totalSubscriptions - 
+                              financialData.totalActiveLoansRemaining - 
+                              financialData.totalPendingLoans + 
+                              financialData.totalFeesPaid;
+      
+      financialData.calculatedBalance = calculatedBalance;
+      financialData.banksDifference = financialData.totalBanksBalance - calculatedBalance;
       
       console.log('Financial summary data:', financialData);
       

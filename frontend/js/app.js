@@ -96,10 +96,32 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
     
     try {
         const response = await fetch(`/api${endpoint}`, config);
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'خطأ في الخادم');
+        
+        let result;
+        try {
+            result = await response.json();
+        } catch (jsonError) {
+            console.error('Failed to parse JSON response:', jsonError);
+            console.error('Response status:', response.status);
+            console.error('Response text:', await response.text());
+            throw new Error(`خطأ في تحليل الاستجابة من الخادم (${response.status})`);
+        }
+        
+        if (!response.ok) {
+            console.error('API Request failed:');
+            console.error('Endpoint:', endpoint);
+            console.error('Status:', response.status);
+            console.error('Status Text:', response.statusText);
+            console.error('Result:', result);
+            console.error('Result message:', result.message);
+            throw new Error(result.message || `خطأ في الخادم (${response.status})`);
+        }
         return result;
     } catch (error) {
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            console.error('Network error:', error);
+            throw new Error('خطأ في الاتصال بالخادم');
+        }
         console.error('API Error:', error);
         throw error;
     }

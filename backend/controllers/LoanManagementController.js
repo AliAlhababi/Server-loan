@@ -106,6 +106,23 @@ class LoanManagementController {
     ResponseHelper.success(res, { loan: results[0] }, 'تم جلب تفاصيل القرض بنجاح');
   });
 
+  static getLoanPayments = asyncHandler(async (req, res) => {
+    const { loanId } = req.params;
+    console.log(`💰 Admin requesting payments for loan ${loanId}`);
+    
+    const query = `
+      SELECT l.*, admin.Aname as admin_name
+      FROM loan l
+      LEFT JOIN users admin ON l.admin_id = admin.user_id
+      WHERE l.target_loan_id = ?
+      ORDER BY l.date DESC
+    `;
+    
+    const payments = await DatabaseService.executeQuery(query, [loanId]);
+    
+    ResponseHelper.success(res, { payments }, 'تم جلب مدفوعات القرض بنجاح');
+  });
+
   static getPendingLoans = asyncHandler(async (req, res) => {
     const query = `
       SELECT rl.*, u.Aname as full_name, u.user_type, u.balance as current_balance
@@ -173,6 +190,249 @@ class LoanManagementController {
     };
 
     ResponseHelper.success(res, { stats }, 'تم جلب إحصائيات القروض بنجاح');
+  });
+
+  // Test endpoint for debugging
+  static testError = asyncHandler(async (req, res) => {
+    console.log('🧪 Test error endpoint called');
+    throw new Error('Test error for debugging');
+  });
+
+  // Add new loan
+  static addLoan = asyncHandler(async (req, res) => {
+    const { userId, originalAmount, remainingAmount, monthlyInstallment, status, notes, requestDate } = req.body;
+    const adminId = req.user.user_id;
+
+    console.log('💰 Adding new loan with data:', {
+      userId,
+      originalAmount,
+      remainingAmount,
+      monthlyInstallment,
+      status,
+      notes,
+      requestDate,
+      adminId
+    });
+
+    // Validation
+    if (!userId || !originalAmount || originalAmount <= 0) {
+      return ResponseHelper.error(res, 'يرجى تقديم بيانات صحيحة للقرض', 400);
+    }
+
+    if (remainingAmount > originalAmount) {
+      return ResponseHelper.error(res, 'المبلغ المتبقي لا يمكن أن يكون أكبر من المبلغ الأصلي', 400);
+    }
+
+    const { pool } = require('../config/database');
+    const LoanCalculator = require('../models/LoanCalculator');
+    
+    let userCheck;
+    try {
+      // Check if user exists and get balance
+      console.log('🔍 Checking user exists:', userId);
+      [userCheck] = await pool.execute('SELECT user_id, balance FROM users WHERE user_id = ?', [userId]);
+      if (userCheck.length === 0) {
+        console.log('❌ User not found:', userId);
+        return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+      }
+      console.log('✅ User found:', userCheck[0]);
+    } catch (dbError) {
+      console.error('❌ Database error checking user:', dbError);
+      throw dbError;
+    }
+
+    const user = userCheck[0];
+    let finalInstallment = monthlyInstallment;
+
+    // Calculate installment automatically if not provided
+    if (!monthlyInstallment || monthlyInstallment <= 0) {
+      const calculator = new LoanCalculator();
+      const installmentData = calculator.calculateInstallment(originalAmount, user.balance);
+      finalInstallment = installmentData.amount;
+      console.log(`💰 Auto-calculated installment: ${finalInstallment} KWD for loan ${originalAmount} KWD`);
+    } else if (monthlyInstallment < 20) {
+      return ResponseHelper.error(res, 'الحد الأدنى للقسط الشهري هو 20 د.ك', 400);
+    }
+
+    // Insert the loan
+    const [result] = await pool.execute(`
+      INSERT INTO requested_loan (user_id, loan_amount, installment_amount, status, request_date, admin_id, notes, approval_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      userId,
+      originalAmount,
+      finalInstallment,
+      status,
+      requestDate,
+      adminId,
+      notes || null,
+      status === 'approved' ? new Date() : null
+    ]);
+
+    // If there's a remaining amount less than original, create payment records
+    if (remainingAmount < originalAmount) {
+      const paidAmount = originalAmount - remainingAmount;
+      
+      // Create a payment record for the already paid amount
+      await pool.execute(`
+        INSERT INTO loan (user_id, target_loan_id, credit, memo, status, date, admin_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        userId,
+        result.insertId,
+        paidAmount,
+        'مبلغ مسدد مسبقاً عند إضافة القرض',
+        'accepted',
+        new Date(),
+        adminId
+      ]);
+    }
+
+    ResponseHelper.success(res, { loanId: result.insertId }, 'تم إضافة القرض بنجاح');
+  });
+
+  // Update existing loan
+  static updateLoan = asyncHandler(async (req, res) => {
+    const { loanId } = req.params;
+    const { loanAmount, installmentAmount, status, requestDate, notes, remainingAmount } = req.body;
+    const adminId = req.user.user_id;
+
+    // Validation
+    if (!loanAmount || loanAmount <= 0) {
+      return ResponseHelper.error(res, 'يرجى تقديم مبلغ قرض صحيح', 400);
+    }
+
+    if (remainingAmount !== undefined && (remainingAmount < 0 || remainingAmount > loanAmount)) {
+      return ResponseHelper.error(res, 'المبلغ المتبقي يجب أن يكون بين 0 ومبلغ القرض', 400);
+    }
+
+    const { pool } = require('../config/database');
+    const LoanCalculator = require('../models/LoanCalculator');
+    
+    // Check if loan exists and get current payments + user balance
+    const [loanCheck] = await pool.execute(`
+      SELECT rl.loan_id, rl.user_id, u.balance,
+             COALESCE(SUM(l.credit), 0) as total_paid
+      FROM requested_loan rl
+      JOIN users u ON rl.user_id = u.user_id
+      LEFT JOIN loan l ON rl.loan_id = l.target_loan_id AND l.status = 'accepted'
+      WHERE rl.loan_id = ?
+      GROUP BY rl.loan_id, rl.user_id, u.balance
+    `, [loanId]);
+    
+    if (loanCheck.length === 0) {
+      return ResponseHelper.error(res, 'القرض غير موجود', 404);
+    }
+
+    const loan = loanCheck[0];
+    const currentPaid = parseFloat(loan.total_paid);
+    let finalInstallment = installmentAmount;
+
+    // Calculate installment automatically if not provided
+    if (!installmentAmount || installmentAmount <= 0) {
+      const calculator = new LoanCalculator();
+      const installmentData = calculator.calculateInstallment(loanAmount, loan.balance);
+      finalInstallment = installmentData.amount;
+      console.log(`💰 Auto-calculated installment for update: ${finalInstallment} KWD for loan ${loanAmount} KWD`);
+    } else if (installmentAmount < 20) {
+      return ResponseHelper.error(res, 'الحد الأدنى للقسط الشهري هو 20 د.ك', 400);
+    }
+
+    // Start transaction for complex operations
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Update the loan basic info
+      await connection.execute(`
+        UPDATE requested_loan 
+        SET loan_amount = ?, installment_amount = ?, status = ?, request_date = ?, notes = ?, admin_id = ?,
+            approval_date = CASE WHEN status != 'approved' AND ? = 'approved' THEN NOW() ELSE approval_date END
+        WHERE loan_id = ?
+      `, [loanAmount, finalInstallment, status, requestDate, notes, adminId, status, loanId]);
+
+      // Handle remaining amount adjustment if provided
+      if (remainingAmount !== undefined) {
+        const targetPaid = loanAmount - remainingAmount;
+        const paidDifference = targetPaid - currentPaid;
+
+        if (Math.abs(paidDifference) > 0.001) { // Only if there's a meaningful difference
+          if (paidDifference > 0) {
+            // Need to add more payment
+            await connection.execute(`
+              INSERT INTO loan (user_id, target_loan_id, credit, memo, status, date, admin_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+              loan.user_id,
+              loanId,
+              paidDifference,
+              'تعديل المبلغ المتبقي - إضافة دفعة',
+              'accepted',
+              new Date(),
+              adminId
+            ]);
+          } else {
+            // Need to reduce payment (negative payment record)
+            await connection.execute(`
+              INSERT INTO loan (user_id, target_loan_id, credit, memo, status, date, admin_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+              loan.user_id,
+              loanId,
+              paidDifference, // This will be negative
+              'تعديل المبلغ المتبقي - تعديل دفعة',
+              'accepted',
+              new Date(),
+              adminId
+            ]);
+          }
+        }
+      }
+
+      await connection.commit();
+      ResponseHelper.success(res, {}, 'تم تحديث القرض والمبلغ المتبقي بنجاح');
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  });
+
+  // Delete loan
+  static deleteLoan = asyncHandler(async (req, res) => {
+    const { loanId } = req.params;
+    const { pool } = require('../config/database');
+    
+    // Check if loan exists
+    const [loanCheck] = await pool.execute('SELECT loan_id, user_id FROM requested_loan WHERE loan_id = ?', [loanId]);
+    if (loanCheck.length === 0) {
+      return ResponseHelper.error(res, 'القرض غير موجود', 404);
+    }
+
+    const loan = loanCheck[0];
+
+    // Start transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Delete related loan payments first (due to foreign key constraints)
+      await connection.execute('DELETE FROM loan WHERE target_loan_id = ?', [loanId]);
+      
+      // Delete the loan
+      await connection.execute('DELETE FROM requested_loan WHERE loan_id = ?', [loanId]);
+      
+      await connection.commit();
+      
+      ResponseHelper.success(res, {}, 'تم حذف القرض وجميع المدفوعات المرتبطة به بنجاح');
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   });
 }
 

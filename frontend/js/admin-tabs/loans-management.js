@@ -33,6 +33,9 @@ class LoansManagement {
                     <button class="admin-tab ${defaultTab === 'all' ? 'active' : ''}" data-tab="all">
                         <i class="fas fa-list"></i> جميع الطلبات
                     </button>
+                    <button class="admin-tab ${defaultTab === 'manage' ? 'active' : ''}" data-tab="manage">
+                        <i class="fas fa-plus-circle"></i> إدارة القروض
+                    </button>
                 </div>
                 
                 <div class="tab-content">
@@ -84,6 +87,8 @@ class LoansManagement {
             } else if (tab === 'all-payments') {
                 const result = await apiCall('/admin/all-loan-payments');
                 this.displayAllLoanPayments(result.loanPayments || [], contentDiv);
+            } else if (tab === 'manage') {
+                this.displayLoanManagement(contentDiv);
             } else {
                 const result = await apiCall('/admin/all-loans');
                 this.displayAllLoans(result.loans, contentDiv);
@@ -911,6 +916,620 @@ class LoansManagement {
                 row.style.display = 'none';
             }
         });
+    }
+
+    // Display loan management interface
+    displayLoanManagement(container) {
+        container.innerHTML = `
+            <div class="loan-management-section">
+                <div class="management-header">
+                    <h4><i class="fas fa-plus-circle"></i> إدارة القروض</h4>
+                    <p>إضافة، تعديل، أو حذف القروض مع إمكانية تحديد المبلغ الأصلي والمتبقي</p>
+                </div>
+
+                <div class="loan-management-tabs">
+                    <button class="loan-mgmt-tab active" data-loan-tab="add">
+                        <i class="fas fa-plus"></i> إضافة قرض جديد
+                    </button>
+                    <button class="loan-mgmt-tab" data-loan-tab="existing">
+                        <i class="fas fa-edit"></i> تعديل القروض الموجودة
+                    </button>
+                </div>
+
+                <div class="loan-management-content">
+                    <div id="add-loan-content" class="loan-mgmt-panel active">
+                        ${this.renderAddLoanForm()}
+                    </div>
+                    <div id="existing-loan-content" class="loan-mgmt-panel">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i> جاري تحميل القروض الموجودة...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.setupLoanManagementListeners();
+    }
+
+    // Setup loan management tab listeners
+    setupLoanManagementListeners() {
+        setTimeout(() => {
+            // Tab switching
+            const tabs = document.querySelectorAll('.loan-mgmt-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const tabType = tab.getAttribute('data-loan-tab');
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update content panels
+                    document.querySelectorAll('.loan-mgmt-panel').forEach(panel => {
+                        panel.classList.remove('active');
+                    });
+                    
+                    if (tabType === 'add') {
+                        document.getElementById('add-loan-content').classList.add('active');
+                    } else {
+                        document.getElementById('existing-loan-content').classList.add('active');
+                        this.loadExistingLoans();
+                    }
+                });
+            });
+
+            // User search
+            const userSearchBtn = document.getElementById('searchUserBtn');
+            if (userSearchBtn) {
+                userSearchBtn.addEventListener('click', () => this.searchUsers());
+            }
+
+            // Loan form submission
+            const loanForm = document.getElementById('addLoanForm');
+            if (loanForm) {
+                loanForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitLoanForm();
+                });
+            }
+        }, 100);
+    }
+
+    // Render add loan form
+    renderAddLoanForm() {
+        return `
+            <div class="add-loan-form">
+                <div class="form-section">
+                    <h5><i class="fas fa-user-search"></i> البحث عن العضو</h5>
+                    <div class="user-search-section">
+                        <div class="search-input-group">
+                            <input type="text" id="userSearchInput" placeholder="ابحث بالاسم أو رقم المعرف أو الهاتف..." class="form-control">
+                            <button type="button" id="searchUserBtn" class="btn btn-primary">
+                                <i class="fas fa-search"></i> بحث
+                            </button>
+                        </div>
+                        <div id="userSearchResults" class="search-results"></div>
+                        <div id="selectedUser" class="selected-user-info" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <form id="addLoanForm" style="display: none;">
+                    <div class="form-section">
+                        <h5><i class="fas fa-money-bill-wave"></i> تفاصيل القرض</h5>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="originalLoanAmount">المبلغ الأصلي للقرض (د.ك)</label>
+                                <input type="number" id="originalLoanAmount" step="0.001" min="0" max="50000" class="form-control" required>
+                                <small class="form-help">المبلغ الكامل الذي تم اقتراضه أصلاً</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="remainingAmount">المبلغ المتبقي (د.ك)</label>
+                                <input type="number" id="remainingAmount" step="0.001" min="0" class="form-control" required>
+                                <small class="form-help">المبلغ الذي لم يتم سداده بعد</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="monthlyInstallment">القسط الشهري (د.ك)</label>
+                                <input type="number" id="monthlyInstallment" step="0.001" min="20" class="form-control">
+                                <small class="form-help">اتركه فارغاً للحساب التلقائي أو أدخل قيمة مخصصة (الحد الأدنى: 20 د.ك)</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="loanStatus">حالة القرض</label>
+                                <select id="loanStatus" class="form-control" required>
+                                    <option value="approved" selected>موافق عليه - نشط</option>
+                                    <option value="pending">معلق - في انتظار الموافقة</option>
+                                    <option value="rejected">مرفوض</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="loanNotes">ملاحظات (اختياري)</label>
+                            <textarea id="loanNotes" class="form-control" rows="3" placeholder="أي ملاحظات حول القرض..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="requestDate">تاريخ طلب القرض</label>
+                            <input type="date" id="requestDate" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="loan-summary" id="loanSummary" style="display: none;">
+                        <h6><i class="fas fa-calculator"></i> ملخص القرض</h6>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <label>المبلغ المسدد:</label>
+                                <span id="paidAmount">0.000 د.ك</span>
+                            </div>
+                            <div class="summary-item">
+                                <label>نسبة السداد:</label>
+                                <span id="paymentProgress">0%</span>
+                            </div>
+                            <div class="summary-item">
+                                <label>عدد الأقساط المتوقع:</label>
+                                <span id="expectedInstallments">0 شهر</span>
+                            </div>
+                            <div class="summary-item">
+                                <label>القسط الأخير:</label>
+                                <span id="finalInstallment">0.000 د.ك</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus"></i> إضافة القرض
+                        </button>
+                        <button type="button" onclick="document.getElementById('addLoanForm').style.display='none';" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+    }
+
+    // Search for users
+    async searchUsers() {
+        const searchInput = document.getElementById('userSearchInput');
+        const resultsDiv = document.getElementById('userSearchResults');
+        const query = searchInput.value.trim();
+
+        if (query.length < 1) {
+            showToast('يرجى إدخال رقم أو نص للبحث', 'warning');
+            return;
+        }
+
+        try {
+            resultsDiv.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</div>';
+            
+            const result = await apiCall(`/admin/search-users?q=${encodeURIComponent(query)}`);
+            
+            if (result.users && result.users.length > 0) {
+                resultsDiv.innerHTML = `
+                    <div class="search-results-list">
+                        <h6>نتائج البحث (${result.users.length}):</h6>
+                        ${result.users.map(user => `
+                            <div class="user-result-item" onclick="loansManagement.selectUser(${user.user_id}, '${user.Aname}', '${user.phone}', ${user.balance})">
+                                <div class="user-info">
+                                    <strong>${user.Aname}</strong>
+                                    <div class="user-details">
+                                        <span>المعرف: ${user.user_id}</span>
+                                        <span>الهاتف: ${user.phone}</span>
+                                        <span>الرصيد: ${formatCurrency(user.balance)}</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-primary">اختيار</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="no-results">
+                        <i class="fas fa-user-slash"></i>
+                        <p>لم يتم العثور على أي مستخدمين</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `<div class="error-message">خطأ في البحث: ${error.message}</div>`;
+        }
+    }
+
+    // Select user for loan
+    selectUser(userId, userName, userPhone, userBalance) {
+        const selectedUserDiv = document.getElementById('selectedUser');
+        const loanForm = document.getElementById('addLoanForm');
+        const searchResults = document.getElementById('userSearchResults');
+
+        selectedUserDiv.innerHTML = `
+            <div class="user-card selected">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <h6>${userName}</h6>
+                    <div class="user-meta">
+                        <span><i class="fas fa-id-badge"></i> ${userId}</span>
+                        <span><i class="fas fa-phone"></i> ${userPhone}</span>
+                        <span><i class="fas fa-wallet"></i> ${formatCurrency(userBalance)}</span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loansManagement.clearSelectedUser()">
+                    <i class="fas fa-times"></i> تغيير
+                </button>
+            </div>
+        `;
+
+        selectedUserDiv.style.display = 'block';
+        loanForm.style.display = 'block';
+        searchResults.innerHTML = '';
+        
+        // Store selected user data
+        this.selectedUser = { userId, userName, userPhone, userBalance };
+        
+        // Set default request date to today
+        document.getElementById('requestDate').value = new Date().toISOString().split('T')[0];
+        
+        // Setup real-time calculations
+        this.setupLoanCalculations();
+    }
+
+    // Clear selected user
+    clearSelectedUser() {
+        document.getElementById('selectedUser').style.display = 'none';
+        document.getElementById('addLoanForm').style.display = 'none';
+        document.getElementById('userSearchInput').value = '';
+        this.selectedUser = null;
+    }
+
+    // Setup loan calculations
+    setupLoanCalculations() {
+        const originalAmount = document.getElementById('originalLoanAmount');
+        const remainingAmount = document.getElementById('remainingAmount');
+        const monthlyInstallment = document.getElementById('monthlyInstallment');
+
+        const updateSummary = () => {
+            const original = parseFloat(originalAmount.value) || 0;
+            const remaining = parseFloat(remainingAmount.value) || 0;
+            const installment = parseFloat(monthlyInstallment.value) || 0;
+
+            if (original > 0 && remaining <= original) {
+                const paid = original - remaining;
+                const progress = ((paid / original) * 100).toFixed(1);
+                const expectedInstallments = installment > 0 ? Math.ceil(remaining / installment) : 0;
+                const finalInstallment = installment > 0 ? remaining - (Math.floor(remaining / installment) * installment) : 0;
+
+                document.getElementById('paidAmount').textContent = formatCurrency(paid);
+                document.getElementById('paymentProgress').textContent = progress + '%';
+                document.getElementById('expectedInstallments').textContent = expectedInstallments + ' شهر';
+                document.getElementById('finalInstallment').textContent = formatCurrency(finalInstallment);
+                
+                document.getElementById('loanSummary').style.display = 'block';
+            } else {
+                document.getElementById('loanSummary').style.display = 'none';
+            }
+        };
+
+        originalAmount.addEventListener('input', updateSummary);
+        remainingAmount.addEventListener('input', updateSummary);
+        monthlyInstallment.addEventListener('input', updateSummary);
+    }
+
+    // Submit loan form
+    async submitLoanForm() {
+        if (!this.selectedUser) {
+            showToast('يرجى اختيار المستخدم أولاً', 'error');
+            return;
+        }
+
+        const monthlyInstallmentValue = document.getElementById('monthlyInstallment').value;
+        
+        const formData = {
+            userId: this.selectedUser.userId,
+            originalAmount: parseFloat(document.getElementById('originalLoanAmount').value),
+            remainingAmount: parseFloat(document.getElementById('remainingAmount').value),
+            monthlyInstallment: monthlyInstallmentValue ? parseFloat(monthlyInstallmentValue) : null,
+            status: document.getElementById('loanStatus').value || 'approved',
+            notes: document.getElementById('loanNotes').value || '',
+            requestDate: document.getElementById('requestDate').value || new Date().toISOString().split('T')[0]
+        };
+
+        // Validation
+        if (formData.originalAmount <= 0) {
+            showToast('يرجى إدخال مبلغ القرض الأصلي', 'error');
+            return;
+        }
+
+        if (formData.remainingAmount > formData.originalAmount) {
+            showToast('المبلغ المتبقي لا يمكن أن يكون أكبر من المبلغ الأصلي', 'error');
+            return;
+        }
+
+        // Check monthly installment - allow empty for auto-calculation
+        if (formData.monthlyInstallment && formData.monthlyInstallment < 20) {
+            showToast('الحد الأدنى للقسط الشهري هو 20 د.ك', 'error');
+            return;
+        }
+
+        try {
+            console.log('Submitting loan form with data:', formData);
+            console.log('JWT Token available:', !!localStorage.getItem('token'));
+            const result = await apiCall('/admin/add-loan', 'POST', formData);
+            console.log('Loan submission successful:', result);
+            showToast(result.message, 'success');
+            
+            // Reset form
+            document.getElementById('addLoanForm').reset();
+            this.clearSelectedUser();
+            
+            // Refresh admin stats
+            await this.adminDashboard.loadStats();
+            
+        } catch (error) {
+            console.error('Loan submission error:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                formData: formData
+            });
+            showToast('خطأ في إرسال طلب القرض: ' + error.message, 'error');
+        }
+    }
+
+    // Load existing loans for management
+    async loadExistingLoans() {
+        const container = document.getElementById('existing-loan-content');
+        
+        try {
+            const result = await apiCall('/admin/all-loans');
+            this.displayExistingLoansManagement(result.loans, container);
+        } catch (error) {
+            container.innerHTML = `<div class="error-message">خطأ في تحميل القروض: ${error.message}</div>`;
+        }
+    }
+
+    // Display existing loans for management
+    displayExistingLoansManagement(loans, container) {
+        if (!loans || loans.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h4>لا توجد قروض</h4>
+                    <p>لم يتم إنشاء أي قروض بعد</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="existing-loans-management">
+                <div class="management-header">
+                    <h5><i class="fas fa-edit"></i> تعديل القروض الموجودة (${loans.length})</h5>
+                    <div class="management-filters">
+                        <select id="statusFilterManage" onchange="loansManagement.filterExistingLoans()">
+                            <option value="">جميع الحالات</option>
+                            <option value="pending">معلق</option>
+                            <option value="approved">موافق عليه</option>
+                            <option value="rejected">مرفوض</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="loans-management-grid">
+                    ${loans.map(loan => `
+                        <div class="loan-management-card" data-status="${loan.status}">
+                            <div class="loan-card-header">
+                                <div class="loan-info">
+                                    <h6>#${loan.loan_id} - ${loan.full_name}</h6>
+                                    <span class="status-badge ${loan.status}">
+                                        ${loan.status === 'pending' ? 'معلق' : 
+                                          loan.status === 'approved' ? 'موافق عليه' : 'مرفوض'}
+                                    </span>
+                                </div>
+                                <div class="loan-actions">
+                                    <button class="btn btn-sm btn-primary" onclick="loansManagement.editLoan(${loan.loan_id})" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="loansManagement.deleteLoan(${loan.loan_id})" title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="loan-card-body">
+                                <div class="loan-details-grid">
+                                    <div class="detail-item">
+                                        <span class="label">مبلغ القرض:</span>
+                                        <span class="value">${formatCurrency(loan.loan_amount)}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">القسط الشهري:</span>
+                                        <span class="value">${formatCurrency(loan.installment_amount)}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">تاريخ الطلب:</span>
+                                        <span class="value">${new Date(loan.request_date).toLocaleDateString('en-US')}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">معالج بواسطة:</span>
+                                        <span class="value">${loan.admin_name || 'غير محدد'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Filter existing loans
+    filterExistingLoans() {
+        const filter = document.getElementById('statusFilterManage').value;
+        const cards = document.querySelectorAll('.loan-management-card');
+        
+        cards.forEach(card => {
+            if (!filter || card.dataset.status === filter) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    // Edit loan
+    async editLoan(loanId) {
+        try {
+            const result = await apiCall(`/admin/loan-details/${loanId}`);
+            const loan = result.loan;
+            
+            // Get current payment data
+            const paymentResult = await apiCall(`/admin/loan-payments/${loanId}`);
+            const totalPaid = paymentResult.payments ? 
+                paymentResult.payments.filter(p => p.status === 'accepted').reduce((sum, p) => sum + parseFloat(p.credit), 0) : 0;
+            const remainingAmount = loan.loan_amount - totalPaid;
+            
+            const modalContent = `
+                <div class="edit-loan-modal">
+                    <h4><i class="fas fa-edit"></i> تعديل القرض #${loanId}</h4>
+                    
+                    <div class="loan-summary">
+                        <div class="summary-item">
+                            <span class="label">المدفوع حالياً:</span>
+                            <span class="value paid">${formatCurrency(totalPaid)}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">المتبقي حالياً:</span>
+                            <span class="value remaining">${formatCurrency(remainingAmount)}</span>
+                        </div>
+                    </div>
+                    
+                    <form id="editLoanForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>المبلغ الأصلي (د.ك)</label>
+                                <input type="number" id="editOriginalAmount" step="0.001" value="${loan.loan_amount}" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>المبلغ المتبقي الجديد (د.ك)</label>
+                                <input type="number" id="editRemainingAmount" step="0.001" value="${remainingAmount}" class="form-control">
+                                <small class="form-text">اتركه فارغاً لعدم التغيير</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>القسط الشهري (د.ك)</label>
+                                <input type="number" id="editInstallment" step="0.001" value="${loan.installment_amount}" class="form-control">
+                                <small class="form-text">اتركه فارغاً للحساب التلقائي أو أدخل قيمة مخصصة</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>الحالة</label>
+                                <select id="editStatus" class="form-control">
+                                    <option value="pending" ${loan.status === 'pending' ? 'selected' : ''}>معلق</option>
+                                    <option value="approved" ${loan.status === 'approved' ? 'selected' : ''}>موافق عليه</option>
+                                    <option value="rejected" ${loan.status === 'rejected' ? 'selected' : ''}>مرفوض</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>تاريخ الطلب</label>
+                                <input type="date" id="editRequestDate" value="${loan.request_date.split('T')[0]}" class="form-control" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>ملاحظات</label>
+                            <textarea id="editNotes" class="form-control" rows="3">${loan.notes || ''}</textarea>
+                        </div>
+                    </form>
+                    
+                    <div class="modal-actions">
+                        <button onclick="loansManagement.updateLoan(${loanId})" class="btn btn-success">
+                            <i class="fas fa-save"></i> حفظ التغييرات
+                        </button>
+                        <button onclick="hideModal()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إلغاء
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            showModal('تعديل القرض', modalContent);
+            
+            // Add event listener for remaining amount calculation
+            document.getElementById('editOriginalAmount').addEventListener('input', this.updateEditCalculations);
+            document.getElementById('editRemainingAmount').addEventListener('input', this.updateEditCalculations);
+            
+        } catch (error) {
+            showToast('خطأ في تحميل بيانات القرض: ' + error.message, 'error');
+        }
+    }
+
+    // Update loan
+    async updateLoan(loanId) {
+        const remainingAmountInput = document.getElementById('editRemainingAmount');
+        const installmentInput = document.getElementById('editInstallment');
+        
+        const formData = {
+            loanAmount: parseFloat(document.getElementById('editOriginalAmount').value),
+            installmentAmount: installmentInput.value ? parseFloat(installmentInput.value) : null,
+            status: document.getElementById('editStatus').value,
+            requestDate: document.getElementById('editRequestDate').value,
+            notes: document.getElementById('editNotes').value
+        };
+
+        // Only include remaining amount if it has a value
+        if (remainingAmountInput.value && remainingAmountInput.value.trim() !== '') {
+            formData.remainingAmount = parseFloat(remainingAmountInput.value);
+        }
+
+        try {
+            const result = await apiCall(`/admin/update-loan/${loanId}`, 'PUT', formData);
+            showToast(result.message, 'success');
+            hideModal();
+            this.loadExistingLoans();
+            await this.adminDashboard.loadStats();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Update calculations in edit modal
+    updateEditCalculations() {
+        const originalAmount = parseFloat(document.getElementById('editOriginalAmount').value) || 0;
+        const remainingAmount = parseFloat(document.getElementById('editRemainingAmount').value) || 0;
+        
+        // Update maximum for remaining amount
+        const remainingInput = document.getElementById('editRemainingAmount');
+        remainingInput.max = originalAmount;
+        
+        // Validate remaining amount
+        if (remainingAmount > originalAmount) {
+            remainingInput.value = originalAmount;
+        }
+    }
+
+    // Delete loan
+    async deleteLoan(loanId) {
+        if (!confirm('هل أنت متأكد من حذف هذا القرض؟ سيتم حذف جميع الدفعات المرتبطة به أيضاً.')) {
+            return;
+        }
+
+        try {
+            const result = await apiCall(`/admin/delete-loan/${loanId}`, 'DELETE');
+            showToast(result.message, 'success');
+            this.loadExistingLoans();
+            await this.adminDashboard.loadStats();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
     }
 }
 

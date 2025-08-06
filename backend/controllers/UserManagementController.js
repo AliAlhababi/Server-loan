@@ -226,6 +226,47 @@ class UserManagementController {
       errors: errors.length > 0 ? errors : undefined
     }, `تم إصلاح ${fixedCount} من ${loansToFix.length} قرض`);
   });
+
+  // Search users for loan management
+  static searchUsers = asyncHandler(async (req, res) => {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length < 1) {
+      return ResponseHelper.error(res, 'يرجى إدخال رقم أو نص للبحث', 400);
+    }
+
+    const { pool } = require('../config/database');
+    const searchQuery = q.trim();
+    
+    // Check if it's a numeric search (for user_id)
+    const isNumeric = /^\d+$/.test(searchQuery);
+    let users;
+
+    if (isNumeric) {
+      // Exact match for user_id or phone number
+      [users] = await pool.execute(`
+        SELECT user_id, Aname, phone, email, balance, user_type
+        FROM users 
+        WHERE user_type = 'employee' 
+          AND (user_id = ? OR phone LIKE ?)
+        ORDER BY Aname ASC
+        LIMIT 20
+      `, [parseInt(searchQuery), `%${searchQuery}%`]);
+    } else {
+      // Text search for name and email
+      const searchTerm = `%${searchQuery}%`;
+      [users] = await pool.execute(`
+        SELECT user_id, Aname, phone, email, balance, user_type
+        FROM users 
+        WHERE user_type = 'employee' 
+          AND (Aname LIKE ? OR email LIKE ?)
+        ORDER BY Aname ASC
+        LIMIT 20
+      `, [searchTerm, searchTerm]);
+    }
+
+    ResponseHelper.success(res, { users }, `تم العثور على ${users.length} مستخدم`);
+  });
 }
 
 module.exports = UserManagementController;

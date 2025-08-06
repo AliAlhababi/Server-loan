@@ -28,6 +28,14 @@ exports.closeLoan = LoanManagementController.closeLoan;
 exports.getLoansEligibleForClosure = LoanManagementController.getLoansEligibleForClosure;
 exports.autoCloseLoans = LoanManagementController.autoCloseLoans;
 
+// Enhanced loan management CRUD methods
+exports.searchUsers = UserManagementController.searchUsers;
+exports.testError = LoanManagementController.testError;
+exports.addLoan = LoanManagementController.addLoan;
+exports.updateLoan = LoanManagementController.updateLoan;
+exports.deleteLoan = LoanManagementController.deleteLoan;
+exports.getLoanPayments = LoanManagementController.getLoanPayments;
+
 // Re-export transaction methods
 exports.getPendingTransactions = TransactionController.getPendingTransactions;
 exports.getAllTransactions = TransactionController.getAllTransactions;

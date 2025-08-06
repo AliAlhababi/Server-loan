@@ -2,6 +2,7 @@ const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/AdminController');
 const BackupController = require('../controllers/BackupController');
+const BankController = require('../controllers/BankController');
 
 const router = express.Router();
 
@@ -45,6 +46,7 @@ router.post('/fix-loan-installments', verifyToken, requireAdmin, adminController
 // Loan management endpoints
 router.post('/loan-action/:loanId', verifyToken, requireAdmin, adminController.loanAction);
 router.get('/loan-details/:loanId', verifyToken, requireAdmin, adminController.getLoanDetails);
+router.get('/loan-payments/:loanId', verifyToken, requireAdmin, adminController.getLoanPayments);
 
 // Loan closure endpoints
 router.post('/close-loan/:loanId', verifyToken, requireAdmin, adminController.closeLoan);
@@ -54,6 +56,13 @@ router.post('/auto-close-loans', verifyToken, requireAdmin, adminController.auto
 // Transaction approval endpoints
 router.post('/transaction-action/:transactionId', verifyToken, requireAdmin, adminController.transactionAction);
 router.post('/loan-payment-action/:loanPaymentId', verifyToken, requireAdmin, adminController.loanPaymentAction);
+
+// Enhanced loan management endpoints - CRUD operations
+router.get('/search-users', verifyToken, requireAdmin, adminController.searchUsers);
+router.get('/test-error', verifyToken, requireAdmin, adminController.testError);
+router.post('/add-loan', verifyToken, requireAdmin, adminController.addLoan);
+router.put('/update-loan/:loanId', verifyToken, requireAdmin, adminController.updateLoan);
+router.delete('/delete-loan/:loanId', verifyToken, requireAdmin, adminController.deleteLoan);
 
 // Family delegation management endpoints
 router.get('/pending-family-delegations', verifyToken, requireAdmin, async (req, res) => {
@@ -183,6 +192,14 @@ router.post('/family-delegation-action/:delegationId', verifyToken, requireAdmin
     });
   }
 });
+
+// Bank management endpoints
+router.get('/banks', verifyToken, requireAdmin, BankController.getAllBanks);
+router.post('/banks', verifyToken, requireAdmin, BankController.createBank);
+router.get('/banks/:bankId', verifyToken, requireAdmin, BankController.getBankDetails);
+router.put('/banks/:bankId', verifyToken, requireAdmin, BankController.updateBank);
+router.delete('/banks/:bankId', verifyToken, requireAdmin, BankController.deleteBank);
+router.get('/banks-summary', verifyToken, requireAdmin, BankController.getTotalBanksBalance);
 
 router.get('/download-sql-backup', verifyToken, requireAdmin, BackupController.downloadSQLBackup);
 router.get('/download-transactions-report', verifyToken, requireAdmin, BackupController.downloadTransactionsReport);

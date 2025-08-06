@@ -340,6 +340,11 @@
                             <span class="compact-stat-value" id="pendingFamilyDelegations">0</span>
                             <span class="compact-stat-label">تفويض عائلي</span>
                         </div>
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(banksManagement.show.bind(banksManagement))" title="إدارة البنوك">
+                            <i class="fas fa-university"></i>
+                            <span class="compact-stat-value" id="totalBanksBalance">0.000</span>
+                            <span class="compact-stat-label">أرصدة البنوك</span>
+                        </div>
                     </div>
 
                     <!-- Financial Summary Table -->
@@ -395,29 +400,17 @@
                                     </tr>
                                     <tr class="summary-row bank-row">
                                         <td class="summary-label">
-                                            <i class="fas fa-university text-dark"></i>
-                                            الرصيد الفعلي (البنك)
+                                            <i class="fas fa-university text-success"></i>
+                                            إجمالي أرصدة البنوك المسجلة
                                         </td>
-                                        <td class="summary-input">
-                                            <input type="number" id="actualBankAmount" class="bank-input" placeholder="0.000" step="0.001">
-                                            <button onclick="calculateDifference()" class="btn-calculate">
-                                                <i class="fas fa-sync"></i> احسب الفرق
-                                            </button>
-                                        </td>
+                                        <td class="summary-value" id="totalBanksBalanceSummary">--</td>
                                     </tr>
-                                    <tr class="summary-row difference-row" id="differenceRow" style="display: none;">
+                                    <tr class="summary-row difference-auto-row">
                                         <td class="summary-label">
                                             <i class="fas fa-balance-scale"></i>
-                                            <span id="differenceLabel">الفرق</span>
+                                            الفرق (البنوك المسجلة - المحسوب)
                                         </td>
-                                        <td class="summary-value" id="differenceAmount">--</td>
-                                    </tr>
-                                    <tr class="summary-row difference-status-row" id="differenceStatusRow" style="display: none;">
-                                        <td class="summary-label">
-                                            <i class="fas fa-info-circle"></i>
-                                            الحالة
-                                        </td>
-                                        <td class="summary-value" id="differenceStatus">--</td>
+                                        <td class="summary-value" id="banksDifference">--</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -855,6 +848,7 @@
     <script src="js/admin-tabs/users-management.js"></script>
     <script src="js/admin-tabs/reports-management.js"></script>
     <script src="js/admin-tabs/family-delegations-management.js"></script>
+    <script src="js/admin-tabs/banks-management.js"></script>
     
     <!-- Utility modules (load first) -->
     <script src="js/config.js"></script>
