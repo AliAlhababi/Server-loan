@@ -1,0 +1,52 @@
+{
+  "analysis_time": "2025-08-10T07:30:27.674Z",
+  "total_runtime": 2,
+  "snapshots": [
+    {
+      "timestamp": 1754811025791,
+      "rss": 42.25,
+      "heapTotal": 4.85,
+      "heapUsed": 4.27,
+      "external": 0.44,
+      "arrayBuffers": 0.02,
+      "label": "Initial"
+    },
+    {
+      "timestamp": 1754811026301,
+      "rss": 67.99,
+      "heapTotal": 5.11,
+      "heapUsed": 4.26,
+      "external": 0.43,
+      "arrayBuffers": 0.01,
+      "label": "After Users Load"
+    },
+    {
+      "timestamp": 1754811026382,
+      "rss": 75.86,
+      "heapTotal": 9.86,
+      "heapUsed": 6.52,
+      "external": 0.43,
+      "arrayBuffers": 0.01,
+      "label": "After Transactions Load"
+    },
+    {
+      "timestamp": 1754811026427,
+      "rss": 77.74,
+      "heapTotal": 14.86,
+      "heapUsed": 8.18,
+      "external": 0.43,
+      "arrayBuffers": 0.01,
+      "label": "After Loans Load"
+    },
+    {
+      "timestamp": 1754811026442,
+      "rss": 77.86,
+      "heapTotal": 16.61,
+      "heapUsed": 7.54,
+      "external": 0.43,
+      "arrayBuffers": 0.01,
+      "label": "After GC"
+    }
+  ],
+  "recommendations": []
+}

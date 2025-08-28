@@ -493,25 +493,72 @@
     flex-wrap: wrap;
 }
 
-.quick-btn {
-    padding: 8px 16px;
-    background: rgba(102, 126, 234, 0.1);
-    border: 1px solid rgba(102, 126, 234, 0.2);
-    border-radius: 20px;
-    color: #667eea;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
+/* Priority tab text rules completely rewritten below */
+
+/* Force quick button styles */
+.quick-actions .quick-buttons .quick-btn,
+button.quick-btn {
+    padding: 10px 20px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: white !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2) !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    width: auto !important;
 }
 
-.quick-btn:hover {
-    background: #667eea;
-    color: white;
-    transform: translateY(-1px);
+.quick-actions .quick-buttons .quick-btn:hover,
+button.quick-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+    background: linear-gradient(135deg, #5a6fd8 0%, #6b4190 100%) !important;
+}
+
+.quick-actions .quick-buttons .quick-btn i,
+button.quick-btn i {
+    font-size: 16px !important;
+}
+
+.quick-actions .quick-buttons .quick-btn span,
+button.quick-btn span {
+    font-size: 14px !important;
+    white-space: nowrap !important;
 }
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+    .quick-actions .quick-buttons .quick-btn,
+    button.quick-btn {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        border-radius: 10px !important;
+    }
+    
+    .quick-actions .quick-buttons .quick-btn i,
+    button.quick-btn i {
+        font-size: 14px !important;
+    }
+    
+    .quick-actions .quick-buttons .quick-btn span,
+    button.quick-btn span {
+        font-size: 13px !important;
+    }
+    
+    .quick-buttons {
+        gap: 6px;
+    }
+    
     .amount-input-group {
         flex-direction: column;
         gap: 12px;
@@ -808,91 +855,42 @@
     flex-shrink: 0;
 }
 
-/* User Dashboard Priority Tabs - Optimized */
+/* User Dashboard Priority Tabs - Completely Rewritten */
 
 .priority-tabs-section {
-    background: var(--white-alpha); backdrop-filter: blur(10px);
-    border: var(--border); border-radius: var(--radius);
-    padding: var(--padding); margin-bottom: var(--padding);
+    background: var(--white-alpha);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border: var(--border);
+    border-radius: var(--radius);
+    padding: var(--padding);
+    margin-bottom: var(--padding);
     box-shadow: var(--shadow);
 }
 
 .priority-tabs-section h3 {
-    color: var(--text-primary); font-size: 16px; font-weight: 600;
-    margin: 0 0 14px 0; display: flex; align-items: center;
-    gap: 6px; opacity: 0.9;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 14px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.9;
 }
 
 .priority-tabs-section h3 i {
-    color: var(--primary); font-size: 16px; opacity: 0.8;
-}
-
-.priority-tabs {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--gap);
-}
-
-.priority-tab {
-    background: var(--white-alpha); backdrop-filter: blur(8px);
-    border: var(--border); border-radius: var(--radius);
-    padding: 18px; cursor: pointer; transition: var(--transition);
-    display: flex; align-items: center; gap: 14px;
-    text-align: right; position: relative; overflow: hidden;
-}
-
-.priority-tab:hover {
-    border-color: var(--primary); box-shadow: var(--shadow-hover);
-    transform: translateY(-1px);
-}
-
-.priority-tab.active {
-    border-color: var(--primary);
-    background: rgba(102, 126, 234, 0.05);
-    box-shadow: var(--shadow-hover);
-}
-
-.tab-icon {
-    width: 48px; height: 48px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; color: white; flex-shrink: 0;
-}
-
-.priority-tab[data-tab="loan-payments"] .tab-icon {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.priority-tab[data-tab="subscriptions"] .tab-icon {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.tab-content {
-    flex: 1; min-width: 0;
-}
-
-.tab-title {
-    display: block; font-size: 16px; font-weight: 600;
-    color: var(--text-primary); margin-bottom: 4px;
-}
-
-.tab-desc {
-    display: block; font-size: 13px; color: var(--text-secondary);
+    color: var(--primary);
+    font-size: 16px;
     opacity: 0.8;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .priority-tabs {
-        grid-template-columns: 1fr;
-    }
-    
-    .priority-tab {
-        padding: 16px;
-    }
-    
-    .tab-icon {
-        width: 40px; height: 40px; font-size: 18px;
-    }
+.priority-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--gap);
 }
+
+/* Old responsive rules removed - handled in new priority tab section */
 
 /* =================== Family Management Styles =================== */
 
@@ -1058,4 +1056,415 @@
     justify-content: center;
     align-items: center;
     min-height: 300px;
+}
+
+/* PRIORITY TAB BUTTONS - COMPLETE REWRITE */
+
+/* Main priority tab button styling */
+.priority-tab {
+    /* Reset specific browser defaults without breaking display */
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    margin: 0;
+    outline: none;
+    text-decoration: none;
+    
+    /* Button structure and layout */
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    min-height: 70px !important;
+    max-height: 70px !important;
+    text-align: right !important;
+    cursor: pointer !important;
+    position: relative !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    
+    /* Visual styling */
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+    border: 1px solid rgba(102, 126, 234, 0.2) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    
+    /* Typography */
+    font-family: inherit !important;
+    font-size: inherit !important;
+    color: #333333 !important;
+    
+    /* Animation */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover state */
+.priority-tab:hover {
+    border-color: #667eea !important;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Active/selected state */
+.priority-tab.active {
+    border-color: #667eea !important;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(102, 126, 234, 0.02) 100%) !important;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25) !important;
+}
+
+/* Focus state for accessibility */
+.priority-tab:focus {
+    outline: 2px solid #667eea !important;
+    outline-offset: 2px !important;
+}
+
+/* Icon styling */
+.priority-tab .tab-icon {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    color: white !important;
+    flex-shrink: 0 !important;
+}
+
+.priority-tab[data-tab="loan-payments"] .tab-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.priority-tab[data-tab="subscriptions"] .tab-icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+
+/* Content area */
+.priority-tab .tab-content {
+    flex: 1 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+}
+
+/* Title text */
+.priority-tab .tab-content .tab-title {
+    display: block !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #333333 !important;
+    margin-bottom: 3px !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Description text - targeting both class and element */
+.priority-tab .tab-content .tab-desc,
+.priority-tab .tab-content small,
+.priority-tab small.tab-desc {
+    display: block !important;
+    font-size: 12px !important;
+    color: #666666 !important;
+    line-height: 1.2 !important;
+    opacity: 0.9 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    visibility: visible !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hover state text changes */
+.priority-tab:hover .tab-content .tab-title {
+    color: #2c3e50 !important;
+}
+
+.priority-tab:hover .tab-content .tab-desc,
+.priority-tab:hover .tab-content small,
+.priority-tab:hover small.tab-desc {
+    color: #555555 !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+
+/* Active state text changes */
+.priority-tab.active .tab-content .tab-title {
+    color: #1a202c !important;
+}
+
+.priority-tab.active .tab-content .tab-desc,
+.priority-tab.active .tab-content small,
+.priority-tab.active small.tab-desc {
+    color: #4a5568 !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+    .priority-tabs {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .priority-tab {
+        min-height: 60px;
+        max-height: 60px;
+        padding: 12px;
+        gap: 10px;
+    }
+    
+    .priority-tab .tab-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+    
+    .priority-tab .tab-content .tab-title {
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+    
+    .priority-tab .tab-content .tab-desc,
+    .priority-tab .tab-content small,
+    .priority-tab small.tab-desc {
+        font-size: 11px !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+}
+
+/* FINAL DEBUGGING RULE - Maximum specificity to force descriptions to show */
+button.priority-tab .tab-content small.tab-desc,
+button.user-tab.priority-tab .tab-content small.tab-desc {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 0.9 !important;
+    height: auto !important;
+    width: auto !important;
+    position: static !important;
+    color: #666666 !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+}
+
+/* =================== MODERN ACTION CARDS - COMPLETELY NEW DESIGN =================== */
+
+/* Main container */
+.action-cards-section {
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+}
+
+.action-cards-section h3 {
+    color: #2d3748;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-cards-section h3 i {
+    color: #667eea;
+    font-size: 18px;
+    opacity: 0.8;
+}
+
+/* Grid container */
+.action-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+/* Modern card button */
+.modern-action-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f7fafc 100%);
+    border: 1px solid rgba(102, 126, 234, 0.15);
+    border-radius: 16px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    min-height: 80px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    
+    /* Reset button styles */
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid rgba(102, 126, 234, 0.15);
+    outline: none;
+    text-decoration: none;
+    font-family: inherit;
+}
+
+/* Hover effect */
+.modern-action-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: #667eea;
+    background: linear-gradient(145deg, #ffffff 0%, #f0f4ff 100%);
+}
+
+/* Active state */
+.modern-action-card.active {
+    border-color: #667eea;
+    background: linear-gradient(145deg, rgba(102, 126, 234, 0.05) 0%, rgba(102, 126, 234, 0.02) 100%);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Card icon */
+.modern-action-card .card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modern-action-card[data-tab="loan-payments"] .card-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.modern-action-card[data-tab="subscriptions"] .card-icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Card content */
+.modern-action-card .card-content {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modern-action-card .card-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Hover animations */
+.modern-action-card:hover .card-icon {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modern-action-card:hover .card-title {
+    color: #1a202c;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .action-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .modern-action-card {
+        padding: 16px;
+        min-height: 70px;
+        gap: 12px;
+    }
+    
+    .modern-action-card .card-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    
+    .modern-action-card .card-title {
+        font-size: 15px;
+    }
+}
+
+/* Focus states for accessibility */
+.modern-action-card:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Animation keyframes */
+@keyframes cardPulse {
+    0%, 100% {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    50% {
+        box-shadow: 0 8px 16px -4px rgba(102, 126, 234, 0.2), 0 4px 8px -2px rgba(102, 126, 234, 0.1);
+    }
+}
+
+/* Special effects on active state */
+.modern-action-card.active {
+    animation: cardPulse 2s infinite;
+}
+
+/* Transaction Balance Column Styling */
+.balance-cell {
+    text-align: center;
+    font-weight: 600;
+    background: rgba(34, 197, 94, 0.05);
+    padding: 12px 8px !important;
+    border-right: 3px solid #22c55e;
+}
+
+.balance-cell .balance {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+}
+
+/* Enhanced table header for balance column */
+.transactions-table th:nth-child(4),
+table th:nth-child(5):contains("الرصيد المحدث") {
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+    color: white !important;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Responsive balance column */
+@media (max-width: 768px) {
+    .balance-cell {
+        padding: 8px 4px !important;
+    }
+    
+    .balance-cell .balance {
+        font-size: 12px;
+        padding: 2px 6px;
+    }
 }

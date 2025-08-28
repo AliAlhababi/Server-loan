@@ -5,6 +5,7 @@ class LoanRequestTab {
     constructor(userDashboard) {
         this.userDashboard = userDashboard;
         this.eligibility = null;
+        this.loanRequests = [];
     }
 
     // Load loan request content
@@ -84,10 +85,22 @@ class LoanRequestTab {
                             <p>يرجى مراجعة الشروط والأحكام أو التواصل مع الإدارة</p>
                         </div>
                     </div>
+
+                    <!-- Loan Requests History -->
+                    <div class="loan-requests-history" id="loanRequestsHistory">
+                        <div class="table-header">
+                            <h4><i class="fas fa-history"></i> طلبات القروض السابقة</h4>
+                            <span class="requests-count" id="requestsCount">0 طلب</span>
+                        </div>
+                        <div class="requests-container" id="requestsContainer">
+                            <!-- Will be populated by loadLoanRequests -->
+                        </div>
+                    </div>
                 </div>
             `;
             
             await this.loadEligibility();
+            await this.loadLoanRequests();
             this.setupEventListeners();
         }
     }
@@ -147,6 +160,231 @@ class LoanRequestTab {
                     <span>خطأ في التحقق من الأهلية</span>
                 </div>
             `;
+        }
+    }
+
+    // Load loan requests history
+    async loadLoanRequests() {
+        try {
+            const result = await apiCall(`/loans/history/${this.userDashboard.getUser().user_id}`);
+            this.loanRequests = result.loans || [];
+            
+            const requestsContainer = document.getElementById('requestsContainer');
+            const requestsCount = document.getElementById('requestsCount');
+            
+            if (requestsContainer) {
+                if (this.loanRequests.length === 0) {
+                    requestsContainer.innerHTML = this.generateEmptyRequestsState();
+                } else {
+                    requestsContainer.innerHTML = this.generateRequestsTable();
+                }
+            }
+            
+            if (requestsCount) {
+                requestsCount.textContent = `${this.loanRequests.length} طلب`;
+            }
+            
+        } catch (error) {
+            console.error('Error loading loan requests:', error);
+            const requestsContainer = document.getElementById('requestsContainer');
+            if (requestsContainer) {
+                requestsContainer.innerHTML = this.generateErrorRequestsState(error.message);
+            }
+        }
+    }
+
+    // Generate empty requests state
+    generateEmptyRequestsState() {
+        return `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-file-contract"></i>
+                </div>
+                <h4>لا توجد طلبات قروض</h4>
+                <p>لم تقم بطلب أي قروض حتى الآن</p>
+            </div>
+        `;
+    }
+
+    // Generate error requests state
+    generateErrorRequestsState(errorMessage) {
+        return `
+            <div class="error-state">
+                <div class="error-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h4>خطأ في تحميل طلبات القروض</h4>
+                <p>${errorMessage}</p>
+                <button onclick="loanRequestTab.loadLoanRequests()" class="btn btn-secondary">
+                    <i class="fas fa-redo"></i> إعادة المحاولة
+                </button>
+            </div>
+        `;
+    }
+
+    // Generate requests table
+    generateRequestsTable() {
+        return `
+            <div class="requests-table-container">
+                <table class="requests-table">
+                    <thead>
+                        <tr>
+                            <th>تاريخ الطلب</th>
+                            <th>مبلغ القرض</th>
+                            <th>القسط الشهري</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${this.loanRequests.map(request => this.generateRequestRow(request)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Generate single request row
+    generateRequestRow(request) {
+        return `
+            <tr class="request-row ${request.status}">
+                <td class="date-cell">
+                    <i class="fas fa-calendar-alt"></i>
+                    ${new Date(request.request_date).toLocaleDateString('en-US')}
+                    <small>${new Date(request.request_date).toLocaleTimeString('ar-KW', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}</small>
+                </td>
+                <td class="amount-cell">
+                    <span class="amount">
+                        ${formatCurrency(request.loan_amount)}
+                    </span>
+                </td>
+                <td class="installment-cell">
+                    <span class="installment">
+                        ${formatCurrency(request.installment_amount)}
+                    </span>
+                </td>
+                <td class="status-cell">
+                    <span class="status-badge ${request.status}">
+                        <i class="fas ${this.getRequestStatusIcon(request.status)}"></i>
+                        ${this.getRequestStatusText(request.status)}
+                    </span>
+                </td>
+                <td class="actions-cell">
+                    <div class="action-buttons">
+                        <button onclick="loanRequestTab.viewRequest(${request.loan_id})" 
+                                class="btn btn-small btn-info" title="عرض التفاصيل">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${request.status === 'pending' ? `
+                            <button onclick="loanRequestTab.cancelLoanRequest(${request.loan_id})" 
+                                    class="btn btn-small btn-danger" title="إلغاء الطلب">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Get request status icon
+    getRequestStatusIcon(status) {
+        switch (status) {
+            case 'approved': return 'fa-check-circle';
+            case 'pending': return 'fa-clock';
+            case 'rejected': return 'fa-times-circle';
+            default: return 'fa-question-circle';
+        }
+    }
+
+    // Get request status text
+    getRequestStatusText(status) {
+        switch (status) {
+            case 'approved': return 'موافق عليه';
+            case 'pending': return 'معلق';
+            case 'rejected': return 'مرفوض';
+            default: return 'غير محدد';
+        }
+    }
+
+    // View request details
+    viewRequest(requestId) {
+        const request = this.loanRequests.find(r => r.loan_id === requestId);
+        if (!request) return;
+
+        const approvalDateText = request.approval_date ? 
+            new Date(request.approval_date).toLocaleDateString('ar-KW') : 'لم يتم الرد بعد';
+
+        const modalHtml = `
+            <div class="request-details-modal">
+                <h3><i class="fas fa-file-contract"></i> تفاصيل طلب القرض</h3>
+                <div class="request-details">
+                    <div class="detail-row">
+                        <label>رقم الطلب:</label>
+                        <span>#${request.loan_id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>تاريخ الطلب:</label>
+                        <span>${new Date(request.request_date).toLocaleString('ar-KW')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>مبلغ القرض:</label>
+                        <span class="amount">${formatCurrency(request.loan_amount)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>القسط الشهري:</label>
+                        <span class="amount">${formatCurrency(request.installment_amount)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>الحالة:</label>
+                        <span class="status-badge ${request.status}">
+                            <i class="fas ${this.getRequestStatusIcon(request.status)}"></i>
+                            ${this.getRequestStatusText(request.status)}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <label>تاريخ الرد:</label>
+                        <span>${approvalDateText}</span>
+                    </div>
+                    ${request.notes ? `
+                        <div class="detail-row">
+                            <label>ملاحظات:</label>
+                            <span>${request.notes}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="modal-actions">
+                    <button onclick="hideModal()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> إغلاق
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        showModal('تفاصيل طلب القرض', modalHtml);
+    }
+
+    // Cancel loan request
+    async cancelLoanRequest(requestId) {
+        if (!confirm('هل أنت متأكد من إلغاء طلب القرض؟ لن يمكنك التراجع عن هذا الإجراء.')) {
+            return;
+        }
+
+        try {
+            showLoading(true);
+            const result = await apiCall(`/loans/cancel-request/${requestId}`, 'DELETE');
+            showToast(result.message, 'success');
+            
+            // Refresh loan requests and eligibility
+            await this.loadLoanRequests();
+            await this.loadEligibility();
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            showLoading(false);
         }
     }
 
@@ -318,8 +556,9 @@ class LoanRequestTab {
 
             showToast(result.message, 'success');
             
-            // Refresh eligibility after request
+            // Refresh eligibility and loan requests after request
             await this.loadEligibility();
+            await this.loadLoanRequests();
             
             // Clear form
             document.getElementById('loanRequestForm').reset();

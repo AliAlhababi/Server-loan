@@ -55,7 +55,7 @@ router.put('/:userId', verifyToken, requireOwnershipOrAdmin, asyncHandler(async 
 // Update user profile (PUT /profile) - for current user
 router.put('/', verifyToken, asyncHandler(async (req, res) => {
   const userId = req.user.user_id;
-  const { name, email, phone, workplace } = req.body;
+  const { name, email, phone, whatsapp } = req.body;
 
   // Validate required fields
   if (!name || !email || !phone) {
@@ -68,7 +68,7 @@ router.put('/', verifyToken, asyncHandler(async (req, res) => {
     Aname: name,
     email,
     phone,
-    workplace: workplace || ''
+    whatsapp: whatsapp || phone // Use phone as default if whatsapp not provided
   };
 
   await UserService.updateUserProfile(userId, profileData);

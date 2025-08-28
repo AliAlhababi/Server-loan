@@ -34,19 +34,15 @@ class LoanPaymentsTab {
         }
     }
 
-    // Load active loan and calculate installment
+    // Load active loan and use installment from database
     async loadActiveLoan() {
         try {
             const result = await apiCall(`/loans/active/${this.userDashboard.getUser().user_id}`);
             this.activeLoan = result.activeLoan || null;
             
             if (this.activeLoan) {
-                // Calculate minimum installment using same formula as backend
-                const userBalance = this.userDashboard.getUser().balance || 0;
-                const ratio = 0.02 / 3; // 0.006667
-                const baseInstallment = ratio * (this.activeLoan.loan_amount * this.activeLoan.loan_amount) / userBalance;
-                const roundedInstallment = Math.ceil(baseInstallment / 5) * 5;
-                this.minInstallment = Math.max(roundedInstallment, 20);
+                // Use installment_amount from database (set by admin if modified)
+                this.minInstallment = Math.max(parseFloat(this.activeLoan.installment_amount) || 20, 20);
                 
                 // Check if this is the final payment (adjust minimum)
                 if (this.activeLoan.remaining_amount <= this.minInstallment) {
@@ -201,7 +197,7 @@ class LoanPaymentsTab {
                     <ul class="info-list">
                         <li>سيتم إرسال طلب الدفع للإدارة للموافقة</li>
                         <li>الحد الأدنى للدفع هو ${formatCurrency(this.minInstallment)}</li>
-                        <li>يمكنك دفع كامل المبلغ المتبقي لإنهاء القرض</li>
+                        <li>يمكنك دفع كامل القرض لإنهاء القرض</li>
                         <li>ستصلك إشعار عند موافقة الإدارة على الدفعة</li>
                     </ul>
                 </div>
@@ -269,10 +265,19 @@ class LoanPaymentsTab {
                             <i class="fas fa-calendar"></i> ${formatDate(payment.date)}
                         </div>
                     </div>
-                    <span class="status-badge ${statusClass}" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 500;">
-                        <i class="fas ${statusIcon}"></i>
-                        ${statusText}
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="status-badge ${statusClass}" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 500;">
+                            <i class="fas ${statusIcon}"></i>
+                            ${statusText}
+                        </span>
+                        ${payment.status === 'pending' ? `
+                            <button onclick="loanPaymentsTab.cancelPayment(${payment.loan_id})" 
+                                    class="btn btn-small btn-danger" title="إلغاء الدفعة" 
+                                    style="padding: 4px 8px; font-size: 12px;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
                 ${payment.memo ? `<div style="color: #4b5563; font-size: 14px; margin-bottom: 4px;"><strong>الملاحظة:</strong> ${payment.memo}</div>` : ''}
                 ${payment.admin_name ? `<div style="color: #9ca3af; font-size: 12px;">معتمد من: ${payment.admin_name}</div>` : ''}
@@ -379,6 +384,32 @@ class LoanPaymentsTab {
             // Clear form
             form.reset();
             document.getElementById('paymentAmount').value = this.minInstallment;
+            
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Cancel pending loan payment
+    async cancelPayment(paymentId) {
+        if (!confirm('هل أنت متأكد من إلغاء هذه الدفعة؟')) {
+            return;
+        }
+
+        try {
+            showLoading(true);
+            const result = await apiCall(`/loans/cancel-payment/${paymentId}`, 'DELETE');
+            showToast(result.message, 'success');
+            
+            // Refresh the loan data
+            await this.load();
+            
+            // Refresh the main dashboard to update loan status
+            if (this.userDashboard && this.userDashboard.refreshStats) {
+                await this.userDashboard.refreshStats();
+            }
             
         } catch (error) {
             showToast(error.message, 'error');

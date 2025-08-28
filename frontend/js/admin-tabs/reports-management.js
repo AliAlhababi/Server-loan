@@ -151,7 +151,7 @@ class ReportsManagement {
         const blockedUsers = users.filter(u => u.is_blocked).length;
         const pendingUsers = users.filter(u => u.joining_fee_approved === 'pending').length;
         const totalBalance = users.reduce((sum, user) => sum + parseFloat(user.balance || 0), 0);
-        const totalMaxLoans = users.reduce((sum, user) => sum + parseFloat(user.max_loan_amount || 0), 0);
+        const totalActiveLoans = users.reduce((sum, user) => sum + parseFloat(user.current_loan_amount || 0), 0);
 
         return `
             <div class="report-content">
@@ -184,8 +184,8 @@ class ReportsManagement {
                             <div class="stat-label">إجمالي الأرصدة</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">${formatCurrency(totalMaxLoans)}</div>
-                            <div class="stat-label">إجمالي حدود القروض</div>
+                            <div class="stat-value">${formatCurrency(totalActiveLoans)}</div>
+                            <div class="stat-label">إجمالي القروض النشطة</div>
                         </div>
                     </div>
                 </div>
@@ -200,7 +200,7 @@ class ReportsManagement {
                                 <th>النوع</th>
                                 <th>البريد الإلكتروني</th>
                                 <th>الرصيد</th>
-                                <th>أقصى قرض</th>
+                                <th>القرض النشط</th>
                                 <th>تاريخ التسجيل</th>
                                 <th>الحالة</th>
                             </tr>
@@ -208,12 +208,12 @@ class ReportsManagement {
                         <tbody>
                             ${users.map(user => `
                                 <tr>
-                                    <td>${user.id}</td>
-                                    <td>${user.full_name}</td>
+                                    <td>${user.user_id}</td>
+                                    <td>${user.Aname}</td>
                                     <td>${user.user_type === 'employee' ? 'عضو' : 'إداري'}</td>
                                     <td>${user.email || '-'}</td>
                                     <td>${formatCurrency(user.balance)}</td>
-                                    <td>${formatCurrency(user.max_loan_amount)}</td>
+                                    <td>${formatCurrency(user.current_loan_amount || 0)}</td>
                                     <td>${Utils.formatDate(user.registration_date)}</td>
                                     <td>
                                         ${user.is_blocked ? 'محظور' : 
@@ -242,9 +242,11 @@ class ReportsManagement {
         const pendingLoans = loans.filter(l => l.status === 'pending').length;
         const approvedLoans = loans.filter(l => l.status === 'approved').length;
         const rejectedLoans = loans.filter(l => l.status === 'rejected').length;
-        const totalAmount = loans.reduce((sum, loan) => sum + parseFloat(loan.amount || 0), 0);
+        const totalAmount = loans.reduce((sum, loan) => sum + parseFloat(loan.loan_amount || 0), 0);
         const approvedAmount = loans.filter(l => l.status === 'approved')
-            .reduce((sum, loan) => sum + parseFloat(loan.amount || 0), 0);
+            .reduce((sum, loan) => sum + parseFloat(loan.loan_amount || 0), 0);
+        const totalRemainingAmount = loans.filter(l => l.status === 'approved')
+            .reduce((sum, loan) => sum + parseFloat(loan.remaining_amount || 0), 0);
 
         return `
             <div class="report-content">
@@ -280,6 +282,10 @@ class ReportsManagement {
                             <div class="stat-value">${formatCurrency(approvedAmount)}</div>
                             <div class="stat-label">المبالغ الموافق عليها</div>
                         </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${formatCurrency(totalRemainingAmount)}</div>
+                            <div class="stat-label">إجمالي المبالغ المتبقية</div>
+                        </div>
                     </div>
                 </div>
                 
@@ -292,6 +298,7 @@ class ReportsManagement {
                                 <th>المقترض</th>
                                 <th>مبلغ القرض</th>
                                 <th>القسط الشهري</th>
+                                <th>القرض</th>
                                 <th>الحالة</th>
                                 <th>تاريخ الطلب</th>
                                 <th>معالج بواسطة</th>
@@ -302,8 +309,9 @@ class ReportsManagement {
                                 <tr>
                                     <td>${loan.loan_id}</td>
                                     <td>${loan.full_name}</td>
-                                    <td>${formatCurrency(loan.amount)}</td>
-                                    <td>${formatCurrency(loan.installment)}</td>
+                                    <td>${formatCurrency(loan.loan_amount)}</td>
+                                    <td>${formatCurrency(loan.installment_amount)}</td>
+                                    <td>${loan.status === 'approved' ? formatCurrency(loan.remaining_amount || loan.loan_amount) : '-'}</td>
                                     <td>
                                         ${loan.status === 'pending' ? 'معلق' :
                                           loan.status === 'approved' ? 'موافق' : 'مرفوض'}
@@ -389,13 +397,15 @@ class ReportsManagement {
 
     // Display report in a new window/modal
     displayReport(title, htmlContent) {
+        // Get brand name from global brandConfig or use fallback
+        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 'درع العائلة';
         const fullHtml = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${title} - درع العائلة</title>
+                <title>${title} - ${brandName}</title>
                 <style>
                     body {
                         font-family: 'Arial', sans-serif;

@@ -271,7 +271,7 @@ class SubscriptionsTab {
                     </div>
                     <div class="quick-amounts">
                         ${quickAmounts.map(amount => 
-                            `<button type="button" onclick="document.querySelector('[name=amount]').value = '${amount}'" class="quick-btn">${amount}</button>`
+                            `<button type="button" onclick="document.querySelector('#paymentForm [name=amount]').value = '${amount}'" class="quick-btn">${amount}</button>`
                         ).join('')}
                     </div>
                 </form>

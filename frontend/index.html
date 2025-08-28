@@ -60,11 +60,11 @@
                         <form id="loginForm">
                             <div class="form-group">
                                 <label for="userId">رقم المستخدم</label>
-                                <input type="number" id="userId" name="userId" required>
+                                <input type="number" id="userId" name="userId" autocomplete="username" required>
                             </div>
                             <div class="form-group">
                                 <label for="password">كلمة المرور</label>
-                                <input type="password" id="password" name="password" required>
+                                <input type="password" id="password" name="password" autocomplete="current-password" required>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-sign-in-alt"></i> دخول
@@ -86,17 +86,17 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="regFullName">الاسم الكامل</label>
-                                    <input type="text" id="regFullName" name="fullName" required>
+                                    <input type="text" id="regFullName" name="fullName" autocomplete="name" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="regEmail">البريد الإلكتروني</label>
-                                    <input type="email" id="regEmail" name="email" required>
+                                    <input type="email" id="regEmail" name="email" autocomplete="email" required>
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="regPhone">رقم الهاتف</label>
-                                    <input type="tel" id="regPhone" name="phone" required>
+                                    <input type="tel" id="regPhone" name="phone" autocomplete="tel" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="regWhatsapp">رقم الواتساب (اختياري)</label>
@@ -106,11 +106,11 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="regPassword">كلمة المرور</label>
-                                    <input type="password" id="regPassword" name="password" required>
+                                    <input type="password" id="regPassword" name="password" autocomplete="new-password" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="regConfirmPassword">تأكيد كلمة المرور</label>
-                                    <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                                    <input type="password" id="regConfirmPassword" name="confirmPassword" autocomplete="new-password" required>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -175,26 +175,24 @@
                         </div>
                     </div>
 
-                    <!-- Priority Tabs Section -->
-                    <div class="priority-tabs-section">
+                    <!-- Modern Action Cards Section -->
+                    <div class="action-cards-section">
                         <h3><i class="fas fa-star"></i> العمليات الأساسية</h3>
-                        <div class="priority-tabs">
-                            <button class="user-tab priority-tab" data-tab="loan-payments">
-                                <div class="tab-icon">
+                        <div class="action-cards-grid">
+                            <button class="modern-action-card user-tab" data-tab="loan-payments" onclick="window.userDashboardLoader?.scrollToTabContent('loan-payments')">
+                                <div class="card-icon">
                                     <i class="fas fa-money-bill-wave"></i>
                                 </div>
-                                <div class="tab-content">
-                                    <span class="tab-title">تسديد القرض</span>
-                                    <small class="tab-desc">دفع الأقساط المالية</small>
+                                <div class="card-content">
+                                    <h4 class="card-title">تسديد القرض</h4>
                                 </div>
                             </button>
-                            <button class="user-tab priority-tab" data-tab="subscriptions">
-                                <div class="tab-icon">
+                            <button class="modern-action-card user-tab" data-tab="subscriptions" onclick="window.userDashboardLoader?.switchToTab('subscriptions')">
+                                <div class="card-icon">
                                     <i class="fas fa-coins"></i>
                                 </div>
-                                <div class="tab-content">
-                                    <span class="tab-title">دفع الاشتراكات</span>
-                                    <small class="tab-desc">رسوم العضوية الشهرية</small>
+                                <div class="card-content">
+                                    <h4 class="card-title">دفع الاشتراكات</h4>
                                 </div>
                             </button>
                         </div>
@@ -306,6 +304,52 @@
                 <div id="adminDashboard" class="dashboard-content" style="display: none;">
                     <h2>لوحة تحكم المدير</h2>
                     
+                    <!-- Financial Summary Cards - Top Priority -->
+                    <!-- <div class="financial-summary-cards">
+                        <div class="financial-card bank-balance clickable-card" onclick="adminDashboard.navigateToSection(banksManagement.show.bind(banksManagement))" title="إدارة البنوك">
+                            <div class="financial-card-icon">
+                                <i class="fas fa-university"></i>
+                            </div>
+                            <div class="financial-card-content">
+                                <h3>مجموع أرصدة البنوك</h3>
+                                <div class="financial-value" id="topBankBalance">--</div>
+                                <small>الأموال الموجودة في البنوك</small>
+                            </div>
+                        </div>
+                        
+                        <div class="financial-card fund-balance">
+                            <div class="financial-card-icon">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <div class="financial-card-content">
+                                <h3>إجمالي الاشتراكات</h3>
+                                <div class="financial-value" id="topFundBalance">--</div>
+                                <small>مجموع جميع الاشتراكات المقبولة</small>
+                            </div>
+                        </div>
+                        
+                        <div class="financial-card loans-remaining">
+                            <div class="financial-card-icon">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                            <div class="financial-card-content">
+                                <h3>القروض المتبقية</h3>
+                                <div class="financial-value" id="topLoansRemaining">--</div>
+                                <small>إجمالي القروض النشطة المتبقية</small>
+                            </div>
+                        </div>
+                        
+                        <div class="financial-card difference">
+                            <div class="financial-card-icon">
+                                <i class="fas fa-balance-scale"></i>
+                            </div>
+                            <div class="financial-card-content">
+                                <h3>الفرق</h3>
+                                <div class="financial-value" id="topDifference">--</div>
+                                <small>الفرق بين البنوك والصناديق</small>
+                            </div>
+                        </div>
+                    </div> -->
 
                     <!-- Main Admin Content Container -->
                     <div class="main-admin-content">
@@ -315,35 +359,86 @@
                             
                     <!-- Compact Admin Stats -->
                     <div class="compact-stats-grid">
+                        <!-- الصندوق - Main Financial Dashboard -->
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(reportsManagement.show.bind(reportsManagement))" title="الصندوق - الملخص المالي">
+                            <i class="fas fa-chart-pie"></i>
+                            <span class="compact-stat-label">الصندوق</span>
+                        </div>
+                        
+                        <!-- اشتراكات - Subscriptions -->
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(transactionsManagement.show.bind(transactionsManagement))" title="إدارة الاشتراكات">
+                            <i class="fas fa-coins"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">اشتراكات</span>
+                                <span class="compact-stat-value" id="pendingSubscriptions">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- القروض - Loans (combining loan requests and installments) -->
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement))" title="إدارة القروض والأقساط">
+                            <i class="fas fa-hand-holding-usd"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">القروض</span>
+                                <span class="compact-stat-value" id="totalLoansPending">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- رصيد البنك - Bank Balance -->
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(banksManagement.show.bind(banksManagement))" title="إدارة البنوك والأرصدة">
+                            <i class="fas fa-university"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">رصيد البنك</span>
+                                <span class="compact-stat-value" id="totalBanksBalance">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- الأعضاء - Members -->
                         <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(usersManagement.show.bind(usersManagement))" title="إدارة الأعضاء">
                             <i class="fas fa-users"></i>
-                            <span class="compact-stat-value" id="totalUsers">0</span>
-                            <span class="compact-stat-label">أعضاء</span>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">الأعضاء</span>
+                                <span class="compact-stat-value" id="totalUsers">0</span>
+                            </div>
                         </div>
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement))" title="إدارة القروض">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                            <span class="compact-stat-value" id="pendingLoans">0</span>
-                            <span class="compact-stat-label">قروض معلقة</span>
+                        
+                        <!-- طلبات التسجيل - Registration Requests (placeholder for future feature) -->
+                        <div class="compact-stat-card clickable-card" onclick="showToast('هذه الميزة ستكون متاحة قريباً', 'info')" title="طلبات التسجيل الجديدة">
+                            <i class="fas fa-user-plus"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">طلبات التسجيل</span>
+                                <span class="compact-stat-value">0</span>
+                            </div>
                         </div>
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(transactionsManagement.show.bind(transactionsManagement))" title="إدارة المعاملات">
-                            <i class="fas fa-coins"></i>
-                            <span class="compact-stat-value" id="pendingSubscriptions">0</span>
-                            <span class="compact-stat-label">اشتراكات معلقة</span>
+                        
+                        <!-- الرسائل - Messages -->
+                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(ticketsManagement.show.bind(ticketsManagement))" title="إدارة الرسائل والتذاكر">
+                            <i class="fas fa-envelope"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">الرسائل</span>
+                                <span class="compact-stat-value" id="pendingTickets">0</span>
+                            </div>
                         </div>
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement), 'payments')" title="إدارة أقساط القروض">
-                            <i class="fas fa-credit-card"></i>
-                            <span class="compact-stat-value" id="pendingLoanPayments">0</span>
-                            <span class="compact-stat-label">أقساط معلقة</span>
+                        
+                        <!-- معلوماتي - Admin Profile -->
+                        <div class="compact-stat-card clickable-card" onclick="openEditProfileModal()" title="تعديل المعلومات الشخصية">
+                            <i class="fas fa-user-edit"></i>
+                            <span class="compact-stat-label">معلوماتي</span>
                         </div>
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(familyDelegationsManagement.load.bind(familyDelegationsManagement))" title="إدارة التفويض العائلي">
-                            <i class="fas fa-users-cog"></i>
-                            <span class="compact-stat-value" id="pendingFamilyDelegations">0</span>
-                            <span class="compact-stat-label">تفويض عائلي</span>
+                    </div>
+
+                    <!-- Multiple Loan Security Alerts Section -->
+                    <div id="multiple-loans-alert-section" class="security-alert-section" style="display: none;">
+                        <div class="alert-header">
+                            <h3 class="security-alert-title">
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                                تنبيه أمني: قروض متعددة معلقة
+                            </h3>
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleMultipleLoanAlerts()">
+                                <i class="fas fa-eye"></i> عرض التفاصيل
+                            </button>
                         </div>
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(banksManagement.show.bind(banksManagement))" title="إدارة البنوك">
-                            <i class="fas fa-university"></i>
-                            <span class="compact-stat-value" id="totalBanksBalance">0.000</span>
-                            <span class="compact-stat-label">أرصدة البنوك</span>
+                        <div id="multiple-loan-alerts-container" style="display: none;">
+                            <!-- Multiple loan alerts will be loaded here -->
                         </div>
                     </div>
 
@@ -376,20 +471,6 @@
                                             القروض النشطة المتبقية
                                         </td>
                                         <td class="summary-value" id="totalActiveLoansRemaining">--</td>
-                                    </tr>
-                                    <tr class="summary-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-clock text-info"></i>
-                                            القروض المعلقة
-                                        </td>
-                                        <td class="summary-value" id="totalPendingLoans">--</td>
-                                    </tr>
-                                    <tr class="summary-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-receipt text-primary"></i>
-                                            إجمالي الرسوم المدفوعة
-                                        </td>
-                                        <td class="summary-value" id="totalFeesPaid">--</td>
                                     </tr>
                                     <tr class="summary-row calculation-row">
                                         <td class="summary-label">
@@ -610,7 +691,7 @@
                 <button class="close-btn" onclick="closeEditProfileModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="editProfileForm">
+                <form id="staticEditProfileForm">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="editFullName">الاسم الكامل</label>
@@ -625,10 +706,6 @@
                         <div class="form-group">
                             <label for="editEmail">البريد الإلكتروني</label>
                             <input type="email" id="editEmail" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="editWorkplace">مكان العمل/الدراسة</label>
-                            <input type="text" id="editWorkplace" name="workplace" required>
                         </div>
                     </div>
                     <div class="form-row">
@@ -805,6 +882,58 @@
         </div>
     </div>
 
+    <!-- Messages Modal -->
+    <div id="messagesModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-envelope"></i> مراسلة الإدارة</h2>
+                <button class="close-btn" onclick="closeMessagesModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Message Tabs -->
+                <div class="messages-tabs">
+                    <button class="messages-tab active" onclick="showMessagesTab('send'); this.parentElement.querySelectorAll('.messages-tab').forEach(t => t.classList.remove('active')); this.classList.add('active');">
+                        <i class="fas fa-paper-plane"></i> إرسال رسالة
+                    </button>
+                    <button class="messages-tab" onclick="showMessagesTab('history'); this.parentElement.querySelectorAll('.messages-tab').forEach(t => t.classList.remove('active')); this.classList.add('active');">
+                        <i class="fas fa-history"></i> الرسائل السابقة
+                    </button>
+                </div>
+
+                <!-- Send Message Tab -->
+                <div id="sendMessageTab" class="messages-tab-content active">
+                    <form id="sendMessageForm">
+                        <div class="form-group">
+                            <label for="messageSubject">عنوان الرسالة</label>
+                            <input type="text" id="messageSubject" name="subject" required maxlength="255" placeholder="اكتب عنوان رسالتك">
+                            <small class="form-hint">الحد الأقصى 255 حرف</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="messageContent">نص الرسالة</label>
+                            <textarea id="messageContent" name="message" rows="8" required maxlength="2000" placeholder="اكتب رسالتك هنا..."></textarea>
+                            <small class="form-hint">الحد الأقصى 2000 حرف</small>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> إرسال الرسالة
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="closeMessagesModal()">
+                                <i class="fas fa-times"></i> إلغاء
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Message History Tab -->
+                <div id="messageHistoryTab" class="messages-tab-content">
+                    <div id="messageHistoryContent" class="loading-content">
+                        <i class="fas fa-spinner fa-spin"></i> جاري تحميل الرسائل...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Generic Modal -->
     <div id="modal" class="modal" style="display: none;">
         <div class="modal-content">
@@ -849,6 +978,8 @@
     <script src="js/admin-tabs/reports-management.js"></script>
     <script src="js/admin-tabs/family-delegations-management.js"></script>
     <script src="js/admin-tabs/banks-management.js"></script>
+    <script src="js/admin-tabs/tickets-management.js"></script>
+    <script src="js/admin-tabs/multiple-loan-alerts.js"></script>
     
     <!-- Utility modules (load first) -->
     <script src="js/config.js"></script>

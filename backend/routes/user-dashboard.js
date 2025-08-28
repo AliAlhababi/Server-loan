@@ -15,7 +15,7 @@ router.get('/:userId', verifyToken, requireOwnershipOrAdmin, asyncHandler(async 
   // Optimized dashboard query with JOINs - include only truly active loans (approved but not fully paid)
   const dashboardQuery = `
     SELECT 
-      u.user_id, u.Aname, u.user_type, u.balance, u.registration_date,
+      u.user_id, u.Aname, u.user_type, u.balance, u.registration_date, u.phone, u.email, u.whatsapp,
       rl.loan_id, rl.loan_amount, rl.installment_amount, rl.status as loan_status,
       rl.approval_date, rl.request_date,
       COALESCE(paid.total_paid, 0) as paid_amount,
@@ -62,7 +62,10 @@ router.get('/:userId', verifyToken, requireOwnershipOrAdmin, asyncHandler(async 
       user_type: userData.user_type,
       balance: userData.balance || 0,
       maxLoanAmount: UserService.calculateMaxLoanAmount(userData.balance),
-      registration_date: userData.registration_date
+      registration_date: userData.registration_date,
+      phone: userData.phone,
+      email: userData.email,
+      whatsapp: userData.whatsapp
     },
     activeLoan: userData.loan_id ? {
       loan_id: userData.loan_id,

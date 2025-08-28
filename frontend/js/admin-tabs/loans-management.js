@@ -123,7 +123,7 @@ class LoansManagement {
                             <th>نوع العضوية</th>
                             <th>مبلغ القرض</th>
                             <th>القسط الشهري</th>
-                            <th>الرصيد الحالي</th>
+                            <th>القرض</th>
                             <th>تاريخ الطلب</th>
                             <th>الإجراءات</th>
                         </tr>
@@ -150,8 +150,13 @@ class LoansManagement {
                                     <span class="installment">${formatCurrency(loan.installment_amount)}</span>
                                     <small>${loan.installment_amount > 0 ? Math.max(6, Math.ceil(loan.loan_amount / loan.installment_amount)) : 'غير محسوب'} شهر</small>
                                 </td>
-                                <td class="balance-cell">
-                                    <span class="balance">${formatCurrency(loan.current_balance)}</span>
+                                <td class="remaining-amount-cell">
+                                    <span class="remaining-amount">
+                                        ${loan.remaining_amount !== undefined && loan.remaining_amount !== null ? 
+                                            formatCurrency(Math.max(0, loan.remaining_amount)) : 
+                                            '<span class="no-loan">لا يوجد قرض نشط</span>'
+                                        }
+                                    </span>
                                 </td>
                                 <td>
                                     <span class="date">${new Date(loan.request_date).toLocaleDateString('en-US')}</span>
@@ -193,57 +198,105 @@ class LoansManagement {
             <div class="data-table">
                 <div class="table-header">
                     <h4><i class="fas fa-list"></i> جميع طلبات القروض (${loans.length})</h4>
-                    <div class="table-filters">
-                        <select id="statusFilter" onchange="loansManagement.filterLoans()">
-                            <option value="">جميع الحالات</option>
-                            <option value="pending">معلق</option>
-                            <option value="approved">موافق عليه</option>
-                            <option value="rejected">مرفوض</option>
-                        </select>
+                    <div class="table-controls">
+                        <div class="table-filters">
+                            <select id="statusFilter" onchange="loansManagement.filterLoans()">
+                                <option value="">جميع الحالات</option>
+                                <option value="pending">معلق</option>
+                                <option value="approved">موافق عليه</option>
+                                <option value="rejected">مرفوض</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="loansManagement.toggleColumnPanel()">
+                            <i class="fas fa-columns"></i> إدارة الأعمدة
+                        </button>
                     </div>
                 </div>
-                <table>
+                
+                <!-- Column visibility panel -->
+                <div id="loansColumnPanel" class="column-visibility-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h5><i class="fas fa-eye"></i> إظهار/إخفاء الأعمدة</h5>
+                        <button class="btn btn-sm btn-ghost" onclick="loansManagement.toggleColumnPanel()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="column-checkboxes">
+                            <label><input type="checkbox" value="loan_id" checked> رقم الطلب</label>
+                            <label><input type="checkbox" value="borrower_name" checked> اسم المقترض</label>
+                            <label><input type="checkbox" value="loan_amount" checked> مبلغ القرض</label>
+                            <label><input type="checkbox" value="installment" checked> القسط الشهري</label>
+                            <label><input type="checkbox" value="remaining_amount" checked> القرض</label>
+                            <label><input type="checkbox" value="status" checked> الحالة</label>
+                            <label><input type="checkbox" value="request_date" checked> تاريخ الطلب</label>
+                            <label><input type="checkbox" value="processed_by" checked> معالج بواسطة</label>
+                            <label><input type="checkbox" value="actions" checked> الإجراءات</label>
+                        </div>
+                        <div class="panel-actions">
+                            <button class="btn btn-sm btn-primary" onclick="loansManagement.showAllColumns()">
+                                <i class="fas fa-eye"></i> إظهار الكل
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="loansManagement.hideAllColumns()">
+                                <i class="fas fa-eye-slash"></i> إخفاء الكل
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="loansManagement.resetColumnVisibility()">
+                                <i class="fas fa-undo"></i> إعادة تعيين
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <table id="loansTable">
                     <thead>
                         <tr>
-                            <th>رقم الطلب</th>
-                            <th>اسم المقترض</th>
-                            <th>مبلغ القرض</th>
-                            <th>القسط الشهري</th>
-                            <th>الحالة</th>
-                            <th>تاريخ الطلب</th>
-                            <th>معالج بواسطة</th>
-                            <th>الإجراءات</th>
+                            <th data-column="loan_id">رقم الطلب</th>
+                            <th data-column="borrower_name">اسم المقترض</th>
+                            <th data-column="loan_amount">مبلغ القرض</th>
+                            <th data-column="installment">القسط الشهري</th>
+                            <th data-column="remaining_amount">القرض</th>
+                            <th data-column="status">الحالة</th>
+                            <th data-column="request_date">تاريخ الطلب</th>
+                            <th data-column="processed_by">معالج بواسطة</th>
+                            <th data-column="actions">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${loans.map(loan => `
                             <tr data-status="${loan.status}">
-                                <td><strong>#${loan.loan_id}</strong></td>
-                                <td>
+                                <td data-column="loan_id"><strong>#${loan.loan_id}</strong></td>
+                                <td data-column="borrower_name">
                                     <div class="user-info">
                                         <span class="user-name">${loan.full_name}</span>
                                         <small>المعرف: ${loan.user_id}</small>
                                     </div>
                                 </td>
-                                <td class="amount-cell">
+                                <td data-column="loan_amount" class="amount-cell">
                                     <span class="amount">${formatCurrency(loan.loan_amount)}</span>
                                 </td>
-                                <td class="installment-cell">
+                                <td data-column="installment" class="installment-cell">
                                     <span class="installment">${formatCurrency(loan.installment_amount)}</span>
                                 </td>
-                                <td>
+                                <td data-column="remaining_amount" class="remaining-amount-cell">
+                                    <span class="remaining-amount ${loan.remaining_amount > 0 ? 'warning' : 'success'}">
+                                        ${loan.remaining_amount !== undefined && loan.remaining_amount !== null ? 
+                                            (loan.remaining_amount > 0 ? formatCurrency(loan.remaining_amount) : 'مكتمل') : 
+                                            '<span class="no-loan">لا يوجد</span>'
+                                        }
+                                    </span>
+                                </td>
+                                <td data-column="status">
                                     <span class="status-badge ${loan.status}">
                                         ${loan.status === 'pending' ? 'معلق' : 
                                           loan.status === 'approved' ? 'موافق عليه' : 'مرفوض'}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-column="request_date">
                                     <span class="date">${new Date(loan.request_date).toLocaleDateString('en-US')}</span>
                                 </td>
-                                <td>
+                                <td data-column="processed_by">
                                     <span class="admin-name">${loan.admin_name || 'غير محدد'}</span>
                                 </td>
-                                <td class="actions-cell">
+                                <td data-column="actions" class="actions-cell">
                                     <button class="btn btn-sm btn-info" onclick="loansManagement.viewLoanDetails(${loan.loan_id})" title="التفاصيل">
                                         <i class="fas fa-eye"></i> عرض
                                     </button>
@@ -326,7 +379,7 @@ class LoansManagement {
                                     <button class="btn btn-sm btn-danger" onclick="loansManagement.rejectPayment('${paymentId}')" title="رفض">
                                         <i class="fas fa-times"></i> رفض
                                     </button>
-                                    <button class="btn btn-sm btn-info" onclick="loansManagement.viewPaymentDetails('${paymentId}')" title="التفاصيل">
+                                    <button class="btn btn-sm btn-info" onclick="loansManagement.viewLoanPaymentDetails(${paymentId})" title="التفاصيل">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </td>
@@ -572,6 +625,11 @@ class LoansManagement {
                                 <i class="fas fa-times"></i> رفض
                             </button>
                         ` : ''}
+                        ${(loan.phone || loan.whatsapp) ? `
+                            <button onclick="loansManagement.retryLoanWhatsAppNotification(${loan.user_id}, '${loan.full_name}', ${loan.loan_id})" class="btn btn-primary">
+                                <i class="fab fa-whatsapp"></i> إعادة إرسال واتساب
+                            </button>
+                        ` : ''}
                         <button onclick="hideModal()" class="btn btn-secondary">
                             <i class="fas fa-times"></i> إغلاق
                         </button>
@@ -707,7 +765,127 @@ class LoansManagement {
 
     // View payment details
     async viewPaymentDetails(paymentId) {
-        showToast('عرض تفاصيل الدفعة - سيتم تطويرها قريباً', 'info');
+        try {
+            // Get payment details from all payments
+            const result = await apiCall('/admin/all-loan-payments');
+            const payment = result.loanPayments.find(p => p.loan_id === paymentId);
+            
+            if (!payment) {
+                showToast('لا يمكن العثور على تفاصيل الدفعة', 'error');
+                return;
+            }
+
+            // Get loan details
+            const loansResult = await apiCall('/admin/all-loans');
+            const loan = loansResult.loans.find(l => l.loan_id === payment.target_loan_id);
+
+            // Get user details to ensure we have phone number
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${payment.user_id}`);
+                userDetails = userResult.user;
+            } catch (error) {
+                console.warn('Could not fetch user details:', error);
+            }
+
+            // Use phone from user details or fallback to payment data
+            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || payment.phone;
+            
+            // Use name from user details or fallback to payment data
+            const userName = userDetails?.Aname || payment.user_name || 'غير محدد';
+
+            const modalContent = `
+                <div class="payment-details-modal">
+                    <h3><i class="fas fa-credit-card"></i> تفاصيل دفعة القرض #${paymentId}</h3>
+                    
+                    <div class="details-grid">
+                        <div class="detail-section">
+                            <h4><i class="fas fa-user"></i> معلومات المستخدم</h4>
+                            <div class="detail-item">
+                                <label>الاسم:</label>
+                                <span>${userName}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>معرف المستخدم:</label>
+                                <span>${payment.user_id}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>رقم الهاتف:</label>
+                                <span>${phoneNumber || 'غير محدد'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h4><i class="fas fa-money-bill-wave"></i> تفاصيل الدفعة</h4>
+                            <div class="detail-item">
+                                <label>مبلغ الدفعة:</label>
+                                <span class="amount credit">${Utils.formatCurrency(payment.credit)} د.ك</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>الوصف:</label>
+                                <span>${payment.memo || 'دفعة قرض'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>الحالة:</label>
+                                <span class="status-badge ${payment.status}">
+                                    ${payment.status === 'pending' ? 'معلق' : 
+                                      payment.status === 'accepted' ? 'مقبول' : 'مرفوض'}
+                                </span>
+                            </div>
+                            <div class="detail-item">
+                                <label>تاريخ الدفعة:</label>
+                                <span>${Utils.formatDate(payment.date)}</span>
+                            </div>
+                            ${payment.admin_name ? `
+                                <div class="detail-item">
+                                    <label>اعتُمد بواسطة:</label>
+                                    <span>${payment.admin_name}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        ${loan ? `
+                            <div class="detail-section">
+                                <h4><i class="fas fa-chart-line"></i> معلومات القرض</h4>
+                                <div class="detail-item">
+                                    <label>مبلغ القرض الأصلي:</label>
+                                    <span>${Utils.formatCurrency(loan.loan_amount)} د.ك</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>القسط المطلوب:</label>
+                                    <span>${Utils.formatCurrency(loan.installment_amount)} د.ك</span>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="modal-actions">
+                        ${payment.status === 'pending' ? `
+                            <button onclick="loansManagement.approvePayment('${paymentId}'); hideModal();" class="btn btn-success">
+                                <i class="fas fa-check"></i> موافقة
+                            </button>
+                            <button onclick="loansManagement.rejectPayment('${paymentId}'); hideModal();" class="btn btn-danger">
+                                <i class="fas fa-times"></i> رفض
+                            </button>
+                        ` : ''}
+                        ${phoneNumber ? `
+                            <button onclick="loansManagement.retryWhatsAppNotification(${payment.user_id}, '${userName}', 'loan_payment', '${paymentId}')" class="btn btn-primary">
+                                <i class="fab fa-whatsapp"></i> إعادة إرسال واتساب
+                            </button>
+                        ` : ''}
+                        <button onclick="hideModal()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إغلاق
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            showModal('تفاصيل دفعة القرض', modalContent);
+            
+        } catch (error) {
+            console.error('Error viewing payment details:', error);
+            showToast('حدث خطأ في عرض تفاصيل الدفعة', 'error');
+        }
     }
 
     // Generate repayment plan for loan details
@@ -852,6 +1030,7 @@ class LoansManagement {
                             <th>الحالة</th>
                             <th>تاريخ الدفع</th>
                             <th>الإداري</th>
+                            <th>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -895,6 +1074,25 @@ class LoansManagement {
                                 </td>
                                 <td>
                                     <span class="admin-name">${payment.admin_name || 'غير محدد'}</span>
+                                </td>
+                                <td class="actions-cell">
+                                    <button class="btn btn-sm btn-info" onclick="loansManagement.viewPaymentDetails(${payment.loan_id})" title="التفاصيل">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="loansManagement.editLoanPayment(${payment.loan_id})" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="loansManagement.deleteLoanPayment(${payment.loan_id})" title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    ${payment.status === 'pending' ? `
+                                        <button class="btn btn-sm btn-success" onclick="loansManagement.approveLoanPayment(${payment.loan_id})" title="موافقة">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary" onclick="loansManagement.rejectLoanPayment(${payment.loan_id})" title="رفض">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    ` : ''}
                                 </td>
                             </tr>
                         `).join('')}
@@ -1026,7 +1224,7 @@ class LoansManagement {
                             </div>
                             
                             <div class="form-group">
-                                <label for="remainingAmount">المبلغ المتبقي (د.ك)</label>
+                                <label for="remainingAmount">القرض (د.ك)</label>
                                 <input type="number" id="remainingAmount" step="0.001" min="0" class="form-control" required>
                                 <small class="form-help">المبلغ الذي لم يتم سداده بعد</small>
                             </div>
@@ -1247,7 +1445,7 @@ class LoansManagement {
         }
 
         if (formData.remainingAmount > formData.originalAmount) {
-            showToast('المبلغ المتبقي لا يمكن أن يكون أكبر من المبلغ الأصلي', 'error');
+            showToast('القرض لا يمكن أن يكون أكبر من المبلغ الأصلي', 'error');
             return;
         }
 
@@ -1418,7 +1616,7 @@ class LoansManagement {
                             </div>
                             
                             <div class="form-group">
-                                <label>المبلغ المتبقي الجديد (د.ك)</label>
+                                <label>القرض الجديد (د.ك)</label>
                                 <input type="number" id="editRemainingAmount" step="0.001" value="${remainingAmount}" class="form-control">
                                 <small class="form-text">اتركه فارغاً لعدم التغيير</small>
                             </div>
@@ -1529,6 +1727,479 @@ class LoansManagement {
             await this.adminDashboard.loadStats();
         } catch (error) {
             showToast(error.message, 'error');
+        }
+    }
+
+    // Column visibility management
+    toggleColumnPanel() {
+        const panel = document.getElementById('loansColumnPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        
+        if (panel.style.display === 'block') {
+            this.setupColumnToggles();
+        }
+    }
+
+    setupColumnToggles() {
+        const checkboxes = document.querySelectorAll('#loansColumnPanel input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                this.toggleColumn(e.target.value, e.target.checked);
+            });
+        });
+    }
+
+    toggleColumn(columnName, show) {
+        const table = document.getElementById('loansTable');
+        if (!table) return;
+        
+        const headerCell = table.querySelector(`th[data-column="${columnName}"]`);
+        const dataCells = table.querySelectorAll(`td[data-column="${columnName}"]`);
+        
+        if (headerCell) {
+            headerCell.style.display = show ? '' : 'none';
+        }
+        
+        dataCells.forEach(cell => {
+            cell.style.display = show ? '' : 'none';
+        });
+    }
+
+    showAllColumns() {
+        const checkboxes = document.querySelectorAll('#loansColumnPanel input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            this.toggleColumn(checkbox.value, true);
+        });
+    }
+
+    hideAllColumns() {
+        const checkboxes = document.querySelectorAll('#loansColumnPanel input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            if (checkbox.value !== 'loan_id' && checkbox.value !== 'actions') { // Keep essential columns
+                checkbox.checked = false;
+                this.toggleColumn(checkbox.value, false);
+            }
+        });
+    }
+
+    resetColumnVisibility() {
+        const defaultColumns = ['loan_id', 'borrower_name', 'loan_amount', 'installment', 'status', 'actions'];
+        const checkboxes = document.querySelectorAll('#loansColumnPanel input[type="checkbox"]');
+        
+        checkboxes.forEach(checkbox => {
+            const shouldShow = defaultColumns.includes(checkbox.value);
+            checkbox.checked = shouldShow;
+            this.toggleColumn(checkbox.value, shouldShow);
+        });
+    }
+
+    // Edit loan payment
+    async editLoanPayment(paymentId) {
+        try {
+            // Get payment details first
+            const result = await apiCall('/admin/all-loan-payments');
+            const payment = result.loanPayments.find(p => p.loan_id === paymentId);
+            
+            if (!payment) {
+                showToast('الدفعة غير موجودة', 'error');
+                return;
+            }
+
+            let modalContent = `
+                <form id="editLoanPaymentForm">
+                    <div class="form-group">
+                        <label>مبلغ الدفعة</label>
+                        <input type="number" name="amount" step="0.001" 
+                               value="${payment.payment_amount}" 
+                               required min="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label>الملاحظة</label>
+                        <textarea name="memo" rows="3">${payment.memo || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>الحالة</label>
+                        <select name="status" required>
+                            <option value="pending" ${payment.status === 'pending' ? 'selected' : ''}>معلق</option>
+                            <option value="accepted" ${payment.status === 'accepted' ? 'selected' : ''}>مقبول</option>
+                            <option value="rejected" ${payment.status === 'rejected' ? 'selected' : ''}>مرفوض</option>
+                        </select>
+                    </div>
+                </form>
+            `;
+
+            modalContent += `
+                <div class="modal-actions">
+                    <button onclick="loansManagement.saveLoanPaymentEdit(${paymentId})" class="btn btn-success">
+                        <i class="fas fa-save"></i> تحديث
+                    </button>
+                    <button onclick="hideModal()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                </div>
+            `;
+            
+            showModal('تعديل دفعة القرض', modalContent);
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Save loan payment edit
+    async saveLoanPaymentEdit(paymentId) {
+        try {
+            const form = document.getElementById('editLoanPaymentForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+
+            await apiCall(`/admin/update-loan-payment/${paymentId}`, 'PUT', data);
+            showToast('تم تحديث دفعة القرض بنجاح', 'success');
+            hideModal();
+            await this.loadTab(this.currentTab); // Refresh data
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Delete loan payment
+    async deleteLoanPayment(paymentId) {
+        if (!confirm('هل أنت متأكد من حذف دفعة القرض هذه؟ هذا الإجراء لا يمكن التراجع عنه.')) {
+            return;
+        }
+
+        try {
+            showLoading(true);
+            await apiCall(`/admin/delete-loan-payment/${paymentId}`, 'DELETE');
+            showToast('تم حذف دفعة القرض بنجاح', 'success');
+            await this.loadTab(this.currentTab); // Refresh data
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // View loan payment details (simple version for loan installments)
+    async viewLoanPaymentDetails(paymentId) {
+        try {
+            const result = await apiCall('/admin/all-loan-payments');
+            const payment = result.loanPayments.find(p => p.loan_id === paymentId);
+            
+            if (!payment) {
+                showToast('الدفعة غير موجودة', 'error');
+                return;
+            }
+
+            // Get user details to ensure we have phone number
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${payment.user_id}`);
+                userDetails = userResult.user;
+            } catch (error) {
+                console.warn('Could not fetch user details:', error);
+            }
+
+            // Use phone from user details or fallback to payment data
+            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || payment.phone;
+            const userName = userDetails?.Aname || payment.user_name || 'غير محدد';
+
+            const modalContent = `
+                <div class="payment-details">
+                    <div class="detail-row">
+                        <label>رقم الدفعة:</label>
+                        <span>#${payment.loan_id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>المقترض:</label>
+                        <span>${userName} (ID: ${payment.user_id})</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>رقم القرض:</label>
+                        <span>#${payment.target_loan_id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>مبلغ الدفعة:</label>
+                        <span class="amount">${formatCurrency(payment.payment_amount)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>إجمالي القرض:</label>
+                        <span>${formatCurrency(payment.loan_amount)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>المسدد:</label>
+                        <span>${formatCurrency(payment.total_paid_for_loan)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>المتبقي:</label>
+                        <span>${formatCurrency(Math.max(0, payment.remaining_amount))}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>الحالة:</label>
+                        <span class="status-badge ${payment.status}">
+                            ${payment.status === 'accepted' ? 'مقبول' : 
+                              payment.status === 'pending' ? 'معلق' : 'مرفوض'}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <label>تاريخ الدفع:</label>
+                        <span>${new Date(payment.payment_date).toLocaleDateString('en-US')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <label>الإداري:</label>
+                        <span>${payment.admin_name || 'غير محدد'}</span>
+                    </div>
+                    
+                    <div class="modal-actions" style="margin-top: 20px; text-align: center;">
+                        ${payment.status === 'pending' ? `
+                            <button onclick="loansManagement.approvePayment(${paymentId}); hideModal();" class="btn btn-success">
+                                <i class="fas fa-check"></i> موافقة
+                            </button>
+                            <button onclick="loansManagement.rejectPayment(${paymentId}); hideModal();" class="btn btn-danger">
+                                <i class="fas fa-times"></i> رفض
+                            </button>
+                        ` : ''}
+                        ${phoneNumber ? `
+                            <button onclick="loansManagement.retryLoanWhatsAppNotification(${payment.user_id}, '${userName}', 'loan_payment', ${paymentId})" class="btn btn-primary">
+                                <i class="fab fa-whatsapp"></i> إعادة إرسال واتساب
+                            </button>
+                        ` : ''}
+                        <button onclick="hideModal()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إغلاق
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            showModal('تفاصيل دفعة القرض', modalContent);
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Retry WhatsApp notification for loan payment (simple version)
+    async retryLoanWhatsAppNotification(userId, userName, type, paymentId) {
+        try {
+            // Get payment details
+            const result = await apiCall('/admin/all-loan-payments');
+            const payment = result.loanPayments.find(p => p.loan_id === paymentId);
+            
+            if (!payment) {
+                showToast('لا يمكن العثور على الدفعة', 'error');
+                return;
+            }
+
+            // Get user details for phone number
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${userId}`);
+                userDetails = userResult.user;
+            } catch (error) {
+                console.warn('Could not fetch user details:', error);
+            }
+
+            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || payment.phone;
+            
+            if (!phoneNumber) {
+                showToast('لا يمكن العثور على رقم الهاتف للمستخدم', 'error');
+                return;
+            }
+
+            // Send WhatsApp notification based on payment status
+            if (payment.status === 'accepted') {
+                const paymentAmount = FormatHelper.formatCurrency(payment.payment_amount);
+                const totalPaid = FormatHelper.formatCurrency(payment.total_paid_for_loan);
+                const loanAmount = FormatHelper.formatCurrency(payment.loan_amount);
+                const remainingAmount = FormatHelper.formatCurrency(Math.max(0, payment.remaining_amount));
+                
+                const success = Utils.sendWhatsAppNotification(
+                    phoneNumber,
+                    userName,
+                    'loanPaymentApproved',
+                    null,
+                    paymentAmount,
+                    totalPaid,
+                    loanAmount,
+                    remainingAmount
+                );
+                
+                if (success) {
+                    showToast(`تم إرسال إشعار موافقة دفعة القرض عبر الواتساب إلى ${userName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else if (payment.status === 'rejected') {
+                const paymentAmount = FormatHelper.formatCurrency(payment.payment_amount);
+                
+                const success = Utils.sendWhatsAppNotification(
+                    phoneNumber,
+                    userName,
+                    'loanPaymentRejected',
+                    null,
+                    paymentAmount
+                );
+                
+                if (success) {
+                    showToast(`تم إرسال إشعار رفض دفعة القرض عبر الواتساب إلى ${userName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else {
+                showToast('لا يمكن إرسال إشعار لدفعة معلقة', 'warning');
+            }
+        } catch (error) {
+            console.error('Error retrying WhatsApp notification:', error);
+            showToast('حدث خطأ في إرسال الإشعار', 'error');
+        }
+    }
+
+    // Retry WhatsApp notification for loan payment (enhanced version)
+    async retryWhatsAppNotification(userId, userName, type, paymentId) {
+        try {
+            // Get payment details
+            const result = await apiCall('/admin/all-loan-payments');
+            const payment = result.loanPayments.find(p => p.loan_id === paymentId);
+            
+            if (!payment || !payment.phone) {
+                showToast('لا يمكن العثور على رقم الهاتف للمستخدم', 'error');
+                return;
+            }
+
+            // Get loan details for complete information
+            let loan = null;
+            try {
+                const loansResult = await apiCall('/admin/all-loans');
+                loan = loansResult.loans.find(l => l.loan_id === payment.target_loan_id);
+            } catch (error) {
+                console.warn('Could not fetch loan details:', error);
+            }
+
+            // Determine template type based on payment status
+            let templateType;
+            const paymentAmount = `${Utils.formatCurrency(payment.credit)} د.ك`;
+            
+            if (payment.status === 'accepted') {
+                templateType = 'loanPaymentApproved';
+                
+                // Calculate loan progress
+                const loanAmount = loan ? `${Utils.formatCurrency(loan.loan_amount)} د.ك` : 'غير محدد';
+                const totalPaid = payment.total_paid_for_loan ? `${Utils.formatCurrency(payment.total_paid_for_loan)} د.ك` : paymentAmount;
+                const remainingAmount = payment.remaining_amount ? `${Utils.formatCurrency(Math.max(0, payment.remaining_amount))} د.ك` : 'غير محدد';
+                
+                // Get user financials for additional context
+                let userFinancials = null;
+                try {
+                    const userResult = await apiCall(`/admin/user-details/${userId}`);
+                    userFinancials = {
+                        totalSubscriptions: userResult.user?.financialSummary?.totalSubscriptions || '0.000'
+                    };
+                } catch (error) {
+                    console.warn('Could not fetch user financials:', error);
+                }
+                
+                const success = Utils.sendWhatsAppNotification(
+                    payment.phone, 
+                    userName, 
+                    templateType, 
+                    userFinancials,
+                    paymentAmount, 
+                    totalPaid, 
+                    loanAmount, 
+                    remainingAmount
+                );
+                
+                if (success) {
+                    showToast(`تم إرسال إشعار الموافقة على الدفعة عبر الواتساب إلى ${userName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else if (payment.status === 'rejected') {
+                templateType = 'loanPaymentRejected';
+                const success = Utils.sendWhatsAppNotification(payment.phone, userName, templateType, null, paymentAmount);
+                if (success) {
+                    showToast(`تم إرسال إشعار الرفض عبر الواتساب إلى ${userName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else {
+                showToast('لا يمكن إرسال إشعار لدفعة معلقة', 'warning');
+            }
+        } catch (error) {
+            console.error('Error retrying WhatsApp notification:', error);
+            showToast('حدث خطأ في إرسال الإشعار', 'error');
+        }
+    }
+
+    // Retry WhatsApp notification for loan approval/rejection
+    async retryLoanWhatsAppNotification(userId, userName, loanId) {
+        try {
+            // Get loan details
+            const result = await apiCall(`/admin/loan-details/${loanId}`);
+            const loan = result.loan;
+            
+            if (!loan || !(loan.phone || loan.whatsapp)) {
+                showToast('لا يمكن العثور على رقم الهاتف للمستخدم', 'error');
+                return;
+            }
+
+            // Get user details for phone number and financials
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${userId}`);
+                userDetails = userResult.user;
+            } catch (error) {
+                console.warn('Could not fetch user details:', error);
+            }
+
+            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || loan.whatsapp || loan.phone;
+            const fullUserName = userDetails?.Aname || loan.full_name || userName;
+
+            // Determine template type based on loan status
+            let templateType;
+            const loanAmount = `${Utils.formatCurrency(loan.loan_amount)} د.ك`;
+            
+            if (loan.status === 'approved') {
+                templateType = 'loanApproved';
+                const installmentAmount = `${Utils.formatCurrency(loan.installment_amount)} د.ك`;
+                const numberOfInstallments = loan.installment_amount > 0 ? Math.max(6, Math.ceil(loan.loan_amount / loan.installment_amount)) : 'غير محسوب';
+                
+                // Get user financials for additional context
+                let userFinancials = null;
+                if (userDetails) {
+                    userFinancials = {
+                        totalSubscriptions: userDetails.financialSummary?.totalSubscriptions || '0.000'
+                    };
+                }
+                
+                const success = Utils.sendWhatsAppNotification(
+                    phoneNumber, 
+                    fullUserName, 
+                    templateType, 
+                    userFinancials,
+                    loanAmount, 
+                    installmentAmount, 
+                    numberOfInstallments
+                );
+                
+                if (success) {
+                    showToast(`تم إرسال إشعار الموافقة على القرض عبر الواتساب إلى ${fullUserName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else if (loan.status === 'rejected') {
+                templateType = 'loanRejected';
+                const success = Utils.sendWhatsAppNotification(phoneNumber, fullUserName, templateType, null, loanAmount);
+                if (success) {
+                    showToast(`تم إرسال إشعار الرفض عبر الواتساب إلى ${fullUserName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else {
+                showToast('لا يمكن إرسال إشعار لقرض معلق', 'warning');
+            }
+        } catch (error) {
+            console.error('Error retrying loan WhatsApp notification:', error);
+            showToast('حدث خطأ في إرسال الإشعار', 'error');
         }
     }
 }

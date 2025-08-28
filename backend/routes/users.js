@@ -31,4 +31,7 @@ router.post('/request-deposit', transactionRoutes);
 router.post('/feedback', messageRoutes);
 router.post('/reset-password', dashboardRoutes);
 
+// User cancellation endpoints
+router.delete('/cancel-transaction/:transactionId', transactionRoutes);
+
 module.exports = router;

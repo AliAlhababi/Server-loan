@@ -31,11 +31,17 @@ const Utils = {
     },
     
     // Terms content template
-    getTermsContent: () => `
+    getTermsContent: (brandName = null) => {
+        // Use provided brand name, global brandConfig, or fallback
+        const finalBrandName = brandName || 
+                              (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 
+                              'درع العائلة';
+        
+        return `
         <div class="terms-header">
             <div class="welcome-notice">
                 <h2 style="color: #007bff; text-align: center; margin-bottom: 15px;">
-                    <i class="fas fa-shield-alt"></i> مرحباً بكم في صندوق درع العائلة
+                    <i class="fas fa-shield-alt"></i> مرحباً بكم في ${finalBrandName}
                 </h2>
                 <p style="text-align: center; font-size: 16px; color: #666; margin-bottom: 20px;">
                     يرجى قراءة الشروط والأحكام التالية بعناية قبل التسجيل
@@ -123,11 +129,14 @@ const Utils = {
                 </p>
             </div>
         </div>
-    `,
+        `;
+    },
     
     // Initialize terms content
     initTermsContent: () => {
-        const termsContent = Utils.getTermsContent();
+        // Get brand name from global brandConfig or use null for default
+        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || null;
+        const termsContent = Utils.getTermsContent(brandName);
         ['termsContentTemplate', 'terms-content-placeholder', 'terms-content-modal', 'terms-content-popup']
             .forEach(id => {
                 const el = Utils.$(id) || document.querySelector(`.${id}`);
@@ -176,19 +185,83 @@ const Utils = {
         }
     },
 
-    // Open WhatsApp chat in new window (defaults to WhatsApp Web)
-    openWhatsAppChat: (phoneNumber, message = '', useWeb = true) => {
+    // WhatsApp window reference for tab reuse
+    _whatsappWindow: null,
+
+    // Detect if user is on mobile device
+    isMobileDevice: () => {
+        // More comprehensive mobile detection
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(navigator.userAgent) ||
+               (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) ||
+               window.innerWidth <= 768;
+    },
+
+    // Open WhatsApp chat with smart tab reuse and mobile fallback
+    openWhatsAppChat: (phoneNumber, message = '', useWeb = null) => {
+        const isMobile = Utils.isMobileDevice();
+        
+        // Auto-detect best method if not specified
+        if (useWeb === null) {
+            useWeb = !isMobile;
+        }
+
+        // Force mobile method for mobile devices regardless of useWeb parameter
+        if (isMobile) {
+            useWeb = false;
+        }
+
         const url = Utils.getWhatsAppChatUrl(phoneNumber, message, useWeb);
-        if (url) {
-            // Open in new tab with specific window features for WhatsApp Web
-            if (useWeb) {
-                window.open(url, '_blank', 'width=1200,height=700,scrollbars=yes,resizable=yes');
+        if (!url) {
+            console.warn('Could not generate WhatsApp URL for phone:', phoneNumber);
+            return false;
+        }
+
+        console.log('Opening WhatsApp:', { isMobile, useWeb, url });
+
+        try {
+            if (useWeb && !isMobile) {
+                // Desktop: Try to reuse existing WhatsApp Web tab/window
+                try {
+                    if (Utils._whatsappWindow && !Utils._whatsappWindow.closed && Utils._whatsappWindow.location) {
+                        // Successfully reuse existing window
+                        Utils._whatsappWindow.location.href = url;
+                        Utils._whatsappWindow.focus();
+                        console.log('Reused existing WhatsApp Web tab');
+                    } else {
+                        throw new Error('Need new window');
+                    }
+                } catch (e) {
+                    // Create new window with unique name to prevent conflicts
+                    const windowName = 'whatsapp_web_' + Date.now();
+                    Utils._whatsappWindow = window.open(url, windowName, 'width=1200,height=700,scrollbars=yes,resizable=yes');
+                    console.log('Opened new WhatsApp Web tab');
+                }
             } else {
-                window.open(url, '_blank', 'noopener,noreferrer');
+                // Mobile: Use wa.me link to open in WhatsApp app directly
+                if (isMobile) {
+                    // On mobile, open in new tab/app without redirecting current page
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    console.log('Opened WhatsApp app link on mobile');
+                } else {
+                    // Desktop fallback to wa.me
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    console.log('Opened wa.me link on desktop');
+                }
             }
             return true;
+        } catch (error) {
+            console.error('Error opening WhatsApp:', error);
+            // Fallback: try mobile version if web version fails
+            if (useWeb && !isMobile) {
+                const mobileUrl = Utils.getWhatsAppChatUrl(phoneNumber, message, false);
+                if (mobileUrl) {
+                    window.open(mobileUrl, '_blank', 'noopener,noreferrer');
+                    console.log('Fallback to mobile URL');
+                    return true;
+                }
+            }
+            return false;
         }
-        return false;
     },
 
     // Open WhatsApp Web specifically (explicit method)
@@ -202,13 +275,19 @@ const Utils = {
     },
 
     // WhatsApp notification message templates
-    getWhatsAppTemplates: () => ({
+    getWhatsAppTemplates: (brandName = null) => {
+        // Use provided brand name, global brandConfig, or fallback
+        const finalBrandName = brandName || 
+                              (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 
+                              'درع العائلة';
+        
+        return {
         joiningFeeApproved: (userName, userFinancials = null) => {
-            let message = `🛡️ درع العائلة - اعتماد العضوية
+            let message = `🛡️ ${finalBrandName} - اعتماد العضوية
 
 مبروك ${userName}! 🎉
 
-تم اعتماد رسوم الانضمام وأصبحت عضواً فعالاً في صندوق درع العائلة.`;
+تم اعتماد رسوم الانضمام وأصبحت عضواً فعالاً في ${finalBrandName}.`;
 
             if (userFinancials) {
                 message += `\n\n💰 إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
@@ -228,12 +307,12 @@ const Utils = {
 <!-- • الهدف: 240 د.ك خلال 24 شهر للتأهل للقروض --> <!-- TEMPORARILY DISABLED -->
 • بعد سنة كاملة ستصبح مؤهلاً لطلب القروض
 
-أهلاً وسهلاً بك في عائلة درع العائلة
+أهلاً وسهلاً بك في عائلة ${finalBrandName}
 إدارة الصندوق`;
             return message;
         },
 
-        joiningFeeRejected: (userName) => `🛡️ درع العائلة - تحديث العضوية
+        joiningFeeRejected: (userName) => `🛡️ ${finalBrandName} - تحديث العضوية
 
 مرحباً ${userName}
 
@@ -242,10 +321,10 @@ const Utils = {
 📞 يرجى التواصل معنا للاستفسار عن الأسباب والخطوات المطلوبة.
 
 شكراً لتفهمك
-إدارة درع العائلة`,
+إدارة ${finalBrandName}`,
 
         loanApproved: (userName, loanAmount, installmentAmount, numberOfInstallments, userFinancials = null) => {
-            let message = `🛡️ درع العائلة - اعتماد القرض
+            let message = `🛡️ ${finalBrandName} - اعتماد القرض
 
 مبروك ${userName}! 💰
 
@@ -261,11 +340,11 @@ const Utils = {
 • التواصل معنا عند الحاجة
 
 تهانينا وبالتوفيق!
-إدارة درع العائلة`;
+إدارة ${finalBrandName}`;
             return message;
         },
 
-        loanRejected: (userName, loanAmount) => `🛡️ درع العائلة - تحديث طلب القرض
+        loanRejected: (userName, loanAmount) => `🛡️ ${finalBrandName} - تحديث طلب القرض
 
 مرحباً ${userName}
 
@@ -274,7 +353,7 @@ const Utils = {
 📞 يرجى التواصل معنا للاستفسار عن الأسباب وإمكانية إعادة التقديم لاحقاً.
 
 شكراً لتفهمك
-إدارة درع العائلة`,
+إدارة ${finalBrandName}`,
 
         transactionApproved: (userName, amount, transactionType, userFinancials = null) => {
             const typeText = {
@@ -284,27 +363,42 @@ const Utils = {
                 'joining_fee': 'رسوم الانضمام'
             }[transactionType] || 'المعاملة';
 
-            let message = `🛡️ درع العائلة - قبول ${typeText}
+            let message = `🛡️ ${finalBrandName} - قبول ${typeText}
 
 مرحباً ${userName} ✅
 
 تم قبول ${typeText} بمبلغ ${amount} بنجاح.`;
 
-            if (userFinancials && transactionType === 'subscription') {
-                message += `\n\n💰 إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+            if (userFinancials) {
+                message += `\n\n💰 تفاصيل الحساب:`;
                 
-                /* TEMPORARILY DISABLED - 240 KWD requirement
-                const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
-                if (remaining > 0) {
-                    message += `\n• المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
-                } else {
-                    message += `\n• 🎉 مبروك! وصلت للحد المطلوب للتأهل للقروض`;
+                // Show current balance
+                if (userFinancials.currentBalance !== undefined) {
+                    message += `\n• رصيدك الحالي: ${Utils.formatCurrency(userFinancials.currentBalance)} د.ك`;
                 }
-                */
+                
+                // Show transaction amount
+                if (userFinancials.transactionAmount) {
+                    message += `\n• مبلغ المعاملة: ${Utils.formatCurrency(userFinancials.transactionAmount)} د.ك`;
+                }
+                
+                // Show subscription total for subscription payments
+                if (transactionType === 'subscription' && userFinancials.totalSubscriptions) {
+                    message += `\n• إجمالي اشتراكاتك: ${userFinancials.totalSubscriptions} د.ك`;
+                    
+                    /* TEMPORARILY DISABLED - 240 KWD requirement
+                    const remaining = Math.max(0, 240 - parseFloat(userFinancials.totalSubscriptions));
+                    if (remaining > 0) {
+                        message += `\n• المتبقي للوصول لـ240 د.ك: ${remaining.toFixed(3)} د.ك`;
+                    } else {
+                        message += `\n• 🎉 مبروك! وصلت للحد المطلوب للتأهل للقروض`;
+                    }
+                    */
+                }
             }
 
             message += `\n\nشكراً لك
-إدارة درع العائلة`;
+إدارة ${finalBrandName}`;
             return message;
         },
 
@@ -316,7 +410,7 @@ const Utils = {
                 'joining_fee': 'رسوم الانضمام'
             }[transactionType] || 'المعاملة';
 
-            return `🛡️ درع العائلة - رفض ${typeText}
+            return `🛡️ ${finalBrandName} - رفض ${typeText}
 
 مرحباً ${userName}
 
@@ -325,7 +419,7 @@ const Utils = {
 📞 يرجى التواصل معنا للاستفسار عن الأسباب.
 
 شكراً لتفهمك
-إدارة درع العائلة`;
+إدارة ${finalBrandName}`;
         },
 
         loanPaymentApproved: (userName, paymentAmount, totalPaid, loanAmount, remainingAmount, userFinancials = null) => {
@@ -339,7 +433,7 @@ const Utils = {
             const completionPercentage = numericLoanAmount > 0 ? Math.round((numericTotalPaid / numericLoanAmount) * 100) : 0;
             const isCompleted = recalculatedRemaining <= 0.01; // Allow for small decimal precision errors
 
-            let message = `🛡️ درع العائلة - قبول دفعة القرض
+            let message = `🛡️ ${finalBrandName} - قبول دفعة القرض
 
 مرحباً ${userName} ✅
 
@@ -359,11 +453,11 @@ const Utils = {
             }
 
             message += `\n\nشكراً لك
-إدارة درع العائلة`;
+إدارة ${finalBrandName}`;
             return message;
         },
 
-        loanPaymentRejected: (userName, paymentAmount) => `🛡️ درع العائلة - رفض دفعة القرض
+        loanPaymentRejected: (userName, paymentAmount) => `🛡️ ${finalBrandName} - رفض دفعة القرض
 
 مرحباً ${userName}
 
@@ -372,12 +466,15 @@ const Utils = {
 📞 يرجى التواصل معنا للاستفسار عن الأسباب وإعادة تقديم الدفعة.
 
 شكراً لتفهمك
-إدارة درع العائلة`
-    }),
+إدارة ${finalBrandName}`
+        };
+    },
 
     // Send WhatsApp notification after approval
     sendWhatsAppNotification: (phoneNumber, userName, templateType, userFinancials = null, ...templateArgs) => {
-        const templates = Utils.getWhatsAppTemplates();
+        // Get brand name from global brandConfig or use null for default
+        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || null;
+        const templates = Utils.getWhatsAppTemplates(brandName);
         let message = '';
 
         try {

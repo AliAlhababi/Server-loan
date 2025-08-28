@@ -124,25 +124,84 @@ class LoanManagementController {
   });
 
   static getPendingLoans = asyncHandler(async (req, res) => {
+    // Enhanced query that detects multiple pending loans per user
     const query = `
-      SELECT rl.*, u.Aname as full_name, u.user_type, u.balance as current_balance
+      SELECT rl.*, u.Aname as full_name, u.user_type, u.balance as current_balance,
+             COALESCE(paid_summary.total_paid, 0) as total_paid,
+             ROUND(rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount,
+             -- Add warning flags for multiple loans
+             (SELECT COUNT(*) FROM requested_loan rl2 
+              WHERE rl2.user_id = rl.user_id AND rl2.status = 'pending') as user_pending_loans_count,
+             (SELECT GROUP_CONCAT(rl3.loan_id ORDER BY rl3.request_date) 
+              FROM requested_loan rl3 
+              WHERE rl3.user_id = rl.user_id AND rl3.status = 'pending' AND rl3.loan_id != rl.loan_id) as other_pending_loan_ids
       FROM requested_loan rl
       JOIN users u ON rl.user_id = u.user_id
+      LEFT JOIN (
+        SELECT target_loan_id, SUM(credit) as total_paid
+        FROM loan 
+        WHERE status = 'accepted'
+        GROUP BY target_loan_id
+      ) paid_summary ON rl.loan_id = paid_summary.target_loan_id
       WHERE rl.status = 'pending'
-      ORDER BY rl.request_date ASC
+      ORDER BY 
+        -- Show multiple loan cases first (critical alerts)
+        (SELECT COUNT(*) FROM requested_loan rl2 WHERE rl2.user_id = rl.user_id AND rl2.status = 'pending') DESC,
+        rl.request_date ASC
     `;
 
     const loans = await DatabaseService.executeQuery(query);
-    ResponseHelper.success(res, { loans }, 'تم جلب طلبات القروض المعلقة بنجاح');
+    
+    // Detect and flag users with multiple pending loans
+    const multipleLoanUsers = [];
+    const processedUsers = new Set();
+    
+    loans.forEach(loan => {
+      if (loan.user_pending_loans_count > 1 && !processedUsers.has(loan.user_id)) {
+        multipleLoanUsers.push({
+          user_id: loan.user_id,
+          user_name: loan.full_name,
+          pending_count: loan.user_pending_loans_count,
+          loan_ids: [loan.loan_id, ...(loan.other_pending_loan_ids ? loan.other_pending_loan_ids.split(',').map(id => parseInt(id)) : [])],
+          total_requested_amount: 0 // Will be calculated below
+        });
+        processedUsers.add(loan.user_id);
+      }
+    });
+    
+    // Calculate total requested amounts for multiple loan users
+    for (const user of multipleLoanUsers) {
+      user.total_requested_amount = loans
+        .filter(loan => loan.user_id === user.user_id)
+        .reduce((sum, loan) => sum + parseFloat(loan.loan_amount), 0);
+    }
+    
+    console.log(`🚨 Found ${multipleLoanUsers.length} users with multiple pending loans:`, multipleLoanUsers);
+    
+    ResponseHelper.success(res, { 
+      loans, 
+      multipleLoanAlerts: multipleLoanUsers,
+      hasMultipleLoanIssues: multipleLoanUsers.length > 0
+    }, 'تم جلب طلبات القروض المعلقة بنجاح');
   });
 
   static getAllLoans = asyncHandler(async (req, res) => {
     console.log('📋 Admin requesting all loans...');
     
     const query = `
-      SELECT rl.*, u.Aname as full_name, u.user_type, u.balance as current_balance
+      SELECT rl.*, u.Aname as full_name, u.user_type, u.balance as current_balance,
+             admin.Aname as admin_name,
+             COALESCE(paid_summary.total_paid, 0) as total_paid,
+             ROUND(rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount
       FROM requested_loan rl
       JOIN users u ON rl.user_id = u.user_id
+      LEFT JOIN users admin ON rl.admin_id = admin.user_id
+      LEFT JOIN (
+        SELECT target_loan_id, SUM(credit) as total_paid
+        FROM loan 
+        WHERE status = 'accepted'
+        GROUP BY target_loan_id
+      ) paid_summary ON rl.loan_id = paid_summary.target_loan_id
       ORDER BY rl.request_date DESC
     `;
 
@@ -220,7 +279,7 @@ class LoanManagementController {
     }
 
     if (remainingAmount > originalAmount) {
-      return ResponseHelper.error(res, 'المبلغ المتبقي لا يمكن أن يكون أكبر من المبلغ الأصلي', 400);
+      return ResponseHelper.error(res, 'القرض لا يمكن أن يكون أكبر من المبلغ الأصلي', 400);
     }
 
     const { pool } = require('../config/database');
@@ -303,7 +362,7 @@ class LoanManagementController {
     }
 
     if (remainingAmount !== undefined && (remainingAmount < 0 || remainingAmount > loanAmount)) {
-      return ResponseHelper.error(res, 'المبلغ المتبقي يجب أن يكون بين 0 ومبلغ القرض', 400);
+      return ResponseHelper.error(res, 'القرض يجب أن يكون بين 0 ومبلغ القرض', 400);
     }
 
     const { pool } = require('../config/database');
@@ -366,7 +425,7 @@ class LoanManagementController {
               loan.user_id,
               loanId,
               paidDifference,
-              'تعديل المبلغ المتبقي - إضافة دفعة',
+              'تعديل القرض - إضافة دفعة',
               'accepted',
               new Date(),
               adminId
@@ -380,7 +439,7 @@ class LoanManagementController {
               loan.user_id,
               loanId,
               paidDifference, // This will be negative
-              'تعديل المبلغ المتبقي - تعديل دفعة',
+              'تعديل القرض - تعديل دفعة',
               'accepted',
               new Date(),
               adminId
@@ -390,7 +449,7 @@ class LoanManagementController {
       }
 
       await connection.commit();
-      ResponseHelper.success(res, {}, 'تم تحديث القرض والمبلغ المتبقي بنجاح');
+      ResponseHelper.success(res, {}, 'تم تحديث القرض بنجاح');
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -433,6 +492,139 @@ class LoanManagementController {
     } finally {
       connection.release();
     }
+  });
+
+  // Get multiple loan alerts for admin dashboard
+  static getMultipleLoanAlerts = asyncHandler(async (req, res) => {
+    console.log('🚨 Admin requesting multiple loan alerts...');
+    
+    const query = `
+      SELECT 
+        u.user_id,
+        u.Aname as user_name,
+        u.balance as current_balance,
+        COUNT(rl.loan_id) as pending_loan_count,
+        GROUP_CONCAT(rl.loan_id ORDER BY rl.request_date) as loan_ids,
+        GROUP_CONCAT(rl.loan_amount ORDER BY rl.request_date) as loan_amounts,
+        GROUP_CONCAT(DATE_FORMAT(rl.request_date, '%Y-%m-%d %H:%i') ORDER BY rl.request_date) as request_dates,
+        SUM(rl.loan_amount) as total_requested_amount,
+        MIN(rl.request_date) as first_request_date,
+        MAX(rl.request_date) as last_request_date,
+        -- Time difference between first and last request in minutes
+        TIMESTAMPDIFF(MINUTE, MIN(rl.request_date), MAX(rl.request_date)) as time_span_minutes
+      FROM users u
+      JOIN requested_loan rl ON u.user_id = rl.user_id
+      WHERE rl.status = 'pending'
+      GROUP BY u.user_id, u.Aname, u.balance
+      HAVING COUNT(rl.loan_id) > 1
+      ORDER BY 
+        COUNT(rl.loan_id) DESC,  -- Most loans first
+        time_span_minutes ASC,   -- Shortest time span first (likely race conditions)
+        first_request_date ASC
+    `;
+
+    const alerts = await DatabaseService.executeQuery(query);
+    
+    // Process alerts to add helpful metadata
+    const processedAlerts = alerts.map(alert => ({
+      ...alert,
+      loan_ids_array: alert.loan_ids.split(',').map(id => parseInt(id)),
+      loan_amounts_array: alert.loan_amounts.split(',').map(amount => parseFloat(amount)),
+      request_dates_array: alert.request_dates.split(','),
+      is_likely_race_condition: alert.time_span_minutes <= 5, // Requests within 5 minutes
+      severity: alert.pending_loan_count >= 3 ? 'critical' : 'high',
+      max_loan_allowed: Math.min(parseFloat(alert.current_balance) * 3, 10000)
+    }));
+    
+    console.log(`🚨 Found ${alerts.length} users with multiple pending loans`);
+    
+    ResponseHelper.success(res, { 
+      alerts: processedAlerts,
+      total_affected_users: alerts.length,
+      critical_cases: processedAlerts.filter(a => a.severity === 'critical').length,
+      likely_race_conditions: processedAlerts.filter(a => a.is_likely_race_condition).length
+    }, 'تم جلب تنبيهات القروض المتعددة بنجاح');
+  });
+
+  // Add new loan payment (Admin only)
+  static addLoanPayment = asyncHandler(async (req, res) => {
+    const { loanId, userId, amount, memo, status } = req.body;
+    const adminId = req.user.user_id;
+
+    // Validation
+    if (!loanId || !userId || !amount || amount <= 0) {
+      return ResponseHelper.error(res, 'يرجى تقديم بيانات صحيحة للدفعة', 400);
+    }
+
+    const { pool } = require('../config/database');
+
+    // Check if loan exists
+    const [loanCheck] = await pool.execute('SELECT loan_id, loan_amount FROM requested_loan WHERE loan_id = ?', [loanId]);
+    if (loanCheck.length === 0) {
+      return ResponseHelper.error(res, 'القرض غير موجود', 404);
+    }
+
+    // Check if user exists
+    const [userCheck] = await pool.execute('SELECT user_id FROM users WHERE user_id = ?', [userId]);
+    if (userCheck.length === 0) {
+      return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+    }
+
+    // Insert loan payment
+    const [result] = await pool.execute(`
+      INSERT INTO loan (target_loan_id, user_id, credit, memo, status, admin_id, date)
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
+    `, [loanId, userId, amount, memo || 'دفعة قرض', status || 'accepted', adminId]);
+
+    ResponseHelper.success(res, { paymentId: result.insertId }, 'تم إضافة دفعة القرض بنجاح');
+  });
+
+  // Update loan payment (Admin only)
+  static updateLoanPayment = asyncHandler(async (req, res) => {
+    const { paymentId } = req.params;
+    const { amount, memo, status } = req.body;
+    const adminId = req.user.user_id;
+
+    // Validation
+    if (!amount || amount <= 0) {
+      return ResponseHelper.error(res, 'يرجى تقديم مبلغ صحيح للدفعة', 400);
+    }
+
+    const { pool } = require('../config/database');
+
+    // Check if payment exists
+    const [paymentCheck] = await pool.execute('SELECT * FROM loan WHERE loan_id = ?', [paymentId]);
+    if (paymentCheck.length === 0) {
+      return ResponseHelper.error(res, 'الدفعة غير موجودة', 404);
+    }
+
+    const currentPayment = paymentCheck[0];
+
+    // Update loan payment
+    await pool.execute(`
+      UPDATE loan 
+      SET credit = ?, memo = ?, status = ?, admin_id = ?
+      WHERE loan_id = ?
+    `, [amount, memo || currentPayment.memo, status || currentPayment.status, adminId, paymentId]);
+
+    ResponseHelper.success(res, {}, 'تم تحديث دفعة القرض بنجاح');
+  });
+
+  // Delete loan payment (Admin only)
+  static deleteLoanPayment = asyncHandler(async (req, res) => {
+    const { paymentId } = req.params;
+    const { pool } = require('../config/database');
+
+    // Check if payment exists
+    const [paymentCheck] = await pool.execute('SELECT * FROM loan WHERE loan_id = ?', [paymentId]);
+    if (paymentCheck.length === 0) {
+      return ResponseHelper.error(res, 'الدفعة غير موجودة', 404);
+    }
+
+    // Delete loan payment
+    await pool.execute('DELETE FROM loan WHERE loan_id = ?', [paymentId]);
+
+    ResponseHelper.success(res, {}, 'تم حذف دفعة القرض بنجاح');
   });
 }
 

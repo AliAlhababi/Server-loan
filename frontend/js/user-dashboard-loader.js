@@ -152,12 +152,38 @@ class UserDashboardLoader {
 
                     // Load tab content
                     await this.loadTab(targetTab);
+                    
+                    // Scroll to tab content for priority tabs
+                    if (button.classList.contains('priority-tab')) {
+                        this.scrollToTabContent(targetTab);
+                    }
                 }
             });
         });
 
         // Setup priority action buttons
         this.setupPriorityActions();
+    }
+
+    // Scroll to tab content section
+    scrollToTabContent(targetTab) {
+        const tabContent = document.getElementById(`${targetTab}Tab`);
+        if (tabContent) {
+            // Scroll to the tab content with smooth animation
+            tabContent.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+            
+            // Alternative: Scroll to user dashboard tabs section
+            const tabsSection = document.querySelector('.user-dashboard-tabs');
+            if (tabsSection) {
+                tabsSection.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
     }
 
     // Setup priority action buttons
@@ -386,7 +412,9 @@ window.showDeposit = () => {
 };
 
 window.showMessages = () => {
-    showToast('سيتم إضافة الرسائل قريباً', 'info');
+    document.getElementById('messagesModal').style.display = 'block';
+    showMessagesTab('send'); // Default to send tab
+    loadMessageHistory(); // Load history in background
 };
 
 window.showLoanRequest = () => {
@@ -394,3 +422,152 @@ window.showLoanRequest = () => {
         window.userDashboardLoader.switchToTab('loan');
     }
 };
+
+// Messages Modal Functions
+window.closeMessagesModal = () => {
+    document.getElementById('messagesModal').style.display = 'none';
+};
+
+window.showMessagesTab = (tabName) => {
+    // Hide all tab contents
+    document.querySelectorAll('.messages-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.messages-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    const targetTab = document.getElementById(tabName + 'MessageTab');
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+    
+    // Add active class to the correct tab button
+    const tabButtons = document.querySelectorAll('.messages-tab');
+    if (tabName === 'send' && tabButtons[0]) {
+        tabButtons[0].classList.add('active');
+    } else if (tabName === 'history' && tabButtons[1]) {
+        tabButtons[1].classList.add('active');
+    }
+};
+
+window.loadMessageHistory = async () => {
+    try {
+        // Use userDashboardLoader to get user data
+        if (!window.userDashboardLoader || !window.userDashboardLoader.getUser()) {
+            showToast('خطأ في تحديد هوية المستخدم', 'error');
+            return;
+        }
+
+        const user = window.userDashboardLoader.getUser();
+        const result = await apiCall(`/messages/${user.user_id}`);
+        
+        if (result.success) {
+            displayMessageHistory(result.tickets);
+        } else {
+            throw new Error(result.message || 'فشل في تحميل الرسائل');
+        }
+    } catch (error) {
+        console.error('Error loading message history:', error);
+        document.getElementById('messageHistoryContent').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>حدث خطأ في تحميل الرسائل</p>
+            </div>
+        `;
+    }
+};
+
+window.displayMessageHistory = (tickets) => {
+    const historyContainer = document.getElementById('messageHistoryContent');
+    
+    if (!tickets || tickets.length === 0) {
+        historyContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
+                <p>لا توجد رسائل سابقة</p>
+                <small>ستظهر رسائلك هنا بعد إرسالها</small>
+            </div>
+        `;
+        return;
+    }
+
+    const messagesHTML = tickets.map(ticket => `
+        <div class="message-card">
+            <div class="message-header">
+                <div>
+                    <div class="message-subject">${ticket.subject}</div>
+                    <div class="message-meta">
+                        <span><i class="fas fa-calendar"></i> ${FormatHelper.formatDate(ticket.created_at)}</span>
+                        <span><i class="fas fa-tag"></i> ${ticket.category_arabic}</span>
+                    </div>
+                </div>
+                <div style="text-align: left;">
+                    <span class="message-status ${ticket.status}">${ticket.status_arabic}</span>
+                    <span class="message-priority ${ticket.priority}">${ticket.priority_arabic}</span>
+                </div>
+            </div>
+            <div class="message-content">
+                ${ticket.message.replace(/\n/g, '<br>')}
+            </div>
+            ${ticket.admin_notes ? `
+                <div class="message-admin-notes">
+                    <strong><i class="fas fa-user-shield"></i> ملاحظات الإدارة:</strong><br>
+                    ${ticket.admin_notes.replace(/\n/g, '<br>')}
+                    ${ticket.resolved_by_name ? `<br><small>بواسطة: ${ticket.resolved_by_name}</small>` : ''}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+
+    historyContainer.innerHTML = messagesHTML;
+};
+
+// Send Message Form Handler
+document.addEventListener('DOMContentLoaded', function() {
+    const sendMessageForm = document.getElementById('sendMessageForm');
+    if (sendMessageForm) {
+        sendMessageForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const messageData = {
+                subject: formData.get('subject'),
+                message: formData.get('message')
+            };
+
+            try {
+                // Disable submit button during request
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+                }
+                
+                const result = await apiCall('/messages', 'POST', messageData);
+                
+                if (result.success) {
+                    showToast(result.message || 'تم إرسال الرسالة بنجاح', 'success');
+                    e.target.reset();
+                    loadMessageHistory(); // Refresh history
+                    showMessagesTab('history'); // Switch to history tab
+                } else {
+                    throw new Error(result.message || 'فشل في إرسال الرسالة');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showToast(error.message || 'حدث خطأ في إرسال الرسالة', 'error');
+            } finally {
+                // Re-enable submit button
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الرسالة';
+                }
+            }
+        });
+    }
+});

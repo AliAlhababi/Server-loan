@@ -36,6 +36,16 @@ exports.updateLoan = LoanManagementController.updateLoan;
 exports.deleteLoan = LoanManagementController.deleteLoan;
 exports.getLoanPayments = LoanManagementController.getLoanPayments;
 
+// Transaction CRUD methods
+exports.addTransaction = TransactionController.addTransaction;
+exports.updateTransaction = TransactionController.updateTransaction;
+exports.deleteTransaction = TransactionController.deleteTransaction;
+
+// Loan Payment CRUD methods
+exports.addLoanPayment = LoanManagementController.addLoanPayment;
+exports.updateLoanPayment = LoanManagementController.updateLoanPayment;
+exports.deleteLoanPayment = LoanManagementController.deleteLoanPayment;
+
 // Re-export transaction methods
 exports.getPendingTransactions = TransactionController.getPendingTransactions;
 exports.getAllTransactions = TransactionController.getAllTransactions;

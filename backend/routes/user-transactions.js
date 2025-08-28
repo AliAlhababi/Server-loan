@@ -155,4 +155,39 @@ router.get('/subscription-status/:userId', verifyToken, requireOwnershipOrAdmin,
   }, 'تم جلب حالة الاشتراك بنجاح');
 }));
 
+// Cancel pending transaction (user can only cancel their own pending transactions)
+router.delete('/cancel-transaction/:transactionId', verifyToken, asyncHandler(async (req, res) => {
+  const transactionId = parseInt(req.params.transactionId);
+  const userId = req.user.user_id;
+
+  console.log(`User ${userId} attempting to cancel transaction ${transactionId}`);
+
+  // Get transaction details and verify ownership
+  const transaction = await DatabaseService.findById('transaction', transactionId, 'transaction_id');
+  
+  if (!transaction) {
+    return ResponseHelper.notFound(res, 'المعاملة غير موجودة');
+  }
+
+  // Check ownership
+  if (transaction.user_id !== userId) {
+    return ResponseHelper.error(res, 'ليس لديك صلاحية لإلغاء هذه المعاملة', 403);
+  }
+
+  // Check if transaction is pending
+  if (transaction.status !== 'pending') {
+    return ResponseHelper.error(res, 'لا يمكن إلغاء المعاملة إلا إذا كانت معلقة', 400);
+  }
+
+  // Delete the pending transaction
+  const affectedRows = await DatabaseService.delete('transaction', { transaction_id: transactionId });
+  
+  if (affectedRows === 0) {
+    return ResponseHelper.error(res, 'فشل في إلغاء المعاملة', 500);
+  }
+
+  console.log(`✅ Transaction ${transactionId} cancelled by user ${userId}`);
+  ResponseHelper.success(res, null, 'تم إلغاء المعاملة بنجاح');
+}));
+
 module.exports = router;

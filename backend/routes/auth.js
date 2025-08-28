@@ -25,7 +25,7 @@ router.post('/register', [
   }
 
   try {
-    const { fullName, email, phone, whatsapp, workplace, password } = req.body;
+    const { fullName, email, phone, whatsapp, password } = req.body;
 
     // Check if email already exists
     const [existingUsers] = await pool.execute(
@@ -45,9 +45,9 @@ router.post('/register', [
 
     // Insert new user
     const [result] = await pool.execute(
-      `INSERT INTO users (Aname, email, phone, whatsapp, workplace, password, user_type, balance, registration_date, joining_fee_approved, is_blocked) 
-       VALUES (?, ?, ?, ?, ?, ?, 'employee', 0, CURDATE(), 'pending', 0)`,
-      [fullName, email, phone, whatsapp || phone, workplace || '', hashedPassword]
+      `INSERT INTO users (Aname, email, phone, whatsapp, password, user_type, balance, registration_date, joining_fee_approved, is_blocked) 
+       VALUES (?, ?, ?, ?, ?, 'employee', 0, CURDATE(), 'pending', 0)`,
+      [fullName, email, phone, whatsapp || phone, hashedPassword]
     );
 
     const newUserId = result.insertId;
@@ -112,7 +112,7 @@ router.post('/login', [
 
     // Get user from database
     const [users] = await pool.execute(
-      'SELECT user_id, password, user_type, Aname, balance, is_blocked FROM users WHERE user_id = ?',
+      'SELECT user_id, password, user_type, Aname, email, phone, whatsapp, balance, registration_date, joining_fee_approved, is_blocked FROM users WHERE user_id = ?',
       [userId]
     );
 
@@ -162,9 +162,15 @@ router.post('/login', [
       user: {
         user_id: user.user_id,
         name: user.Aname,
+        email: user.email,
+        phone: user.phone,
+        whatsapp: user.whatsapp,
         user_type: user.user_type,
         balance: user.balance || 0,
         maxLoanAmount: maxLoanAmount,
+        registration_date: user.registration_date,
+        joining_fee_approved: user.joining_fee_approved,
+        is_blocked: user.is_blocked,
         isAdmin: user.user_type === 'admin'
       }
     });
@@ -182,7 +188,7 @@ router.post('/login', [
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const [users] = await pool.execute(
-      'SELECT user_id, Aname, email, phone, whatsapp, workplace, user_type, balance, registration_date, joining_fee_approved, is_blocked FROM users WHERE user_id = ?',
+      'SELECT user_id, Aname, email, phone, whatsapp, user_type, balance, registration_date, joining_fee_approved, is_blocked FROM users WHERE user_id = ?',
       [req.user.user_id]
     );
 
@@ -204,7 +210,6 @@ router.get('/me', verifyToken, async (req, res) => {
         email: user.email,
         phone: user.phone,
         whatsapp: user.whatsapp,
-        workplace: user.workplace,
         user_type: user.user_type,
         balance: user.balance || 0,
         maxLoanAmount: maxLoanAmount,

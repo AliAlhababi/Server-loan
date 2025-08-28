@@ -36,6 +36,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/loans', require('./routes/loans'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/family', require('./routes/family'));
+app.use('/api/messages', require('./routes/user-messages'));
 
 // Default route - serve main page
 app.get('/', (req, res) => {
@@ -59,15 +60,52 @@ async function startServer() {
     // Test database connection first
     await testConnection();
     
+    // Initialize memory monitoring
+    const memoryMonitor = require('./utils/MemoryMonitor');
+    memoryMonitor.startMonitoring(60); // Monitor every 60 seconds
+    
     app.listen(PORT, () => {
       console.log(`🚀 ${brandConfig.getBrandDisplayName()} يعمل على المنفذ ${PORT}`);
       console.log(`🌐 الرابط: http://localhost:${PORT}`);
       console.log(`📱 نظام إدارة القروض - ${process.env.APP_NAME}`);
+      console.log(`🔍 Memory monitoring started`);
     });
   } catch (error) {
     console.error('❌ فشل في تشغيل الخادم:', error.message);
     process.exit(1);
   }
 }
+
+// Heapdump signal handler (for development debugging)
+process.on('SIGUSR2', () => {
+  try {
+    const heapdump = require('heapdump');
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Create heapdumps directory if it doesn't exist
+    const heapdumpDir = path.join(__dirname, '../heapdumps');
+    if (!fs.existsSync(heapdumpDir)) {
+      fs.mkdirSync(heapdumpDir, { recursive: true });
+    }
+    
+    // Generate timestamp for filename
+    const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
+    const filename = `signal-heapdump-${timestamp}.heapsnapshot`;
+    const filePath = path.join(heapdumpDir, filename);
+    
+    console.log('🔍 Creating heapdump via SIGUSR2 signal...');
+    heapdump.writeSnapshot(filePath, (err, filename) => {
+      if (err) {
+        console.error('❌ Failed to create heapdump:', err);
+      } else {
+        const stats = fs.statSync(filename);
+        console.log(`✅ Heapdump created: ${path.basename(filename)} (${Math.round(stats.size / 1024 / 1024)}MB)`);
+      }
+    });
+  } catch (error) {
+    console.error('❌ Heapdump signal handler error:', error);
+  }
+});
 
 startServer();

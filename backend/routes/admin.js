@@ -3,6 +3,7 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/AdminController');
 const BackupController = require('../controllers/BackupController');
 const BankController = require('../controllers/BankController');
+const LoanManagementController = require('../controllers/LoanManagementController');
 
 const router = express.Router();
 
@@ -14,6 +15,9 @@ router.get('/financial-summary', verifyToken, requireAdmin, adminController.getF
 
 // Get pending loan requests
 router.get('/pending-loans', verifyToken, requireAdmin, adminController.getPendingLoans);
+
+// Get multiple loan alerts (SECURITY FIX)
+router.get('/multiple-loan-alerts', verifyToken, requireAdmin, LoanManagementController.getMultipleLoanAlerts);
 
 // Get all loans (pending, approved, rejected)
 router.get('/all-loans', verifyToken, requireAdmin, adminController.getAllLoans);
@@ -63,6 +67,16 @@ router.get('/test-error', verifyToken, requireAdmin, adminController.testError);
 router.post('/add-loan', verifyToken, requireAdmin, adminController.addLoan);
 router.put('/update-loan/:loanId', verifyToken, requireAdmin, adminController.updateLoan);
 router.delete('/delete-loan/:loanId', verifyToken, requireAdmin, adminController.deleteLoan);
+
+// Transaction CRUD operations
+router.post('/add-transaction', verifyToken, requireAdmin, adminController.addTransaction);
+router.put('/update-transaction/:transactionId', verifyToken, requireAdmin, adminController.updateTransaction);
+router.delete('/delete-transaction/:transactionId', verifyToken, requireAdmin, adminController.deleteTransaction);
+
+// Loan Payment CRUD operations
+router.post('/add-loan-payment', verifyToken, requireAdmin, adminController.addLoanPayment);
+router.put('/update-loan-payment/:paymentId', verifyToken, requireAdmin, adminController.updateLoanPayment);
+router.delete('/delete-loan-payment/:paymentId', verifyToken, requireAdmin, adminController.deleteLoanPayment);
 
 // Family delegation management endpoints
 router.get('/pending-family-delegations', verifyToken, requireAdmin, async (req, res) => {
@@ -206,6 +220,147 @@ router.get('/download-transactions-report', verifyToken, requireAdmin, BackupCon
 router.get('/download-arabic-pdf-report', verifyToken, requireAdmin, BackupController.downloadArabicPDFReport);
 router.get('/download-excel-backup', verifyToken, requireAdmin, BackupController.downloadExcelBackup);
 router.get('/download-excel-as-pdf', verifyToken, requireAdmin, BackupController.downloadExcelAsPDF);
+
+// Memory monitoring endpoints
+const memoryMonitor = require('../utils/MemoryMonitor');
+
+// Get memory status
+router.get('/memory-status', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const status = memoryMonitor.getStatus();
+    const growth = memoryMonitor.getGrowthAnalysis(10); // Last 10 minutes
+    
+    res.json({
+      success: true,
+      data: {
+        status,
+        growth,
+        uptime: Math.round(process.uptime()),
+        pid: process.pid
+      }
+    });
+  } catch (error) {
+    console.error('Memory status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في جلب حالة الذاكرة',
+      error: error.message
+    });
+  }
+});
+
+// Start/stop memory monitoring
+router.post('/memory-monitor/:action', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const { action } = req.params;
+    const { interval } = req.body;
+    
+    if (action === 'start') {
+      memoryMonitor.startMonitoring(interval || 30);
+      res.json({
+        success: true,
+        message: 'تم تشغيل مراقب الذاكرة',
+        interval: interval || 30
+      });
+    } else if (action === 'stop') {
+      memoryMonitor.stopMonitoring();
+      res.json({
+        success: true,
+        message: 'تم إيقاف مراقب الذاكرة'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'إجراء غير صحيح'
+      });
+    }
+  } catch (error) {
+    console.error('Memory monitor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في إدارة مراقب الذاكرة',
+      error: error.message
+    });
+  }
+});
+
+// Trigger garbage collection
+router.post('/trigger-gc', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const result = memoryMonitor.triggerGC();
+    
+    if (result.error) {
+      res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    } else {
+      res.json({
+        success: true,
+        message: `تم تنظيف الذاكرة - تم تحرير ${result.freed}MB`,
+        freed: result.freed,
+        before: Math.round(result.before.heapUsed / 1024 / 1024 * 100) / 100,
+        after: Math.round(result.after.heapUsed / 1024 / 1024 * 100) / 100
+      });
+    }
+  } catch (error) {
+    console.error('GC trigger error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في تنظيف الذاكرة',
+      error: error.message
+    });
+  }
+});
+
+// Heapdump trigger endpoint (admin only for debugging)
+router.post('/trigger-heapdump', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const heapdump = require('heapdump');
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Create heapdumps directory if it doesn't exist
+    const heapdumpDir = path.join(__dirname, '../../heapdumps');
+    if (!fs.existsSync(heapdumpDir)) {
+      fs.mkdirSync(heapdumpDir, { recursive: true });
+    }
+    
+    // Generate timestamp for filename
+    const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
+    const filename = `heapdump-${timestamp}.heapsnapshot`;
+    const filePath = path.join(heapdumpDir, filename);
+    
+    // Write heapdump
+    heapdump.writeSnapshot(filePath, (err, filename) => {
+      if (err) {
+        console.error('Failed to create heapdump:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'فشل في إنشاء heapdump',
+          error: err.message
+        });
+      }
+      
+      console.log(`Heapdump created: ${filename}`);
+      res.json({
+        success: true,
+        message: 'تم إنشاء heapdump بنجاح',
+        filename: path.basename(filename),
+        path: filename,
+        size: fs.statSync(filename).size,
+        timestamp: new Date().toISOString()
+      });
+    });
+  } catch (error) {
+    console.error('Heapdump trigger error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في تشغيل heapdump',
+      error: error.message
+    });
+  }
+});
 
 module.exports = router;
 

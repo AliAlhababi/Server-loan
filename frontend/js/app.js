@@ -74,7 +74,7 @@ function setupEventListeners() {
         ['loginForm', 'submit', handleLogin],
         ['logoutBtn', 'click', handleLogout],
         ['registerForm', 'submit', handleRegistration],
-        ['editProfileForm', 'submit', handleEditProfile],
+        // editProfileForm removed - now handled in personal-info-tab.js
         // calculateLoanBtn removed - now handled in loan request tab
         ['modalLoanConfirmation', 'change', toggleModalSubmitButton],
         ['confirmLoanRequestBtn', 'click', handleLoanRequestFromModal]
@@ -114,6 +114,25 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
             console.error('Status Text:', response.statusText);
             console.error('Result:', result);
             console.error('Result message:', result.message);
+            
+            // Handle authentication errors (JWT token issues)
+            if (response.status === 401) {
+                console.warn('Authentication failed - clearing token and reloading');
+                localStorage.removeItem('authToken');
+                
+                // Show user-friendly message and reload
+                if (typeof showToast === 'function') {
+                    showToast('انتهت جلسة الدخول. سيتم إعادة تحميل الصفحة...', 'warning');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    alert('انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى');
+                    window.location.reload();
+                }
+                return; // Don't throw error, let reload handle it
+            }
+            
             throw new Error(result.message || `خطأ في الخادم (${response.status})`);
         }
         return result;
@@ -142,20 +161,46 @@ async function handleLogin(e) {
     showLoading(true);
     
     try {
-        const result = await apiCall('/auth/login', 'POST', { userId, password });
+        // Use direct fetch to avoid auto-refresh on wrong credentials
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId, password })
+        });
         
+        const result = await response.json();
+        
+        if (!response.ok) {
+            // Show specific error message without page refresh
+            const errorMessage = result.message || 'خطأ في تسجيل الدخول';
+            showToast(errorMessage, 'error');
+            return; // Stay on login page
+        }
+        
+        // Success - save token and redirect
         token = result.token;
         currentUser = result.user;
         localStorage.setItem('authToken', token);
         
-        showToast('تم تسجيل الدخول بنجاح', 'success');
+        showToast(`مرحباً بك ${result.user.name}`, 'success');
+        updateHeaderUserName(result.user.name);
         showDashboard();
         
     } catch (error) {
         console.error('Login error:', error);
-        showToast(error.message, 'error');
+        showToast('خطأ في الاتصال بالخادم', 'error');
     } finally {
         showLoading(false);
+    }
+}
+
+// Update header user name
+function updateHeaderUserName(name) {
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl && name) {
+        userNameEl.textContent = `مرحباً، ${name}`;
     }
 }
 
@@ -167,6 +212,7 @@ async function verifyToken() {
         const result = await apiCall('/auth/me');
         console.log('Token verification result:', result);
         currentUser = result.user;
+        updateHeaderUserName(result.user.name);
         showDashboard();
         
     } catch (error) {
@@ -430,19 +476,49 @@ function updateCalculatorShortcut() {
 }
 
 // Loan Calculator Functions
+let calculatorTimeout;
 function handleCalculatorInput() {
-    // Auto-calculate when user inputs values
+    // Clear previous timeout
+    clearTimeout(calculatorTimeout);
+    
+    // Set a new timeout to delay calculation
+    calculatorTimeout = setTimeout(() => {
+        performAutoCalculation();
+    }, 800); // Wait 800ms after user stops typing
+}
+
+function performAutoCalculation() {
     const loanAmount = parseFloat(document.getElementById('calcLoanAmount').value) || 0;
     const balance = parseFloat(document.getElementById('calcBalance').value) || 0;
     const installment = parseFloat(document.getElementById('calcInstallment').value) || 0;
     
+    // Only auto-calculate if exactly one field is filled
+    const filledCount = [loanAmount > 0, balance > 0, installment > 0].filter(Boolean).length;
+    
+    if (filledCount !== 1) {
+        return; // Don't auto-calculate if 0 fields, or more than 1 field is filled
+    }
+    
     // Use the loan calculator class if available
-    if (window.LoanCalculator && loanAmount > 0 && balance > 0) {
+    if (window.LoanCalculator) {
         try {
             const calculator = new window.LoanCalculator();
-            const result = calculator.calculateInstallment(loanAmount, balance);
+            const inputs = {
+                loanAmount: loanAmount > 0 ? loanAmount : null,
+                balance: balance > 0 ? balance : null,
+                installment: installment > 0 ? installment : null
+            };
             
-            if (result && installment === 0) {
+            const result = calculator.autoCalculate(inputs);
+            
+            // Auto-fill empty fields with calculated values (without triggering more events)
+            if (result.loanAmount && loanAmount === 0) {
+                document.getElementById('calcLoanAmount').value = result.loanAmount.toFixed(3);
+            }
+            if (result.balance && balance === 0) {
+                document.getElementById('calcBalance').value = result.balance.toFixed(3);
+            }
+            if (result.installment && installment === 0) {
                 document.getElementById('calcInstallment').value = result.installment.toFixed(3);
             }
         } catch (error) {
@@ -478,59 +554,64 @@ function performLoanCalculation() {
         
         if (loanAmount > 0 && balance > 0 && installment > 0) {
             // Verify all three values
-            result = calculator.calculateFromLoanAndBalance(loanAmount, balance);
-            scenario = 'تم التحقق من صحة القيم المدخلة';
-        } else {
-            showToast('يرجى إدخال قيمتين على الأقل', 'error');
-            return;
+            scenario = result.note || 'تحقق من القيم المدخلة';
         }
         
-        if (result && result.valid) {
-            // Update form fields
+        // Update form fields with calculated values
+        if (result.loanAmount) {
             document.getElementById('calcLoanAmount').value = result.loanAmount.toFixed(3);
+        }
+        if (result.balance) {
             document.getElementById('calcBalance').value = result.balance.toFixed(3);
+        }
+        if (result.installment) {
             document.getElementById('calcInstallment').value = result.installment.toFixed(3);
-            
-            // Show results
-            const resultDiv = document.getElementById('calculationResult');
-            const detailsDiv = document.getElementById('calculationDetails');
-            const scenarioDiv = document.getElementById('calculationScenario');
-            
-            detailsDiv.innerHTML = `
-                <div class="calculation-details">
-                    <div class="detail-row">
-                        <span>مبلغ القرض:</span>
-                        <span class="amount">${formatCurrency(result.loanAmount)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>الرصيد المطلوب:</span>
-                        <span class="amount">${formatCurrency(result.balance)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>القسط الشهري:</span>
-                        <span class="amount">${formatCurrency(result.installment)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>إجمالي المبلغ المسدد:</span>
-                        <span class="amount">${formatCurrency(result.installment * 24)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>مدة السداد:</span>
-                        <span>24 شهر</span>
-                    </div>
+        }
+        
+        // Calculate installment period
+        const period = result.installmentPeriod || Math.max(6, Math.ceil(result.loanAmount / result.installment));
+        const totalRepayment = result.loanAmount; // Always equals loan amount
+        
+        // Show results
+        const resultsHtml = `
+            <div class="calculation-summary">
+                <div class="summary-item">
+                    <label>مبلغ القرض:</label>
+                    <span class="amount">${formatCurrency(result.loanAmount)}</span>
                 </div>
-            `;
-            
-            scenarioDiv.textContent = scenario;
+                <div class="summary-item">
+                    <label>رصيد المستخدم:</label>
+                    <span class="amount">${formatCurrency(result.balance)}</span>
+                </div>
+                <div class="summary-item">
+                    <label>القسط الشهري:</label>
+                    <span class="amount">${formatCurrency(result.installment)}</span>
+                </div>
+                <div class="summary-item">
+                    <label>مدة السداد:</label>
+                    <span>${period} شهر</span>
+                </div>
+                <div class="summary-item">
+                    <label>إجمالي المبلغ المسدد:</label>
+                    <span class="amount">${formatCurrency(totalRepayment)}</span>
+                </div>
+                <div class="summary-item">
+                    <label>السيناريو:</label>
+                    <span class="scenario">${scenario}</span>
+                </div>
+            </div>
+        `;
+        
+        const resultDiv = document.getElementById('calculationResult');
+        if (resultDiv) {
+            resultDiv.innerHTML = resultsHtml;
             resultDiv.style.display = 'block';
-            
-        } else {
-            showToast('لا يمكن حساب القيم بالمدخلات الحالية', 'error');
         }
         
     } catch (error) {
         console.error('Calculation error:', error);
-        showToast('خطأ في عملية الحساب', 'error');
+        showToast(error.message || 'خطأ في عملية الحساب', 'error');
+        document.getElementById('calculationResult').style.display = 'none';
     }
 }
 
@@ -1021,19 +1102,49 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Admin Calculator Functions
+let adminCalculatorTimeout;
 function handleAdminCalculatorInput() {
-    // Auto-calculate when admin inputs values
+    // Clear previous timeout
+    clearTimeout(adminCalculatorTimeout);
+    
+    // Set a new timeout to delay calculation
+    adminCalculatorTimeout = setTimeout(() => {
+        performAdminAutoCalculation();
+    }, 800); // Wait 800ms after user stops typing
+}
+
+function performAdminAutoCalculation() {
     const loanAmount = parseFloat(document.getElementById('adminCalcLoanAmount').value) || 0;
     const balance = parseFloat(document.getElementById('adminCalcBalance').value) || 0;
     const installment = parseFloat(document.getElementById('adminCalcInstallment').value) || 0;
     
+    // Only auto-calculate if exactly one field is filled
+    const filledCount = [loanAmount > 0, balance > 0, installment > 0].filter(Boolean).length;
+    
+    if (filledCount !== 1) {
+        return; // Don't auto-calculate if 0 fields, or more than 1 field is filled
+    }
+    
     // Use the loan calculator class if available
-    if (window.LoanCalculator && loanAmount > 0 && balance > 0) {
+    if (window.LoanCalculator) {
         try {
             const calculator = new window.LoanCalculator();
-            const result = calculator.calculateInstallment(loanAmount, balance);
+            const inputs = {
+                loanAmount: loanAmount > 0 ? loanAmount : null,
+                balance: balance > 0 ? balance : null,
+                installment: installment > 0 ? installment : null
+            };
             
-            if (result && installment === 0) {
+            const result = calculator.autoCalculate(inputs);
+            
+            // Auto-fill empty fields with calculated values (without triggering more events)
+            if (result.loanAmount && loanAmount === 0) {
+                document.getElementById('adminCalcLoanAmount').value = result.loanAmount.toFixed(3);
+            }
+            if (result.balance && balance === 0) {
+                document.getElementById('adminCalcBalance').value = result.balance.toFixed(3);
+            }
+            if (result.installment && installment === 0) {
                 document.getElementById('adminCalcInstallment').value = result.installment.toFixed(3);
             }
         } catch (error) {
@@ -1147,3 +1258,4 @@ window.closeLoanTermsModal = closeLoanTermsModal;
 window.handleAdminCalculatorInput = handleAdminCalculatorInput;
 window.performAdminLoanCalculation = performAdminLoanCalculation;
 window.clearAdminLoanCalculator = clearAdminLoanCalculator;
+

@@ -309,7 +309,7 @@ class TransactionController {
           l.credit as payment_amount,
           rl.loan_amount,
           COALESCE(paid_summary.total_paid, 0) as total_paid_for_loan,
-          (rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount
+          ROUND(rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount
         FROM loan l
         JOIN requested_loan rl ON l.target_loan_id = rl.loan_id
         LEFT JOIN (
@@ -408,7 +408,7 @@ TransactionController.getAllLoanPayments = asyncHandler(async (req, res) => {
       l.date as payment_date,
       admin.Aname as admin_name,
       COALESCE(paid_summary.total_paid, 0) as total_paid_for_loan,
-      (rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount
+      ROUND(rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) as remaining_amount
     FROM loan l
     JOIN users u ON l.user_id = u.user_id
     JOIN requested_loan rl ON l.target_loan_id = rl.loan_id
@@ -428,6 +428,165 @@ TransactionController.getAllLoanPayments = asyncHandler(async (req, res) => {
     loanPayments,
     total: loanPayments.length 
   }, 'تم جلب جميع مدفوعات القروض بنجاح');
+});
+
+// Add new transaction (Admin only)
+TransactionController.addTransaction = asyncHandler(async (req, res) => {
+  const { userId, amount, type, memo, transactionType, status } = req.body;
+  const adminId = req.user.user_id;
+
+  // Validation
+  if (!userId || !amount || amount <= 0 || !type) {
+    return ResponseHelper.error(res, 'يرجى تقديم بيانات صحيحة للمعاملة', 400);
+  }
+
+  const { pool } = require('../config/database');
+
+  // Check if user exists
+  const [userCheck] = await pool.execute('SELECT user_id FROM users WHERE user_id = ?', [userId]);
+  if (userCheck.length === 0) {
+    return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+  }
+
+  let credit = 0;
+  let debit = 0;
+
+  if (type === 'credit') {
+    credit = amount;
+  } else if (type === 'debit') {
+    debit = amount;
+  } else {
+    return ResponseHelper.error(res, 'نوع المعاملة يجب أن يكون credit أو debit', 400);
+  }
+
+  // Insert transaction
+  const [result] = await pool.execute(`
+    INSERT INTO transaction (user_id, credit, debit, memo, status, transaction_type, admin_id, date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+  `, [userId, credit, debit, memo || '', status || 'accepted', transactionType || 'subscription', adminId]);
+
+  // If transaction is accepted and affects balance, update user balance
+  if ((status || 'accepted') === 'accepted') {
+    const balanceChange = credit - debit;
+    await pool.execute(
+      'UPDATE users SET balance = balance + ? WHERE user_id = ?',
+      [balanceChange, userId]
+    );
+  }
+
+  ResponseHelper.success(res, { transactionId: result.insertId }, 'تم إضافة المعاملة بنجاح');
+});
+
+// Update transaction (Admin only)
+TransactionController.updateTransaction = asyncHandler(async (req, res) => {
+  const { transactionId } = req.params;
+  const { amount, type, memo, transactionType, status } = req.body;
+  const adminId = req.user.user_id;
+
+  // Validation
+  if (!amount || amount <= 0 || !type) {
+    return ResponseHelper.error(res, 'يرجى تقديم بيانات صحيحة للمعاملة', 400);
+  }
+
+  const { pool } = require('../config/database');
+
+  // Get current transaction
+  const [currentTx] = await pool.execute('SELECT * FROM transaction WHERE transaction_id = ?', [transactionId]);
+  if (currentTx.length === 0) {
+    return ResponseHelper.error(res, 'المعاملة غير موجودة', 404);
+  }
+
+  const oldTx = currentTx[0];
+
+  let credit = 0;
+  let debit = 0;
+
+  if (type === 'credit') {
+    credit = amount;
+  } else if (type === 'debit') {
+    debit = amount;
+  } else {
+    return ResponseHelper.error(res, 'نوع المعاملة يجب أن يكون credit أو debit', 400);
+  }
+
+  // Start transaction for balance updates
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  try {
+    // If old transaction was accepted, reverse its balance effect
+    if (oldTx.status === 'accepted') {
+      const oldBalanceChange = (parseFloat(oldTx.credit) || 0) - (parseFloat(oldTx.debit) || 0);
+      await connection.execute(
+        'UPDATE users SET balance = balance - ? WHERE user_id = ?',
+        [oldBalanceChange, oldTx.user_id]
+      );
+    }
+
+    // Update transaction
+    await connection.execute(`
+      UPDATE transaction 
+      SET credit = ?, debit = ?, memo = ?, transaction_type = ?, status = ?, admin_id = ?
+      WHERE transaction_id = ?
+    `, [credit, debit, memo || oldTx.memo, transactionType || oldTx.transaction_type, status || oldTx.status, adminId, transactionId]);
+
+    // If new transaction status is accepted, apply new balance effect
+    if ((status || oldTx.status) === 'accepted') {
+      const newBalanceChange = credit - debit;
+      await connection.execute(
+        'UPDATE users SET balance = balance + ? WHERE user_id = ?',
+        [newBalanceChange, oldTx.user_id]
+      );
+    }
+
+    await connection.commit();
+    ResponseHelper.success(res, {}, 'تم تحديث المعاملة بنجاح');
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+});
+
+// Delete transaction (Admin only)
+TransactionController.deleteTransaction = asyncHandler(async (req, res) => {
+  const { transactionId } = req.params;
+  const { pool } = require('../config/database');
+
+  // Get transaction details before deletion
+  const [transactions] = await pool.execute('SELECT * FROM transaction WHERE transaction_id = ?', [transactionId]);
+  if (transactions.length === 0) {
+    return ResponseHelper.error(res, 'المعاملة غير موجودة', 404);
+  }
+
+  const transaction = transactions[0];
+
+  // Start transaction for balance updates
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  try {
+    // If transaction was accepted, reverse its balance effect
+    if (transaction.status === 'accepted') {
+      const balanceChange = (parseFloat(transaction.credit) || 0) - (parseFloat(transaction.debit) || 0);
+      await connection.execute(
+        'UPDATE users SET balance = balance - ? WHERE user_id = ?',
+        [balanceChange, transaction.user_id]
+      );
+    }
+
+    // Delete transaction
+    await connection.execute('DELETE FROM transaction WHERE transaction_id = ?', [transactionId]);
+
+    await connection.commit();
+    ResponseHelper.success(res, {}, 'تم حذف المعاملة بنجاح');
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 });
 
 module.exports = TransactionController;

@@ -844,7 +844,7 @@ class EmailService {
                         <span style="font-weight: bold; color: #28a745;">${loanSummary.totalPaid} د.ك</span>
                     </div>
                     <div class="detail-row">
-                        <span>المبلغ المتبقي:</span>
+                        <span>القرض:</span>
                         <span style="font-weight: bold; color: #dc3545;">${loanSummary.remainingAmount} د.ك</span>
                     </div>
                     <div class="detail-row">
@@ -910,7 +910,7 @@ class EmailService {
         let text = `درع العائلة - تحديث حالة دفعة القرض\n\nمرحباً ${fullName}\n\nحالة الدفعة: ${statusText}\nمبلغ الدفعة: ${paymentData.amount} د.ك\nالمدير المعتمد: ${adminName}`;
         
         if (status === 'accepted' && loanSummary) {
-            text += `\n\nملخص القرض:\nالمبلغ المسدد: ${loanSummary.totalPaid} د.ك\nالمبلغ المتبقي: ${loanSummary.remainingAmount} د.ك`;
+            text += `\n\nملخص القرض:\nالمبلغ المسدد: ${loanSummary.totalPaid} د.ك\nالقرض: ${loanSummary.remainingAmount} د.ك`;
         }
         
         return text + '\n\nدرع العائلة';

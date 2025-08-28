@@ -71,10 +71,16 @@ class TransactionsManagement {
         try {
             if (tab === 'pending') {
                 const result = await apiCall('/admin/pending-transactions');
-                this.displayPendingTransactions(result.transactions, contentDiv);
+                const transactions = result.transactions || [];
+                // Calculate running balances for pending transactions
+                await this.calculateRunningBalances(transactions);
+                this.displayPendingTransactions(transactions, contentDiv);
             } else {
                 const result = await apiCall('/admin/all-transactions');
-                this.displayAllTransactions(result.transactions, contentDiv);
+                const transactions = result.transactions || [];
+                // Calculate running balances for all transactions
+                await this.calculateRunningBalances(transactions);
+                this.displayAllTransactions(transactions, contentDiv);
             }
         } catch (error) {
             contentDiv.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> خطأ في تحميل البيانات: ${error.message}</div>`;
@@ -105,6 +111,7 @@ class TransactionsManagement {
                             <th>اسم المستخدم</th>
                             <th>نوع المعاملة</th>
                             <th>المبلغ</th>
+                            <th>الرصيد المحدث</th>
                             <th>الوصف</th>
                             <th>التاريخ</th>
                             <th>الإجراءات</th>
@@ -128,7 +135,12 @@ class TransactionsManagement {
                                 </td>
                                 <td class="amount-cell">
                                     <span class="amount ${transaction.credit > 0 ? 'credit' : 'debit'}">
-                                        ${transaction.credit > 0 ? '+' : '-'}${formatCurrency(Math.abs(transaction.credit || transaction.debit))}
+                                        ${transaction.credit > 0 ? '+' : '-'}${formatCurrency(Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)))}
+                                    </span>
+                                </td>
+                                <td class="balance-cell">
+                                    <span class="balance">
+                                        ${formatCurrency(transaction.running_balance || '0.000')}
                                     </span>
                                 </td>
                                 <td>
@@ -196,6 +208,7 @@ class TransactionsManagement {
                             <th>اسم المستخدم</th>
                             <th>نوع المعاملة</th>
                             <th>المبلغ</th>
+                            <th>الرصيد المحدث</th>
                             <th>الوصف</th>
                             <th>الحالة</th>
                             <th>التاريخ</th>
@@ -220,7 +233,12 @@ class TransactionsManagement {
                                 </td>
                                 <td class="amount-cell">
                                     <span class="amount ${transaction.credit > 0 ? 'credit' : 'debit'}">
-                                        ${transaction.credit > 0 ? '+' : '-'}${formatCurrency(Math.abs(transaction.credit || transaction.debit))}
+                                        ${transaction.credit > 0 ? '+' : '-'}${formatCurrency(Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)))}
+                                    </span>
+                                </td>
+                                <td class="balance-cell">
+                                    <span class="balance">
+                                        ${formatCurrency(transaction.running_balance || '0.000')}
                                     </span>
                                 </td>
                                 <td>
@@ -237,13 +255,19 @@ class TransactionsManagement {
                                 </td>
                                 <td class="actions-cell">
                                     <button class="btn btn-sm btn-info" onclick="transactionsManagement.viewTransactionDetails(${transaction.transaction_id || transaction.id}, 'transaction')" title="التفاصيل">
-                                        <i class="fas fa-eye"></i> عرض
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="transactionsManagement.editTransaction(${transaction.transaction_id || transaction.id})" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="transactionsManagement.deleteTransaction(${transaction.transaction_id || transaction.id})" title="حذف">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                     ${transaction.status === 'pending' ? `
                                         <button class="btn btn-sm btn-success" onclick="transactionsManagement.approveTransaction(${transaction.transaction_id || transaction.id}, 'transaction')" title="موافقة">
                                             <i class="fas fa-check"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" onclick="transactionsManagement.rejectTransaction(${transaction.transaction_id || transaction.id}, 'transaction')" title="رفض">
+                                        <button class="btn btn-sm btn-secondary" onclick="transactionsManagement.rejectTransaction(${transaction.transaction_id || transaction.id}, 'transaction')" title="رفض">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     ` : ''}
@@ -443,12 +467,29 @@ class TransactionsManagement {
     // View transaction details
     async viewTransactionDetails(transactionId, type) {
         try {
-            const endpoint = type === 'transaction' 
-                ? `/admin/transaction-details/${transactionId}` 
-                : `/admin/loan-payment-details/${transactionId}`;
-                
-            const result = await apiCall(endpoint);
-            const transaction = result.transaction || result.payment;
+            // Get transaction details from all transactions
+            const result = await apiCall('/admin/all-transactions');
+            const transaction = result.transactions.find(t => (t.transaction_id || t.id) === transactionId);
+            
+            if (!transaction) {
+                showToast('لا يمكن العثور على تفاصيل المعاملة', 'error');
+                return;
+            }
+
+            // Get user details to ensure we have phone number
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${transaction.user_id}`);
+                userDetails = userResult.user;
+            } catch (error) {
+                console.warn('Could not fetch user details:', error);
+            }
+
+            // Use phone from user details or fallback to transaction data
+            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || transaction.phone;
+            
+            // Use name from user details or fallback to transaction data
+            const userName = userDetails?.Aname || transaction.user_name || 'غير محدد';
             
             const modalContent = `
                 <div class="transaction-details-modal">
@@ -459,11 +500,15 @@ class TransactionsManagement {
                             <h4><i class="fas fa-user"></i> معلومات المستخدم</h4>
                             <div class="detail-item">
                                 <label>الاسم:</label>
-                                <span>${transaction.user_name}</span>
+                                <span>${userName}</span>
                             </div>
                             <div class="detail-item">
                                 <label>معرف المستخدم:</label>
                                 <span>${transaction.user_id}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>رقم الهاتف:</label>
+                                <span>${phoneNumber || 'غير محدد'}</span>
                             </div>
                         </div>
                         
@@ -476,7 +521,7 @@ class TransactionsManagement {
                             <div class="detail-item">
                                 <label>المبلغ:</label>
                                 <span class="amount ${transaction.credit > 0 ? 'credit' : 'debit'}">
-                                    ${formatCurrency(Math.abs(transaction.credit || transaction.debit))}
+                                    ${formatCurrency(Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)))}
                                 </span>
                             </div>
                             <div class="detail-item">
@@ -506,6 +551,11 @@ class TransactionsManagement {
                                 <i class="fas fa-times"></i> رفض
                             </button>
                         ` : ''}
+                        ${phoneNumber ? `
+                            <button onclick="transactionsManagement.retryWhatsAppNotification(${transaction.user_id}, '${userName}', 'transaction', ${transaction.transaction_id || transaction.id})" class="btn btn-primary">
+                                <i class="fab fa-whatsapp"></i> إعادة إرسال واتساب
+                            </button>
+                        ` : ''}
                         <button onclick="hideModal()" class="btn btn-secondary">
                             <i class="fas fa-times"></i> إغلاق
                         </button>
@@ -518,6 +568,254 @@ class TransactionsManagement {
         } catch (error) {
             // Fallback for when detailed endpoint doesn't exist
             showToast('عرض تفاصيل المعاملة - سيتم تطويرها قريباً', 'info');
+        }
+    }
+
+    // Edit transaction
+    async editTransaction(transactionId) {
+        try {
+            // Get transaction details first
+            const result = await apiCall(`/admin/all-transactions`);
+            const transaction = result.transactions.find(t => (t.transaction_id || t.id) === transactionId);
+            
+            if (!transaction) {
+                showToast('المعاملة غير موجودة', 'error');
+                return;
+            }
+
+            let modalContent = `
+                <form id="editTransactionForm">
+                    <div class="form-group">
+                        <label>المبلغ</label>
+                        <input type="number" name="amount" step="0.001" 
+                               value="${Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0))}" 
+                               required min="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label>نوع المعاملة</label>
+                        <select name="type" required>
+                            <option value="credit" ${transaction.credit > 0 ? 'selected' : ''}>إيداع</option>
+                            <option value="debit" ${transaction.debit > 0 ? 'selected' : ''}>سحب</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الوصف</label>
+                        <textarea name="memo" rows="3">${transaction.memo || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>الحالة</label>
+                        <select name="status" required>
+                            <option value="pending" ${transaction.status === 'pending' ? 'selected' : ''}>معلق</option>
+                            <option value="accepted" ${transaction.status === 'accepted' ? 'selected' : ''}>مقبول</option>
+                            <option value="rejected" ${transaction.status === 'rejected' ? 'selected' : ''}>مرفوض</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>نوع المعاملة</label>
+                        <select name="transactionType">
+                            <option value="subscription" ${transaction.transaction_type === 'subscription' ? 'selected' : ''}>اشتراك</option>
+                            <option value="deposit" ${transaction.transaction_type === 'deposit' ? 'selected' : ''}>إيداع</option>
+                            <option value="withdrawal" ${transaction.transaction_type === 'withdrawal' ? 'selected' : ''}>سحب</option>
+                        </select>
+                    </div>
+                </form>
+            `;
+
+            modalContent += `
+                <div class="modal-actions">
+                    <button onclick="transactionsManagement.saveTransactionEdit(${transactionId})" class="btn btn-success">
+                        <i class="fas fa-save"></i> تحديث
+                    </button>
+                    <button onclick="hideModal()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                </div>
+            `;
+            
+            showModal('تعديل المعاملة', modalContent);
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Save transaction edit
+    async saveTransactionEdit(transactionId) {
+        try {
+            const form = document.getElementById('editTransactionForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+
+            await apiCall(`/admin/update-transaction/${transactionId}`, 'PUT', data);
+            showToast('تم تحديث المعاملة بنجاح', 'success');
+            hideModal();
+            await this.loadTab(this.currentTab); // Refresh data
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    // Delete transaction
+    async deleteTransaction(transactionId) {
+        if (!confirm('هل أنت متأكد من حذف هذه المعاملة؟ هذا الإجراء لا يمكن التراجع عنه وسيتم تعديل رصيد المستخدم تلقائياً.')) {
+            return;
+        }
+
+        try {
+            showLoading(true);
+            await apiCall(`/admin/delete-transaction/${transactionId}`, 'DELETE');
+            showToast('تم حذف المعاملة بنجاح', 'success');
+            await this.loadTab(this.currentTab); // Refresh data
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Retry WhatsApp notification for transaction
+    async retryWhatsAppNotification(userId, userName, type, transactionId) {
+        try {
+            // Get transaction details
+            const result = await apiCall('/admin/all-transactions');
+            const transaction = result.transactions.find(t => (t.transaction_id || t.id) === transactionId);
+            
+            if (!transaction) {
+                showToast('لا يمكن العثور على المعاملة', 'error');
+                return;
+            }
+
+            // Get user details for phone number
+            let userDetails = null;
+            try {
+                const userResult = await apiCall(`/admin/user-details/${userId}`);
+                userDetails = userResult.user;
+            } catch (error) {
+                console.warn('Could not fetch user details:', error);
+            }
+
+            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || transaction.phone;
+            
+            if (!phoneNumber) {
+                showToast('لا يمكن العثور على رقم الهاتف للمستخدم', 'error');
+                return;
+            }
+
+            // Determine template type based on transaction status
+            let templateType;
+            const amount = `${Utils.formatCurrency(Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)))} د.ك`;
+            
+            if (transaction.status === 'accepted') {
+                templateType = 'transactionApproved';
+                // Get complete user financials including balance
+                let userFinancials = null;
+                if (userDetails) {
+                    userFinancials = {
+                        totalSubscriptions: userDetails.financialSummary?.totalSubscriptions || '0.000',
+                        currentBalance: userDetails.balance || '0.000',
+                        transactionAmount: Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)) || 0
+                    };
+                } else if (transaction.transaction_type === 'subscription') {
+                    try {
+                        const userResult = await apiCall(`/admin/user-details/${userId}`);
+                        userFinancials = {
+                            totalSubscriptions: userResult.user?.financialSummary?.totalSubscriptions || '0.000',
+                            currentBalance: userResult.user?.balance || '0.000',
+                            transactionAmount: Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)) || 0
+                        };
+                    } catch (error) {
+                        console.warn('Could not fetch user financials:', error);
+                    }
+                }
+                const success = Utils.sendWhatsAppNotification(phoneNumber, userName, templateType, userFinancials, amount, transaction.transaction_type);
+                if (success) {
+                    showToast(`تم إرسال إشعار الموافقة عبر الواتساب إلى ${userName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else if (transaction.status === 'rejected') {
+                templateType = 'transactionRejected';
+                const success = Utils.sendWhatsAppNotification(phoneNumber, userName, templateType, null, amount, transaction.transaction_type);
+                if (success) {
+                    showToast(`تم إرسال إشعار الرفض عبر الواتساب إلى ${userName}`, 'success');
+                } else {
+                    showToast('فشل في فتح الواتساب', 'error');
+                }
+            } else {
+                showToast('لا يمكن إرسال إشعار لمعاملة معلقة', 'warning');
+            }
+        } catch (error) {
+            console.error('Error retrying WhatsApp notification:', error);
+            showToast('حدث خطأ في إرسال الإشعار', 'error');
+        }
+    }
+
+    // Calculate running balance for each transaction (admin version)
+    async calculateRunningBalances(transactions) {
+        if (!transactions || transactions.length === 0) return;
+
+        // Group transactions by user ID
+        const transactionsByUser = {};
+        transactions.forEach(transaction => {
+            const userId = transaction.user_id;
+            if (!transactionsByUser[userId]) {
+                transactionsByUser[userId] = [];
+            }
+            transactionsByUser[userId].push(transaction);
+        });
+
+        // Calculate running balance for each user's transactions
+        for (const userId in transactionsByUser) {
+            const userTransactions = transactionsByUser[userId];
+            
+            // Get user's current balance
+            try {
+                const userResult = await apiCall(`/admin/user-details/${userId}`);
+                const currentBalance = parseFloat(userResult.user?.balance) || 0;
+
+                // Sort transactions by date (oldest first)
+                const sortedTransactions = [...userTransactions].sort((a, b) => {
+                    const dateA = new Date(a.date || a.transaction_date);
+                    const dateB = new Date(b.date || b.transaction_date);
+                    return dateA - dateB;
+                });
+
+                // Calculate total changes from accepted transactions
+                let totalChanges = 0;
+                sortedTransactions.forEach(transaction => {
+                    if (transaction.status === 'accepted') {
+                        if (transaction.credit > 0) {
+                            totalChanges += parseFloat(transaction.credit);
+                        } else {
+                            totalChanges -= parseFloat(transaction.debit);
+                        }
+                    }
+                });
+
+                // Calculate starting balance
+                let runningBalance = currentBalance - totalChanges;
+
+                // Calculate forward and assign running balances
+                sortedTransactions.forEach(transaction => {
+                    if (transaction.status === 'accepted') {
+                        if (transaction.credit > 0) {
+                            runningBalance += parseFloat(transaction.credit);
+                        } else {
+                            runningBalance -= parseFloat(transaction.debit);
+                        }
+                        transaction.running_balance = runningBalance;
+                    } else {
+                        // For pending/rejected transactions, balance doesn't change
+                        transaction.running_balance = runningBalance;
+                    }
+                });
+
+            } catch (error) {
+                console.warn(`Could not fetch balance for user ${userId}:`, error);
+                // Set default balance for this user's transactions
+                userTransactions.forEach(transaction => {
+                    transaction.running_balance = 0;
+                });
+            }
         }
     }
 }

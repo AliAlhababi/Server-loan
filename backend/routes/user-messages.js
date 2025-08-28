@@ -3,122 +3,138 @@ const DatabaseService = require('../services/DatabaseService');
 const UserService = require('../services/UserService');
 const ResponseHelper = require('../utils/ResponseHelper');
 const { asyncHandler } = require('../utils/ErrorHandler');
-const { verifyToken, requireOwnershipOrAdmin } = require('../middleware/auth');
+const { verifyToken, requireOwnershipOrAdmin, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get user messages
+// Get user tickets
 router.get('/:userId', verifyToken, requireOwnershipOrAdmin, asyncHandler(async (req, res) => {
   const userId = parseInt(req.params.userId);
   
   const query = `
-    SELECT m.*, u.Aname as sender_name 
-    FROM messages m
-    LEFT JOIN users u ON m.sender_id = u.user_id
-    WHERE m.user_id = ? 
-    ORDER BY m.created_at DESC
+    SELECT t.*, 
+           u.Aname as resolved_by_name,
+           CASE 
+             WHEN t.status = 'open' THEN 'مفتوحة'
+             WHEN t.status = 'closed' THEN 'مغلقة'
+           END as status_arabic
+    FROM tickets t
+    LEFT JOIN users u ON t.resolved_by_admin_id = u.user_id
+    WHERE t.user_id = ? 
+    ORDER BY t.created_at DESC
   `;
 
-  const messages = await DatabaseService.executeQuery(query, [userId]);
+  const tickets = await DatabaseService.executeQuery(query, [userId]);
 
-  ResponseHelper.success(res, { messages }, 'تم جلب الرسائل بنجاح');
+  ResponseHelper.success(res, { tickets }, 'تم جلب الرسائل بنجاح');
 }));
 
-// Send message to admin
+// Send ticket to admin
 router.post('/', verifyToken, asyncHandler(async (req, res) => {
   const { subject, message } = req.body;
-  const userId = req.user.userId;
+  const userId = req.user.userId || req.user.user_id;
 
   if (!subject || !message) {
     return ResponseHelper.error(res, 'الموضوع والرسالة مطلوبان', 400);
   }
 
-  // Get admin user ID
-  const admin = await UserService.getFirstAdmin();
+  if (subject.length > 255) {
+    return ResponseHelper.error(res, 'الموضوع طويل جداً (الحد الأقصى 255 حرف)', 400);
+  }
 
-  const messageData = {
+  if (message.length > 2000) {
+    return ResponseHelper.error(res, 'الرسالة طويلة جداً (الحد الأقصى 2000 حرف)', 400);
+  }
+
+  const ticketData = {
     user_id: userId,
-    sender_type: 'user',
-    sender_id: userId,
-    subject,
-    message,
-    priority: 'medium',
-    created_at: new Date()
+    subject: subject.trim(),
+    message: message.trim(),
+    status: 'open'
   };
 
-  await DatabaseService.create('messages', messageData);
-
-  ResponseHelper.created(res, null, 'تم إرسال الرسالة بنجاح');
-}));
-
-// Mark message as read
-router.put('/:messageId/read', verifyToken, asyncHandler(async (req, res) => {
-  const messageId = parseInt(req.params.messageId);
-  const userId = req.user.userId;
-
-  // Verify message belongs to user or user is admin
-  const message = await DatabaseService.findById('messages', messageId, 'message_id');
-
-  if (!message) {
-    return ResponseHelper.notFound(res, 'الرسالة غير موجودة');
-  }
-
-  if (message.user_id !== userId && req.user.userType !== 'admin') {
-    return ResponseHelper.forbidden(res, 'غير مصرح لك بهذا الإجراء');
-  }
-
-  await DatabaseService.update('messages',
-    { status: 'read' },
-    { message_id: messageId }
-  );
-
-  ResponseHelper.updated(res, null, 'تم تحديث حالة الرسالة');
-}));
-
-// Send feedback/message to admin (alternative endpoint)
-router.post('/feedback', verifyToken, asyncHandler(async (req, res) => {
-  const { message } = req.body;
-  const userId = req.user.user_id;
-
-  if (!message || message.trim().length === 0) {
-    return ResponseHelper.error(res, 'نص الرسالة مطلوب', 400);
-  }
-
-  if (message.length > 500) {
-    return ResponseHelper.error(res, 'الرسالة طويلة جداً (الحد الأقصى 500 حرف)', 400);
-  }
-
-  const feedbackData = {
-    user_id: userId,
-    feedback: message.trim(),
-    admin_id: process.env.DEFAULT_ADMIN_ID || 1,
-    date: new Date()
-  };
-
-  const result = await DatabaseService.create('feedback', feedbackData);
+  const result = await DatabaseService.create('tickets', ticketData);
 
   ResponseHelper.created(res, {
-    id: result.insertId,
-    message: message.trim(),
-    status: 'pending'
+    ticket_id: result.insertId,
+    subject: subject.trim(),
+    status: 'open'
   }, 'تم إرسال رسالتك بنجاح. سيتم الرد عليك قريباً');
 }));
 
-// Get user's feedback history
-router.get('/feedback/:userId', verifyToken, requireOwnershipOrAdmin, asyncHandler(async (req, res) => {
-  const userId = parseInt(req.params.userId);
+// Get all tickets (for admin)
+router.get('/admin/all', verifyToken, requireAdmin, asyncHandler(async (req, res) => {
 
   const query = `
-    SELECT f.*, u.Aname as admin_name
-    FROM feedback f
-    LEFT JOIN users u ON f.admin_id = u.user_id
-    WHERE f.user_id = ?
-    ORDER BY f.date DESC
+    SELECT t.*, 
+           u.Aname as user_name,
+           admin.Aname as resolved_by_name,
+           CASE 
+             WHEN t.status = 'open' THEN 'مفتوحة'
+             WHEN t.status = 'closed' THEN 'مغلقة'
+           END as status_arabic
+    FROM tickets t
+    LEFT JOIN users u ON t.user_id = u.user_id
+    LEFT JOIN users admin ON t.resolved_by_admin_id = admin.user_id
+    ORDER BY t.created_at DESC
   `;
 
-  const feedback = await DatabaseService.executeQuery(query, [userId]);
+  const tickets = await DatabaseService.executeQuery(query);
 
-  ResponseHelper.success(res, { feedback }, 'تم جلب الرسائل بنجاح');
+  ResponseHelper.success(res, { tickets }, 'تم جلب جميع الرسائل بنجاح');
+}));
+
+// Update ticket status (admin only)
+router.put('/:ticketId/status', verifyToken, requireAdmin, asyncHandler(async (req, res) => {
+
+  const ticketId = parseInt(req.params.ticketId);
+  const { status, admin_notes } = req.body;
+  const adminId = req.user.userId || req.user.user_id;
+
+  if (!['open', 'in_progress', 'resolved', 'closed'].includes(status)) {
+    return ResponseHelper.error(res, 'حالة غير صحيحة', 400);
+  }
+
+  // Verify ticket exists
+  const ticket = await DatabaseService.findById('tickets', ticketId, 'ticket_id');
+  if (!ticket) {
+    return ResponseHelper.notFound(res, 'الرسالة غير موجودة');
+  }
+
+  const updateData = {
+    status,
+    updated_at: new Date()
+  };
+
+  // If resolved or closed, add admin info
+  if (status === 'resolved' || status === 'closed') {
+    updateData.resolved_at = new Date();
+    updateData.resolved_by_admin_id = adminId;
+  }
+
+  if (admin_notes) {
+    updateData.admin_notes = admin_notes.trim();
+  }
+
+  await DatabaseService.update('tickets', updateData, { ticket_id: ticketId });
+
+  ResponseHelper.updated(res, null, 'تم تحديث حالة الرسالة بنجاح');
+}));
+
+// Get ticket statistics (admin only)
+router.get('/admin/stats', verifyToken, requireAdmin, asyncHandler(async (req, res) => {
+
+  const query = `
+    SELECT 
+      COUNT(*) as total_tickets,
+      SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_tickets,
+      SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_tickets
+    FROM tickets
+  `;
+
+  const [stats] = await DatabaseService.executeQuery(query);
+
+  ResponseHelper.success(res, { stats }, 'تم جلب إحصائيات الرسائل بنجاح');
 }));
 
 module.exports = router;

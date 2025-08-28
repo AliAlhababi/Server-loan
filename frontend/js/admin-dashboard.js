@@ -13,10 +13,69 @@ class AdminDashboard {
         await this.loadStats();
         console.log('✅ Stats loaded, now loading financial summary...');
         await this.loadFinancialSummary();
-        console.log('✅ Financial summary loaded, setting up views...');
+        console.log('✅ Financial summary loaded, checking for multiple loans...');
+        await this.checkMultipleLoans();
+        console.log('✅ Security checks complete, setting up views...');
         this.showMainView();
         this.setupEventListeners();
         this.initializeTabModules();
+    }
+
+    // Check for multiple pending loans (security alert)
+    async checkMultipleLoans() {
+        try {
+            // Only check if user is authenticated admin
+            const token = localStorage.getItem('authToken');
+            
+            if (!token || !currentUser || !(currentUser.isAdmin || currentUser.user_type === 'admin')) {
+                console.log('⚠️  Skipping multiple loan check - not authenticated admin');
+                return;
+            }
+            
+            console.log('🔍 Checking for multiple pending loans...');
+            const result = await apiCall('/admin/multiple-loan-alerts');
+            
+            if (result.success && result.data) {
+                const { alerts, total_affected_users, critical_cases, likely_race_conditions } = result.data;
+                
+                if (total_affected_users > 0) {
+                    console.log(`🚨 SECURITY ALERT: ${total_affected_users} users have multiple pending loans`);
+                    this.showMultipleLoanAlerts(result.data);
+                } else {
+                    console.log('✅ No multiple pending loans detected');
+                    this.hideMultipleLoanAlerts();
+                }
+            }
+        } catch (error) {
+            console.error('Error checking multiple loans:', error);
+            // Don't show error to user for this background check
+        }
+    }
+    
+    // Show multiple loan security alerts
+    showMultipleLoanAlerts(data) {
+        const alertSection = document.getElementById('multiple-loans-alert-section');
+        if (alertSection) {
+            alertSection.style.display = 'block';
+            
+            // Update alert summary
+            const title = alertSection.querySelector('.security-alert-title');
+            if (title) {
+                title.innerHTML = `
+                    <i class="fas fa-exclamation-triangle text-danger"></i>
+                    تنبيه أمني: ${data.total_affected_users} مستخدم لديه قروض متعددة
+                    ${data.likely_race_conditions > 0 ? `<span class="race-condition-badge">Race Condition: ${data.likely_race_conditions}</span>` : ''}
+                `;
+            }
+        }
+    }
+    
+    // Hide multiple loan alerts
+    hideMultipleLoanAlerts() {
+        const alertSection = document.getElementById('multiple-loans-alert-section');
+        if (alertSection) {
+            alertSection.style.display = 'none';
+        }
     }
 
     // Initialize tab modules
@@ -28,6 +87,7 @@ class AdminDashboard {
         window.reportsManagement = new ReportsManagement(this);
         window.familyDelegationsManagement = new FamilyDelegationsManagement(this);
         window.banksManagement = new BanksManagement(this);
+        window.ticketsManagement = new TicketsManagement(this);
     }
 
     // Load admin statistics
@@ -46,6 +106,7 @@ class AdminDashboard {
                 const pendingSubscriptionsEl = document.getElementById('pendingSubscriptions');
                 const pendingLoanPaymentsEl = document.getElementById('pendingLoanPayments');
                 const pendingFamilyDelegationsEl = document.getElementById('pendingFamilyDelegations');
+                const pendingTicketsEl = document.getElementById('pendingTickets');
                 const totalBanksBalanceEl = document.getElementById('totalBanksBalance');
                 
                 if (totalUsersEl) {
@@ -68,9 +129,22 @@ class AdminDashboard {
                     console.log('Updated pending loan payments:', stats.pendingLoanPayments);
                 }
                 
+                // Update combined loans counter
+                const totalLoansPendingEl = document.getElementById('totalLoansPending');
+                if (totalLoansPendingEl) {
+                    const totalLoans = (stats.pendingLoans || 0) + (stats.pendingLoanPayments || 0);
+                    totalLoansPendingEl.textContent = totalLoans;
+                    console.log('Updated total loans pending:', totalLoans);
+                }
+                
                 if (pendingFamilyDelegationsEl) {
                     pendingFamilyDelegationsEl.textContent = stats.pendingFamilyDelegations || '0';
                     console.log('Updated pending family delegations:', stats.pendingFamilyDelegations);
+                }
+                
+                if (pendingTicketsEl) {
+                    pendingTicketsEl.textContent = stats.pendingTickets || '0';
+                    console.log('Updated pending tickets:', stats.pendingTickets);
                 }
                 
                 if (totalBanksBalanceEl) {
@@ -97,14 +171,18 @@ class AdminDashboard {
             const pendingSubscriptionsEl = document.getElementById('pendingSubscriptions');
             const pendingLoanPaymentsEl = document.getElementById('pendingLoanPayments');
             const pendingFamilyDelegationsEl = document.getElementById('pendingFamilyDelegations');
+            const pendingTicketsEl = document.getElementById('pendingTickets');
             const totalBanksBalanceEl = document.getElementById('totalBanksBalance');
+            const totalLoansPendingEl = document.getElementById('totalLoansPending');
             
             if (totalUsersEl) totalUsersEl.textContent = 'خطأ';
             if (pendingLoansEl) pendingLoansEl.textContent = 'خطأ';
             if (pendingSubscriptionsEl) pendingSubscriptionsEl.textContent = 'خطأ';
             if (pendingLoanPaymentsEl) pendingLoanPaymentsEl.textContent = 'خطأ';
             if (pendingFamilyDelegationsEl) pendingFamilyDelegationsEl.textContent = 'خطأ';
+            if (pendingTicketsEl) pendingTicketsEl.textContent = 'خطأ';
             if (totalBanksBalanceEl) totalBanksBalanceEl.textContent = 'خطأ';
+            if (totalLoansPendingEl) totalLoansPendingEl.textContent = 'خطأ';
         }
     }
 
@@ -121,8 +199,6 @@ class AdminDashboard {
                 // Update financial summary elements
                 const totalSubscriptionsEl = document.getElementById('totalSubscriptions');
                 const totalActiveLoansRemainingEl = document.getElementById('totalActiveLoansRemaining');
-                const totalPendingLoansEl = document.getElementById('totalPendingLoans');
-                const totalFeesPaidEl = document.getElementById('totalFeesPaid');
                 const calculatedBalanceEl = document.getElementById('calculatedBalance');
                 const totalBanksBalanceSummaryEl = document.getElementById('totalBanksBalanceSummary');
                 const banksDifferenceEl = document.getElementById('banksDifference');
@@ -133,14 +209,6 @@ class AdminDashboard {
                 
                 if (totalActiveLoansRemainingEl) {
                     totalActiveLoansRemainingEl.textContent = this.formatCurrency(data.totalActiveLoansRemaining || 0);
-                }
-                
-                if (totalPendingLoansEl) {
-                    totalPendingLoansEl.textContent = this.formatCurrency(data.totalPendingLoans || 0);
-                }
-                
-                if (totalFeesPaidEl) {
-                    totalFeesPaidEl.textContent = this.formatCurrency(data.totalFeesPaid || 0);
                 }
                 
                 // Use calculated balance from backend (more accurate)
@@ -171,6 +239,9 @@ class AdminDashboard {
                     }
                 }
                 
+                // Update top financial summary cards
+                this.updateTopFinancialCards(data);
+                
                 // Store data globally for difference calculation
                 window.financialSummaryData = data;
                 
@@ -188,9 +259,51 @@ class AdminDashboard {
     // Format currency helper
     formatCurrency(amount) {
         return new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 3,
-            maximumFractionDigits: 3
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         }).format(amount);
+    }
+
+    // Update top financial summary cards
+    updateTopFinancialCards(data) {
+        const topBankBalanceEl = document.getElementById('topBankBalance');
+        const topFundBalanceEl = document.getElementById('topFundBalance');
+        const topLoansRemainingEl = document.getElementById('topLoansRemaining');
+        const topDifferenceEl = document.getElementById('topDifference');
+        
+        // Update bank balance
+        if (topBankBalanceEl) {
+            topBankBalanceEl.textContent = this.formatCurrency(data.totalBanksBalance || 0);
+        }
+        
+        // Update fund balance (total subscriptions)
+        if (topFundBalanceEl) {
+            topFundBalanceEl.textContent = this.formatCurrency(data.totalSubscriptions || 0);
+        }
+        
+        // Update loans remaining
+        if (topLoansRemainingEl) {
+            topLoansRemainingEl.textContent = this.formatCurrency(data.totalActiveLoansRemaining || 0);
+        }
+        
+        // Update difference with color coding
+        if (topDifferenceEl) {
+            const difference = data.banksDifference || 0;
+            const differenceCard = topDifferenceEl.closest('.financial-card');
+            
+            // Remove existing classes
+            differenceCard.classList.remove('positive', 'negative');
+            
+            if (difference > 0) {
+                differenceCard.classList.add('positive');
+                topDifferenceEl.textContent = `+${this.formatCurrency(Math.abs(difference))}`;
+            } else if (difference < 0) {
+                differenceCard.classList.add('negative');
+                topDifferenceEl.textContent = `-${this.formatCurrency(Math.abs(difference))}`;
+            } else {
+                topDifferenceEl.textContent = this.formatCurrency(0);
+            }
+        }
     }
 
     // Setup event listeners for admin buttons (simplified)
@@ -523,6 +636,25 @@ async function handleExcelToPDFDownload() {
         btn.classList.remove('loading');
         btn.innerHTML = originalContent;
         btn.disabled = false;  
+    }
+}
+
+// Global function to toggle multiple loan alerts display
+function toggleMultipleLoanAlerts() {
+    const container = document.getElementById('multiple-loan-alerts-container');
+    const button = document.querySelector('#multiple-loans-alert-section button');
+    
+    if (container.style.display === 'none' || container.style.display === '') {
+        container.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye-slash"></i> إخفاء التفاصيل';
+        
+        // Load alerts if not already loaded
+        if (typeof multipleLoanAlerts !== 'undefined') {
+            multipleLoanAlerts.loadAlerts();
+        }
+    } else {
+        container.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye"></i> عرض التفاصيل';
     }
 }
 

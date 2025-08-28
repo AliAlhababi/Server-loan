@@ -14,6 +14,7 @@ class DashboardController {
       pendingSubscriptions,
       pendingLoanPayments,
       pendingFamilyDelegations,
+      pendingTickets,
       banksSummary
     ] = await Promise.all([
       DatabaseService.count('users'),
@@ -21,6 +22,7 @@ class DashboardController {
       DatabaseService.count('transaction', { status: 'pending' }),
       DatabaseService.count('loan', { status: 'pending' }),
       DatabaseService.count('family_delegations', { delegation_status: 'pending' }),
+      this.getPendingTicketsCount(),
       this.getBanksSummary()
     ]);
 
@@ -30,6 +32,7 @@ class DashboardController {
       pendingSubscriptions,
       pendingLoanPayments,
       pendingFamilyDelegations,
+      pendingTickets,
       banksSummary
     });
 
@@ -39,6 +42,7 @@ class DashboardController {
       pendingSubscriptions,
       pendingLoanPayments,
       pendingFamilyDelegations,
+      pendingTickets,
       totalBanks: banksSummary.totalBanks,
       totalBanksBalance: banksSummary.totalBalance,
       pendingTransactions: pendingSubscriptions + pendingLoanPayments, // Keep for backward compatibility
@@ -97,6 +101,21 @@ class DashboardController {
       accepted,
       rejected
     };
+  }
+
+  static async getPendingTicketsCount() {
+    try {
+      const { pool } = require('../config/database');
+      const [result] = await pool.execute(`
+        SELECT COUNT(*) as count 
+        FROM tickets 
+        WHERE status = 'open'
+      `);
+      return result[0].count;
+    } catch (error) {
+      console.error('Error counting pending tickets:', error);
+      return 0;
+    }
   }
 
   static async getBanksSummary() {
@@ -175,10 +194,10 @@ class DashboardController {
         FROM users
       `;
       
-      // Calculate total active loans remaining amount
+      // Calculate total active loans remaining amount (exactly like سجل مدفوعات القروض)
       const activeLoansQuery = `
         SELECT 
-          COALESCE(SUM(rl.loan_amount - COALESCE(loan_payments.total_paid, 0)), 0) as totalActiveLoansRemaining
+          ROUND(COALESCE(SUM(rl.loan_amount - COALESCE(paid_summary.total_paid, 0)), 0)) as totalActiveLoansRemaining
         FROM requested_loan rl
         LEFT JOIN (
           SELECT 
@@ -187,56 +206,38 @@ class DashboardController {
           FROM loan 
           WHERE status = 'accepted'
           GROUP BY target_loan_id
-        ) loan_payments ON rl.loan_id = loan_payments.target_loan_id
+        ) paid_summary ON rl.loan_id = paid_summary.target_loan_id
         WHERE rl.status = 'approved'
-        AND (rl.loan_amount - COALESCE(loan_payments.total_paid, 0)) > 0
+        AND ROUND(rl.loan_amount - COALESCE(paid_summary.total_paid, 0)) > 0
       `;
       
-      // Calculate total pending loans
-      const pendingLoansQuery = `
-        SELECT COALESCE(SUM(loan_amount), 0) as totalPendingLoans
-        FROM requested_loan
-        WHERE status = 'pending'
-      `;
-      
-      // Calculate total fees paid (10 KWD joining fees)
-      const feesPaidQuery = `
-        SELECT COALESCE(SUM(t.credit), 0) as totalFeesPaid
-        FROM transaction t
-        WHERE t.status = 'accepted' 
-        AND t.transaction_type = 'subscription'
-        AND t.credit = 10.00
-      `;
-      
-      // Execute all queries in parallel
+      // Execute queries in parallel
       const [
         subscriptionsResult,
         activeLoansResult,
-        pendingLoansResult,
-        feesPaidResult,
         banksSummary
       ] = await Promise.all([
         DatabaseService.executeQuery(subscriptionsQuery),
         DatabaseService.executeQuery(activeLoansQuery),
-        DatabaseService.executeQuery(pendingLoansQuery),
-        DatabaseService.executeQuery(feesPaidQuery),
         this.getBanksSummary()
       ]);
       
       const financialData = {
         totalSubscriptions: parseFloat(subscriptionsResult[0]?.totalSubscriptions || 0),
         totalActiveLoansRemaining: parseFloat(activeLoansResult[0]?.totalActiveLoansRemaining || 0),
-        totalPendingLoans: parseFloat(pendingLoansResult[0]?.totalPendingLoans || 0),
-        totalFeesPaid: parseFloat(feesPaidResult[0]?.totalFeesPaid || 0),
         totalBanks: banksSummary.totalBanks,
         totalBanksBalance: banksSummary.totalBalance
       };
       
-      // Calculate the theoretical balance (subscriptions - active loans - pending loans + fees)
-      const calculatedBalance = financialData.totalSubscriptions - 
-                              financialData.totalActiveLoansRemaining - 
-                              financialData.totalPendingLoans + 
-                              financialData.totalFeesPaid;
+      // Simple calculation: Total user balances - Active loans remaining
+      const calculatedBalance = financialData.totalSubscriptions - financialData.totalActiveLoansRemaining;
+      
+      // Debug logging to identify the issue
+      console.log('🔍 Financial calculation debug:');
+      console.log('- Total Subscriptions:', financialData.totalSubscriptions);
+      console.log('- Total Active Loans Remaining:', financialData.totalActiveLoansRemaining);
+      console.log('- Calculated Balance:', calculatedBalance);
+      console.log('- Expected: 252290 - 236965 =', 252290 - 236965);
       
       financialData.calculatedBalance = calculatedBalance;
       financialData.banksDifference = financialData.totalBanksBalance - calculatedBalance;

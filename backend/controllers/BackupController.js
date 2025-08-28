@@ -427,7 +427,6 @@ class BackupController {
         u.registration_date,
         u.joining_fee_approved,
         u.user_type,
-        u.workplace,
         u.whatsapp,
         u.is_blocked,
         u.created_at,
@@ -645,7 +644,6 @@ class BackupController {
                 <td>${new Date(user.registration_date).toLocaleDateString('en-US')}</td>
                 <td>${user.joining_fee_approved || 'N/A'}</td>
                 <td>${user.user_type || 'N/A'}</td>
-                <td class="text-left">${user.workplace || 'N/A'}</td>
                 <td>${user.whatsapp || 'N/A'}</td>
                 <td>${user.is_blocked ? 'Yes' : 'No'}</td>
                 <td class="text-left">${user.approved_by_admin_name || 'N/A'}</td>
@@ -824,7 +822,6 @@ class BackupController {
         { header: 'تاريخ التسجيل\nRegistration', key: 'registration_date', width: 18 },
         { header: 'رسوم الانضمام\nJoining Fee', key: 'joining_fee', width: 18 },
         { header: 'نوع المستخدم\nUser Type', key: 'user_type', width: 18 },
-        { header: 'مكان العمل\nWorkplace', key: 'workplace', width: 25 },
         { header: 'واتساب\nWhatsApp', key: 'whatsapp', width: 15 },
         { header: 'محظور\nBlocked', key: 'blocked', width: 12 },
         { header: 'اعتمد بواسطة\nApproved By', key: 'approved_by', width: 25 }
@@ -855,7 +852,6 @@ class BackupController {
           joining_fee: user.joining_fee_approved === 'approved' ? 'معتمدة - Approved' : 
                       user.joining_fee_approved === 'pending' ? 'معلقة - Pending' : 'مرفوضة - Rejected',
           user_type: user.user_type || 'N/A',
-          workplace: user.workplace || 'N/A',
           whatsapp: user.whatsapp || 'N/A',
           blocked: user.is_blocked ? 'نعم - Yes' : 'لا - No',
           approved_by: user.approved_by_admin_name || 'N/A'

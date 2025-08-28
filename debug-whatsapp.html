@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تصحيح أخطاء الواتساب</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+            width: 100%;
+        }
+        .test-button:hover {
+            background: #128c7e;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 تصحيح أخطاء الواتساب</h1>
+
+    <div class="test-container">
+        <h3>معلومات الجهاز</h3>
+        <div id="deviceInfo" class="info"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>اختبار الواتساب</h3>
+        <div class="info">
+            <strong>الهاتف:</strong> 96550157577<br>
+            <strong>الرسالة:</strong> مرحبا هذا اختبار من درع العائلة
+        </div>
+        
+        <button class="test-button" onclick="testWhatsApp()">
+            📱 اختبار فتح الواتساب
+        </button>
+        
+        <button class="test-button" onclick="testWhatsApp(true)">
+            💻 اختبار واتساب ويب (قسري)
+        </button>
+        
+        <button class="test-button" onclick="testWhatsApp(false)">
+            📲 اختبار wa.me (قسري)
+        </button>
+    </div>
+
+    <div class="test-container">
+        <h3>سجل الأحداث</h3>
+        <div id="log" class="log"></div>
+        <button onclick="clearLog()" style="margin-top: 10px; padding: 5px 10px;">مسح السجل</button>
+    </div>
+
+    <!-- Include utils.js -->
+    <script src="frontend/js/utils.js"></script>
+    
+    <script>
+        let logDiv = document.getElementById('log');
+        
+        // Override console.log to show in our log div
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog(...args);
+            logDiv.textContent += new Date().toLocaleTimeString() + ': ' + args.join(' ') + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        // Show device info
+        function showDeviceInfo() {
+            const isMobile = Utils.isMobileDevice();
+            const info = document.getElementById('deviceInfo');
+            info.innerHTML = `
+                <strong>نوع الجهاز:</strong> ${isMobile ? '📱 جوال' : '💻 سطح مكتب'}<br>
+                <strong>عرض الشاشة:</strong> ${window.innerWidth}px<br>
+                <strong>نقاط اللمس:</strong> ${navigator.maxTouchPoints || 'غير مدعوم'}<br>
+                <strong>User Agent:</strong> ${navigator.userAgent.substring(0, 60)}...
+            `;
+        }
+
+        function testWhatsApp(forceWeb = null) {
+            const phone = '96550157577';
+            const message = 'مرحبا هذا اختبار من درع العائلة - ' + new Date().toLocaleTimeString();
+            
+            console.log('=== بدء اختبار الواتساب ===');
+            console.log('الهاتف:', phone);
+            console.log('الرسالة:', message);
+            console.log('قسري للويب:', forceWeb);
+            
+            const success = Utils.openWhatsAppChat(phone, message, forceWeb);
+            console.log('النتيجة:', success ? 'نجح' : 'فشل');
+            console.log('=== انتهاء الاختبار ===\n');
+        }
+
+        function clearLog() {
+            logDiv.textContent = '';
+        }
+
+        // Initialize
+        showDeviceInfo();
+        console.log('تم تحميل صفحة تصحيح الأخطاء');
+    </script>
+</body>
+</html>

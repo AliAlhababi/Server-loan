@@ -83,6 +83,7 @@ class UserService {
              admin.Aname as approved_by_admin_name,
              -- Active loan information
              COALESCE(active_loan.loan_amount, 0) as current_loan_amount,
+             ROUND(COALESCE(active_loan.loan_amount, 0) - COALESCE(paid_summary.total_paid, 0)) as remaining_loan_amount,
              -- Family delegation information
              CASE 
                WHEN fd_head.delegation_status = 'approved' AND fd_head.delegation_type = 'family_head_request' THEN 'family_head'
@@ -101,6 +102,13 @@ class UserService {
       LEFT JOIN requested_loan active_loan ON u.user_id = active_loan.user_id 
         AND active_loan.status = 'approved' 
         AND active_loan.loan_closed_date IS NULL
+      -- Get total paid installments for active loans (exactly like سجل مدفوعات القروض)
+      LEFT JOIN (
+        SELECT target_loan_id, SUM(credit) as total_paid
+        FROM loan 
+        WHERE status = 'accepted'
+        GROUP BY target_loan_id
+      ) paid_summary ON active_loan.loan_id = paid_summary.target_loan_id
       -- Check if user is an approved family head
       LEFT JOIN family_delegations fd_head ON u.user_id = fd_head.family_head_id 
         AND u.user_id = fd_head.family_member_id 
@@ -324,7 +332,6 @@ class UserService {
       email: 'email',
       phone: 'phone',
       whatsapp: 'whatsapp',
-      workplace: 'workplace',
       balance: 'balance',
       registration_date: 'registration_date',
       joining_fee_approved: 'joining_fee_approved',

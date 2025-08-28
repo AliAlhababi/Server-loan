@@ -46,6 +46,83 @@
     --gap: 15px;
 }
 
+/* Security Alert Styles - Multiple Loan Prevention */
+.security-alert-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: linear-gradient(135deg, #fff5f5 0%, #ffeaea 100%);
+    border: 2px solid #fecaca;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.security-alert-title {
+    margin: 0;
+    color: var(--danger);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.security-alert-title i {
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+#multiple-loan-alerts-container {
+    margin-top: 15px;
+}
+
+.multiple-loan-alert-card {
+    background: white;
+    border: 1px solid #f87171;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    transition: var(--transition);
+}
+
+.multiple-loan-alert-card:hover {
+    border-color: var(--danger);
+    box-shadow: var(--shadow-hover);
+}
+
+.multiple-loan-alert-card.critical {
+    border-color: var(--danger);
+    border-width: 2px;
+}
+
+.multiple-loan-alert-card .card-header {
+    background: linear-gradient(135deg, var(--danger) 0%, #ef4444 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.race-condition-badge {
+    background: #7f1d1d !important;
+    color: white !important;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.6; }
+}
+
 /* Column Visibility Panel Styles */
 .table-controls {
     display: flex;
@@ -315,14 +392,14 @@ body {
 .container { max-width: 1200px; margin: 0 auto; padding: 0 var(--padding); }
 
 .header {
-    background: var(--white-alpha); backdrop-filter: blur(10px);
-    box-shadow: var(--shadow-hover); position: sticky; top: 0; z-index: 1000;
+    background: var(--white-alpha); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-hover);
 }
 
 .auth-tabs {
     display: flex; justify-content: center; margin-bottom: var(--padding-lg);
     background: var(--white-alpha-light); border-radius: var(--radius);
-    padding: 5px; backdrop-filter: blur(10px);
+    padding: 5px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 
 .auth-tab {
@@ -340,7 +417,7 @@ body {
 .terms-card, .register-card {
     background: var(--white-alpha); border-radius: 20px;
     padding: var(--padding-lg); box-shadow: var(--shadow-modal);
-    backdrop-filter: blur(10px); max-width: 800px; margin: 0 auto;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); max-width: 800px; margin: 0 auto;
 }
 
 .terms-content {
@@ -432,17 +509,18 @@ body {
 .terms-link {
     color: #667eea;
     text-decoration: none;
-    font-size: 14px;
-    margin-left: 15px;
+    font-size: 13px;
+    margin-left: 0;
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 12px;
+    gap: 4px;
+    padding: 6px 10px;
     border-radius: 8px;
     border: 1px solid transparent;
     transition: var(--transition-fast);
     background: rgba(102, 126, 234, 0.05);
     font-weight: 500;
+    flex-shrink: 0;
 }
 
 .terms-link:hover {
@@ -682,7 +760,7 @@ textarea:focus {
     padding: 30px;
     margin-top: 30px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 
 .admin-system-tools h3 {
@@ -989,13 +1067,13 @@ textarea:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 0;
+    padding: 8px 0;
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 
 .logo-img {
@@ -1006,7 +1084,7 @@ textarea:focus {
 }
 
 .logo-icon {
-    font-size: 32px;
+    font-size: 24px;
     color: #2c3e50;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     -webkit-background-clip: text;
@@ -1015,20 +1093,31 @@ textarea:focus {
 }
 
 .logo h1 {
-    font-size: 28px;
+    font-size: 20px;
     color: #2c3e50;
     font-weight: bold;
+    margin: 0;
 }
 
 .user-info {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 #userName {
     font-weight: bold;
     color: #2c3e50;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.user-info #logoutBtn {
+    padding: 6px 12px;
+    font-size: 13px;
+    flex-shrink: 0;
 }
 
 /* Buttons */
@@ -1093,7 +1182,7 @@ textarea:focus {
 
 .login-card {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 40px;
     border-radius: 20px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
@@ -1177,7 +1266,7 @@ textarea:focus {
 
 .stat-card {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 25px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -1201,7 +1290,7 @@ textarea:focus {
 
 .compact-stat-card {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
     padding: 15px;
     border-radius: 12px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
@@ -1224,11 +1313,17 @@ textarea:focus {
     margin-bottom: 8px;
 }
 
+.compact-stat-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
 .compact-stat-value {
-    font-size: 24px;
+    font-size: 12px;
     font-weight: bold;
-    color: #2d3748;
-    margin-bottom: 4px;
+    color: #667eea;
 }
 
 .compact-stat-label {
@@ -1240,7 +1335,7 @@ textarea:focus {
 /* Financial Summary Section */
 .financial-summary-section {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     border-radius: 15px;
     padding: 25px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -1750,7 +1845,7 @@ textarea:focus {
 
 .action-btn {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     border: none;
     padding: 25px;
     border-radius: 15px;
@@ -2005,7 +2100,7 @@ textarea:focus {
 
 .admin-tab-content {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
     padding: 25px;
     border: 1px solid rgba(102, 126, 234, 0.3);
     border-radius: 0 0 15px 15px;
@@ -2019,17 +2114,19 @@ textarea:focus {
     color: #2c3e50;
 }
 
-/* Priority Actions */
+/* Priority Actions - OLD SYSTEM (DISABLED)
 .priority-actions {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 25px;
     border-radius: 20px;
     margin-bottom: 30px;
     box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1);
     border: 2px solid rgba(255, 215, 0, 0.3);
 }
+*/
 
+/*
 .priority-actions h3 {
     color: #2c3e50;
     margin-bottom: 20px;
@@ -2094,11 +2191,12 @@ textarea:focus {
     transform: scale(1.08) translateY(-3px);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
+*/
 
 /* Admin Loan Calculator */
 .admin-loan-calculator {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 25px;
     border-radius: 20px;
     margin-bottom: 30px;
@@ -2159,7 +2257,7 @@ textarea:focus {
 /* Loan Calculator */
 .loan-calculator {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 25px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -2317,7 +2415,7 @@ textarea:focus {
 /* Loan Conditions */
 .loan-conditions {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 30px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -2404,7 +2502,7 @@ textarea:focus {
 
 .toast {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
     padding: 15px 20px;
     border-radius: 10px;
     margin-bottom: 10px;
@@ -2436,8 +2534,31 @@ textarea:focus {
 /* Responsive Design */
 @media (max-width: 768px) {
     .header-content {
-        flex-direction: column;
-        gap: 15px;
+        flex-direction: row;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .user-info {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 6px;
+    }
+    
+    .user-info #logoutBtn {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .terms-link {
+        font-size: 12px;
+        padding: 4px 8px;
+        gap: 3px;
+    }
+    
+    #userName {
+        font-size: 13px;
     }
     
     .stats-grid {
@@ -2947,6 +3068,36 @@ textarea:focus {
     box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
 }
 
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+}
+
+/* Small button variants for admin actions */
+.btn-warning.btn-sm {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    border: none;
+    color: white;
+    font-weight: bold;
+}
+
+.btn-danger.btn-sm {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+    color: white;
+    font-weight: bold;
+}
+
+.btn-danger.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(220, 53, 69, 0.3);
+}
+
 /* Credentials Modal - Button Enhancement */
 .btn:disabled {
     opacity: 0.6;
@@ -2966,7 +3117,7 @@ textarea:focus {
 /* === Table Sorting Styles === */
 .sortable {
     cursor: pointer;
-    user-select: none;
+    -webkit-user-select: none; user-select: none;
     transition: all 0.2s ease;
     position: relative;
 }
@@ -3476,4 +3627,439 @@ textarea:focus {
 .no-results p {
     margin: 0;
     font-size: 1.1rem;
+}
+
+/* Financial Summary Cards - Top Priority */
+.financial-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px 0;
+}
+
+.financial-card {
+    background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.financial-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.financial-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.financial-card.clickable-card:hover {
+    cursor: pointer;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.financial-card-icon {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.financial-card-content {
+    flex: 1;
+}
+
+.financial-card-content h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.financial-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 10px 0;
+    direction: ltr;
+    text-align: left;
+}
+
+.financial-card.bank-balance .financial-value {
+    color: #10b981; /* Green for bank balance */
+}
+
+.financial-card.fund-balance .financial-value {
+    color: #3b82f6; /* Blue for fund balance */
+}
+
+.financial-card.difference .financial-value {
+    color: #6366f1; /* Purple for difference */
+}
+
+.financial-card.difference.positive .financial-value {
+    color: #10b981; /* Green for positive difference */
+}
+
+.financial-card.difference.negative .financial-value {
+    color: #ef4444; /* Red for negative difference */
+}
+
+.financial-card small {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .financial-summary-cards {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 15px 0;
+    }
+    
+    .financial-card {
+        padding: 20px;
+        gap: 15px;
+    }
+    
+    .financial-card-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.3rem;
+    }
+    
+    .financial-value {
+        font-size: 1.6rem;
+    }
+    
+    .financial-card-content h3 {
+        font-size: 1.1rem;
+    }
+}
+
+/* Messages Modal Styles */
+.messages-tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.messages-tab {
+    flex: 1;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #667eea;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.messages-tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background-color: #f8f9ff;
+}
+
+.messages-tab:hover {
+    background-color: #f0f0f0;
+}
+
+.messages-tab-content {
+    display: none;
+}
+
+.messages-tab-content.active {
+    display: block;
+}
+
+.form-hint {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Admin Tickets Management Styles */
+.tickets-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.tickets-stats-grid .stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tickets-stats-grid .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.tickets-stats-grid .stat-card.open-tickets .stat-icon {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.tickets-stats-grid .stat-card.in-progress-tickets .stat-icon {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.tickets-stats-grid .stat-card.urgent-tickets .stat-icon {
+    background: #fecaca;
+    color: #dc2626;
+}
+
+.tickets-stats-grid .stat-card.total-tickets .stat-icon {
+    background: #e0e7ff;
+    color: #667eea;
+}
+
+.tickets-filters {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.filter-group select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: white;
+    min-width: 150px;
+}
+
+.admin-ticket-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.admin-ticket-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.ticket-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.ticket-subject {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.ticket-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    color: #666;
+    flex-wrap: wrap;
+}
+
+.ticket-status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-end;
+}
+
+.ticket-content {
+    margin: 15px 0;
+    line-height: 1.6;
+    color: #555;
+}
+
+.ticket-admin-notes {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #e8f4fd;
+    border-left: 4px solid #667eea;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.ticket-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.status-select {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: white;
+    font-size: 14px;
+}
+
+/* Message History Styles */
+.message-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: box-shadow 0.3s ease;
+}
+
+.message-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.message-subject {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.message-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #666;
+}
+
+.message-status {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.message-status.open {
+    background-color: #fef3c7;
+    color: #d97706;
+}
+
+.message-status.in-progress {
+    background-color: #dbeafe;
+    color: #2563eb;
+}
+
+.message-status.resolved {
+    background-color: #d1fae5;
+    color: #059669;
+}
+
+.message-status.closed {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+
+.message-priority {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.message-priority.low {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+
+.message-priority.medium {
+    background-color: #fef3c7;
+    color: #d97706;
+}
+
+.message-priority.high {
+    background-color: #fed7d7;
+    color: #e53e3e;
+}
+
+.message-priority.urgent {
+    background-color: #fecaca;
+    color: #dc2626;
+}
+
+.message-content {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e5e5;
+    line-height: 1.6;
+}
+
+.message-admin-notes {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #e8f4fd;
+    border-left: 4px solid #667eea;
+    border-radius: 4px;
+}
+
+.message-admin-notes strong {
+    color: #667eea;
 }

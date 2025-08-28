@@ -15,6 +15,10 @@ class TransactionsTab {
         try {
             const result = await apiCall(`/users/transactions/${this.userDashboard.getUser().user_id}`);
             this.transactions = result.transactions || [];
+            
+            // Calculate running balance for each transaction
+            this.calculateRunningBalances();
+            
             this.filteredTransactions = [...this.transactions];
             
             const transactionsContent = document.getElementById('transactionsContent');
@@ -202,6 +206,7 @@ class TransactionsTab {
                             <th>التاريخ</th>
                             <th>النوع</th>
                             <th>المبلغ</th>
+                            <th>الرصيد المحدث</th>
                             <th>الوصف</th>
                             <th>الحالة</th>
                             <th>الإجراءات</th>
@@ -242,6 +247,11 @@ class TransactionsTab {
                 <td class="amount-cell">
                     <span class="amount ${typeClass}">
                         ${formatCurrency(amount)}
+                    </span>
+                </td>
+                <td class="balance-cell">
+                    <span class="balance">
+                        ${formatCurrency(transaction.running_balance || '0.000')}
                     </span>
                 </td>
                 <td class="memo-cell">
@@ -367,7 +377,7 @@ class TransactionsTab {
                     </div>
                     <div class="quick-amounts">
                         ${quickAmounts.map(amount => 
-                            `<button type="button" onclick="document.querySelector('[name=amount]').value = '${amount}'" class="quick-btn">${amount}</button>`
+                            `<button type="button" onclick="document.querySelector('#transactionForm [name=amount]').value = '${amount}'" class="quick-btn">${amount}</button>`
                         ).join('')}
                     </div>
                 </form>
@@ -493,6 +503,59 @@ class TransactionsTab {
     async refreshTransactions() {
         await this.load();
         showToast('تم تحديث المعاملات بنجاح', 'success');
+    }
+
+    // Calculate running balance for each transaction
+    calculateRunningBalances() {
+        if (this.transactions.length === 0) return;
+
+        // Sort transactions by date (oldest first) to calculate running balance
+        const sortedTransactions = [...this.transactions].sort((a, b) => {
+            const dateA = new Date(a.date || a.transaction_date);
+            const dateB = new Date(b.date || b.transaction_date);
+            return dateA - dateB;
+        });
+
+        // Get current user balance (this should be the final balance)
+        const currentUser = this.userDashboard.getUser();
+        let currentBalance = parseFloat(currentUser.balance) || 0;
+
+        // Calculate starting balance by working backwards
+        let totalChanges = 0;
+        sortedTransactions.forEach(transaction => {
+            if (transaction.status === 'accepted') {
+                if (transaction.credit > 0) {
+                    totalChanges += parseFloat(transaction.credit);
+                } else {
+                    totalChanges -= parseFloat(transaction.debit);
+                }
+            }
+        });
+
+        let runningBalance = currentBalance - totalChanges;
+
+        // Now calculate forward and assign running balances
+        sortedTransactions.forEach(transaction => {
+            if (transaction.status === 'accepted') {
+                if (transaction.credit > 0) {
+                    runningBalance += parseFloat(transaction.credit);
+                } else {
+                    runningBalance -= parseFloat(transaction.debit);
+                }
+                transaction.running_balance = runningBalance;
+            } else {
+                // For pending/rejected transactions, balance doesn't change
+                transaction.running_balance = runningBalance;
+            }
+        });
+
+        // Update the original transactions array with calculated balances
+        this.transactions.forEach(original => {
+            const calculated = sortedTransactions.find(t => t.transaction_id === original.transaction_id);
+            if (calculated) {
+                original.running_balance = calculated.running_balance;
+            }
+        });
     }
 }
 

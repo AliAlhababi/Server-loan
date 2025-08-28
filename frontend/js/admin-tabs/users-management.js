@@ -137,7 +137,7 @@ class UsersManagement {
                             <label><input type="checkbox" value="email" checked> البريد الإلكتروني</label>
                             <label><input type="checkbox" value="phone" checked> الهاتف</label>
                             <label><input type="checkbox" value="balance" checked> الرصيد</label>
-                            <label><input type="checkbox" value="current_loan" checked> القرض الحالي</label>
+                            <label><input type="checkbox" value="remaining_loan" checked> القرض</label>
                             <label><input type="checkbox" value="registration_date" checked> تاريخ التسجيل</label>
                             <label><input type="checkbox" value="status" checked> الحالة</label>
                             <label><input type="checkbox" value="actions" checked> الإجراءات</label>
@@ -178,8 +178,8 @@ class UsersManagement {
                             <th data-column="balance" class="sortable" onclick="usersManagement.sortTable('balance', 'currency')">
                                 الرصيد <i class="fas fa-sort sort-icon"></i>
                             </th>
-                            <th data-column="current_loan" class="sortable" onclick="usersManagement.sortTable('current_loan', 'currency')">
-                                القرض الحالي <i class="fas fa-sort sort-icon"></i>
+                            <th data-column="remaining_loan" class="sortable" onclick="usersManagement.sortTable('remaining_loan', 'currency')">
+                                القرض <i class="fas fa-sort sort-icon"></i>
                             </th>
                             <th data-column="registration_date" class="sortable" onclick="usersManagement.sortTable('registration_date', 'date')">
                                 تاريخ التسجيل <i class="fas fa-sort sort-icon"></i>
@@ -195,7 +195,7 @@ class UsersManagement {
                             <tr data-status="${user.status}" data-type="${user.user_type}" data-name="${(user.Aname || '').toLowerCase()}" 
                                 data-user-id="${user.user_id}" data-email="${(user.email || '').toLowerCase()}" 
                                 data-phone="${user.phone || ''}" data-balance="${user.balance || 0}" 
-                                data-current-loan="${user.current_loan_amount || 0}" 
+                                data-remaining-loan="${user.remaining_loan_amount || 0}" 
                                 data-registration-date="${user.registration_date}"
                                 data-status-text="${user.is_blocked ? 'محظور' : user.joining_fee_approved === 'approved' ? 'نشط' : 'غير مفعل'}">
                                 <td data-column="user_id"><strong>#${user.user_id}</strong></td>
@@ -232,10 +232,10 @@ class UsersManagement {
                                 <td data-column="balance" class="balance-cell">
                                     <span class="balance">${FormatHelper.formatCurrency(user.balance)}</span>
                                 </td>
-                                <td data-column="current_loan" class="current-loan-cell">
-                                    <span class="current-loan">
-                                        ${user.current_loan_amount && user.current_loan_amount > 0 ? 
-                                            FormatHelper.formatCurrency(user.current_loan_amount) : 
+                                <td data-column="remaining_loan" class="remaining-loan-cell">
+                                    <span class="remaining-loan ${user.remaining_loan_amount > 0 ? 'warning' : 'success'}">
+                                        ${user.remaining_loan_amount && user.remaining_loan_amount > 0 ? 
+                                            FormatHelper.formatCurrency(user.remaining_loan_amount) : 
                                             '<span class="no-loan">لا يوجد</span>'
                                         }
                                     </span>
@@ -250,30 +250,37 @@ class UsersManagement {
                                     </span>
                                 </td>
                                 <td data-column="actions" class="actions-cell">
-                                    <button class="btn btn-sm btn-info" onclick="usersManagement.viewUserDetails(${user.user_id})" title="التفاصيل">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-warning" onclick="usersManagement.editUser(${user.user_id})" title="تعديل">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    ${user.whatsapp || user.phone ? 
-                                        `<button class="btn btn-sm btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${(user.Aname || 'المستخدم').replace(/`/g, '\\`')}\`)" title="محادثة واتساب">
-                                            <i class="fab fa-whatsapp"></i>
-                                        </button>` : ''
-                                    }
-                                    ${user.is_blocked ? 
-                                        `<button class="btn btn-sm btn-success" onclick="usersManagement.toggleUserBlock(${user.user_id}, false)" title="إلغاء الحظر">
-                                            <i class="fas fa-unlock"></i>
-                                        </button>` :
-                                        `<button class="btn btn-sm btn-danger" onclick="usersManagement.toggleUserBlock(${user.user_id}, true)" title="حظر">
-                                            <i class="fas fa-ban"></i>
-                                        </button>`
-                                    }
-                                    ${user.joining_fee_approved === 'pending' ? 
-                                        `<button class="btn btn-sm btn-success" onclick="usersManagement.approveJoiningFee(${user.user_id})" title="موافقة رسوم الانضمام">
-                                            <i class="fas fa-check-circle"></i>
-                                        </button>` : ''
-                                    }
+                                    <div class="btn-group" style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;">
+                                        <!-- Primary Actions -->
+                                        <button class="btn btn-sm btn-info" onclick="usersManagement.viewUserDetails(${user.user_id})" title="التفاصيل" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-warning" onclick="usersManagement.editUser(${user.user_id})" title="تعديل" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        
+                                        <!-- Status Actions -->
+                                        ${user.is_blocked ? 
+                                            `<button class="btn btn-sm btn-success" onclick="usersManagement.toggleUserBlock(${user.user_id}, false)" title="إلغاء الحظر" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-unlock"></i>
+                                            </button>` :
+                                            `<button class="btn btn-sm btn-danger" onclick="usersManagement.toggleUserBlock(${user.user_id}, true)" title="حظر" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-ban"></i>
+                                            </button>`
+                                        }
+                                        ${user.joining_fee_approved === 'pending' ? 
+                                            `<button class="btn btn-sm btn-success" onclick="usersManagement.approveJoiningFee(${user.user_id})" title="موافقة رسوم الانضمام" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>` : ''
+                                        }
+                                        
+                                        <!-- Communication -->
+                                        ${user.whatsapp || user.phone ? 
+                                            `<button class="btn btn-sm btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${(user.Aname || 'المستخدم').replace(/`/g, '\\`')}\`)" title="محادثة واتساب" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                                <i class="fab fa-whatsapp"></i>
+                                            </button>` : ''
+                                        }
+                                    </div>
                                 </td>
                             </tr>
                         `).join('')}
@@ -331,11 +338,6 @@ class UsersManagement {
                             </select>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="regWorkplace">مكان العمل</label>
-                            <input type="text" id="regWorkplace" name="workplace">
-                            <small class="field-hint">اختياري</small>
-                        </div>
                         
                         <div class="form-group">
                             <label for="regInitialBalance">الرصيد الابتدائي (د.ك)</label>
@@ -428,7 +430,6 @@ class UsersManagement {
             phone: formData.get('phone'),
             whatsapp: formData.get('whatsapp') || formData.get('phone'),
             userType: formData.get('userType'),
-            workplace: formData.get('workplace'),
             initialBalance: parseFloat(formData.get('initialBalance')) || 0,
             joiningFeeStatus: formData.get('joiningFeeStatus'),
             password: formData.get('password') || this.generateRandomPassword()
@@ -594,10 +595,6 @@ class UsersManagement {
                                         ` : ''}
                                     </span>
                                 </div>
-                                <div class="detail-row">
-                                    <span class="label">مكان العمل:</span>
-                                    <span class="value">${user.workplace || 'غير محدد'}</span>
-                                </div>
                             </div>
 
                             <div class="detail-section">
@@ -677,21 +674,38 @@ class UsersManagement {
                         </div>
 
                         <div class="user-actions" style="margin-top: 20px; text-align: center;">
-                            <button class="btn btn-primary" onclick="usersManagement.editUser(${user.user_id})">
-                                <i class="fas fa-edit"></i> تعديل البيانات
-                            </button>
-                            <button class="btn btn-info" onclick="usersManagement.openLoanManagement(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'غير محدد'}\`)">
-                                <i class="fas fa-money-bill-wave"></i> إدارة القروض
-                            </button>
-                            <button class="btn ${user.is_blocked ? 'btn-success' : 'btn-warning'}" 
-                                    onclick="usersManagement.toggleUserBlock(${user.user_id}, ${!user.is_blocked})">
-                                <i class="fas ${user.is_blocked ? 'fa-unlock' : 'fa-ban'}"></i>
-                                ${user.is_blocked ? 'إلغاء الحظر' : 'حظر المستخدم'}
-                            </button>
+                            <!-- Primary Actions Row -->
+                            <div style="margin-bottom: 12px;">
+                                <button class="btn btn-primary" onclick="usersManagement.editUser(${user.user_id})" style="margin: 0 6px;">
+                                    <i class="fas fa-edit"></i> تعديل البيانات
+                                </button>
+                                <button class="btn btn-info" onclick="usersManagement.openLoanManagement(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'غير محدد'}\`)" style="margin: 0 6px;">
+                                    <i class="fas fa-money-bill-wave"></i> إدارة القروض
+                                </button>
+                                <button class="btn ${user.is_blocked ? 'btn-success' : 'btn-warning'}" 
+                                        onclick="usersManagement.toggleUserBlock(${user.user_id}, ${!user.is_blocked})" style="margin: 0 6px;">
+                                    <i class="fas ${user.is_blocked ? 'fa-unlock' : 'fa-ban'}"></i>
+                                    ${user.is_blocked ? 'إلغاء الحظر' : 'حظر المستخدم'}
+                                </button>
+                            </div>
+                            
+                            <!-- Financial Actions Row -->
+                            <div style="margin-bottom: 12px;">
+                                <button class="btn btn-success" onclick="usersManagement.showDepositModal(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'غير محدد'}\`)" title="إضافة إيداع" style="margin: 0 6px;">
+                                    <i class="fas fa-plus-circle"></i> إيداع
+                                </button>
+                                <button class="btn btn-warning" onclick="usersManagement.showWithdrawalModal(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'غير محدد'}\`)" title="إضافة سحب" style="margin: 0 6px;">
+                                    <i class="fas fa-minus-circle"></i> سحب
+                                </button>
+                            </div>
+                            
+                            <!-- Communication Actions Row -->
                             ${user.whatsapp || user.phone ? `
-                            <button class="btn btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${user.Aname?.replace(/`/g, '\\`') || 'المستخدم'}\`)"
-                                <i class="fab fa-whatsapp"></i> محادثة واتساب
-                            </button>
+                            <div>
+                                <button class="btn btn-success" onclick="usersManagement.chatWithUser('${user.whatsapp || user.phone}', \`${user.Aname?.replace(/`/g, '\\`') || 'المستخدم'}\`)" style="margin: 0 6px;">
+                                    <i class="fab fa-whatsapp"></i> محادثة واتساب
+                                </button>
+                            </div>
                             ` : ''}
                         </div>
                     </div>
@@ -709,6 +723,9 @@ class UsersManagement {
     // Edit user
     async editUser(userId) {
         try {
+            // Save scroll position before opening modal
+            this.saveScrollPosition();
+            
             // Get user details
             const result = await apiCall(`/admin/user-details/${userId}`);
             const user = result.user;
@@ -740,10 +757,6 @@ class UsersManagement {
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group">
-                                <label>مكان العمل</label>
-                                <input type="text" name="workplace" value="${user.workplace || ''}" placeholder="اختياري">
-                            </div>
                             <div class="form-group">
                                 <label>الرصيد الحالي (د.ك)</label>
                                 <input type="number" name="balance" value="${user.balance || 0}" step="0.001" min="0">
@@ -817,11 +830,24 @@ class UsersManagement {
         try {
             showLoading(true);
             const result = await apiCall(`/admin/update-user/${userId}`, 'PUT', data);
-            showToast(result.message, 'success');
-            hideModal();
             
-            // Refresh users list
-            await this.loadTab('list');
+            // Close modal immediately and show success
+            hideModal();
+            showToast(result.message, 'success');
+            
+            // Try smart update first
+            const updateSucceeded = this.updateUserInList(userId, data);
+            
+            if (updateSucceeded) {
+                // Smart update worked - restore scroll position
+                this.restoreScrollPosition();
+                console.log(`✅ Smart update completed for user ${userId}`);
+            } else {
+                // Smart update failed - fall back to full reload
+                console.log(`⚠️ Smart update failed for user ${userId}, falling back to full reload`);
+                await this.loadTab('list');
+                this.restoreScrollPosition();
+            }
             
         } catch (error) {
             showToast(error.message, 'error');
@@ -1000,7 +1026,9 @@ class UsersManagement {
 
     // Chat with user via WhatsApp
     chatWithUser(phoneNumber, userName) {
-        const defaultMessage = `مرحباً ${userName}، أتواصل معك من إدارة صندوق درع العائلة. كيف يمكنني مساعدتك؟`;
+        // Get brand name from global brandConfig or use fallback
+        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 'درع العائلة';
+        const defaultMessage = `مرحباً ${userName}، أتواصل معك من إدارة ${brandName}. كيف يمكنني مساعدتك؟`;
         
         // Try to open WhatsApp Web (defaults to true)
         const success = Utils.openWhatsAppWeb(phoneNumber, defaultMessage);
@@ -1009,6 +1037,202 @@ class UsersManagement {
             showToast(`تم فتح واتساب ويب للمحادثة مع ${userName}`, 'success');
         } else {
             showToast('خطأ في فتح واتساب ويب - تأكد من صحة رقم الهاتف', 'error');
+        }
+    }
+
+    // Show deposit modal
+    async showDepositModal(userId, userName) {
+        const modalContent = `
+            <div class="deposit-modal">
+                <h4><i class="fas fa-plus-circle"></i> إضافة إيداع للعضو: ${userName}</h4>
+                <form id="depositForm">
+                    <div class="form-group">
+                        <label>مبلغ الإيداع (د.ك)</label>
+                        <input type="number" name="amount" step="0.001" min="0.001" placeholder="0.000" required>
+                    </div>
+                    <div class="form-group">
+                        <label>نوع المعاملة</label>
+                        <select name="transactionType" required>
+                            <option value="subscription">اشتراك شهري</option>
+                            <option value="deposit">إيداع عام</option>
+                            <option value="joining_fee">رسوم انضمام</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ملاحظة (اختياري)</label>
+                        <textarea name="memo" rows="3" placeholder="أدخل ملاحظة عن هذا الإيداع..."></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <div style="background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; padding: 12px;">
+                            <p style="margin: 0; color: #0284c7; font-size: 14px;">
+                                <i class="fas fa-info-circle"></i>
+                                سيتم إضافة المبلغ فوراً لرصيد العضو وإرسال إشعار عبر البريد الإلكتروني
+                            </p>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        showModal('إضافة إيداع', modalContent + `
+            <div class="modal-actions">
+                <button onclick="usersManagement.processDeposit(${userId})" class="btn btn-success">
+                    <i class="fas fa-plus-circle"></i> إضافة الإيداع
+                </button>
+                <button onclick="hideModal()" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        `);
+    }
+
+    // Show withdrawal modal
+    async showWithdrawalModal(userId, userName) {
+        // First, get user's current balance
+        try {
+            const result = await apiCall(`/admin/user-details/${userId}`);
+            const currentBalance = result.user.balance || 0;
+            
+            const modalContent = `
+                <div class="withdrawal-modal">
+                    <h4><i class="fas fa-minus-circle"></i> إضافة سحب للعضو: ${userName}</h4>
+                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <p style="margin: 0; color: #92400e; font-size: 14px;">
+                            <i class="fas fa-wallet"></i>
+                            <strong>الرصيد الحالي: ${FormatHelper.formatCurrency(currentBalance)}</strong>
+                        </p>
+                    </div>
+                    <form id="withdrawalForm">
+                        <div class="form-group">
+                            <label>مبلغ السحب (د.ك)</label>
+                            <input type="number" name="amount" step="0.001" min="0.001" 
+                                   placeholder="0.000" required>
+                            <small class="field-hint">الرصيد الحالي: ${FormatHelper.formatCurrency(currentBalance)} - يمكن السحب أكثر من الرصيد</small>
+                        </div>
+                        <div class="form-group">
+                            <label>نوع المعاملة</label>
+                            <select name="transactionType" required>
+                                <option value="withdrawal">سحب عام</option>
+                                <option value="loan_disbursement">صرف قرض</option>
+                                <option value="refund">رد أموال</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ملاحظة (اختياري)</label>
+                            <textarea name="memo" rows="3" placeholder="أدخل ملاحظة عن هذا السحب..."></textarea>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <div style="background: #fef2f2; border: 1px solid #dc2626; border-radius: 8px; padding: 12px;">
+                                <p style="margin: 0; color: #dc2626; font-size: 14px;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    سيتم خصم المبلغ فوراً من رصيد العضو. إذا كان المبلغ أكبر من الرصيد، سيصبح الرصيد سالباً (دين للعضو)
+                                </p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            showModal('إضافة سحب', modalContent + `
+                <div class="modal-actions">
+                    <button onclick="usersManagement.processWithdrawal(${userId})" class="btn btn-warning">
+                        <i class="fas fa-minus-circle"></i> إضافة السحب
+                    </button>
+                    <button onclick="hideModal()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                </div>
+            `);
+            
+        } catch (error) {
+            showToast(`خطأ في جلب بيانات العضو: ${error.message}`, 'error');
+        }
+    }
+
+    // Process deposit
+    async processDeposit(userId) {
+        try {
+            const form = document.getElementById('depositForm');
+            const formData = new FormData(form);
+            
+            const amount = parseFloat(formData.get('amount'));
+            const memo = formData.get('memo') || '';
+            const transactionType = formData.get('transactionType');
+            
+            if (!amount || amount <= 0) {
+                showToast('يرجى إدخال مبلغ صحيح', 'error');
+                return;
+            }
+
+            showLoading(true);
+            
+            const result = await apiCall('/admin/add-transaction', 'POST', {
+                userId: userId,
+                amount: amount,
+                type: 'credit', // Deposit is credit
+                memo: memo || `إيداع ${transactionType === 'subscription' ? 'اشتراك شهري' : transactionType === 'joining_fee' ? 'رسوم انضمام' : 'عام'}`,
+                transactionType: transactionType,
+                status: 'accepted' // Admin transactions are auto-accepted
+            });
+
+            showToast('تم إضافة الإيداع بنجاح', 'success');
+            hideModal();
+            
+            // Refresh the user details if the modal is still open
+            setTimeout(() => {
+                location.reload(); // Simple refresh to show updated balance
+            }, 1000);
+            
+        } catch (error) {
+            showToast(`خطأ في إضافة الإيداع: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Process withdrawal
+    async processWithdrawal(userId) {
+        try {
+            const form = document.getElementById('withdrawalForm');
+            const formData = new FormData(form);
+            
+            const amount = parseFloat(formData.get('amount'));
+            const memo = formData.get('memo') || '';
+            const transactionType = formData.get('transactionType');
+            
+            if (!amount || amount <= 0) {
+                showToast('يرجى إدخال مبلغ صحيح', 'error');
+                return;
+            }
+
+            // Double confirmation for withdrawals
+            if (!confirm(`هل أنت متأكد من سحب ${FormatHelper.formatCurrency(amount)} من رصيد العضو؟`)) {
+                return;
+            }
+
+            showLoading(true);
+            
+            const result = await apiCall('/admin/add-transaction', 'POST', {
+                userId: userId,
+                amount: amount,
+                type: 'debit', // Withdrawal is debit
+                memo: memo || `سحب ${transactionType === 'withdrawal' ? 'عام' : transactionType === 'loan_disbursement' ? 'صرف قرض' : 'رد أموال'}`,
+                transactionType: transactionType,
+                status: 'accepted' // Admin transactions are auto-accepted
+            });
+
+            showToast('تم إضافة السحب بنجاح', 'success');
+            hideModal();
+            
+            // Refresh the user details if the modal is still open
+            setTimeout(() => {
+                location.reload(); // Simple refresh to show updated balance
+            }, 1000);
+            
+        } catch (error) {
+            showToast(`خطأ في إضافة السحب: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
         }
     }
 
@@ -1309,9 +1533,9 @@ class UsersManagement {
                     aValue = parseFloat(a.getAttribute('data-balance')) || 0;
                     bValue = parseFloat(b.getAttribute('data-balance')) || 0;
                     break;
-                case 'current_loan':
-                    aValue = parseFloat(a.getAttribute('data-current-loan')) || 0;
-                    bValue = parseFloat(b.getAttribute('data-current-loan')) || 0;
+                case 'remaining_loan':
+                    aValue = parseFloat(a.getAttribute('data-remaining-loan')) || 0;
+                    bValue = parseFloat(b.getAttribute('data-remaining-loan')) || 0;
                     break;
                 case 'registration_date':
                     aValue = new Date(a.getAttribute('data-registration-date') || '1970-01-01');
@@ -1489,6 +1713,94 @@ class UsersManagement {
             console.error('❌ userSearchInput element not found after maximum attempts');
             console.log('Final DOM check - available IDs:', Array.from(document.querySelectorAll('[id]')).map(el => el.id).filter(id => id.includes('search') || id.includes('user')));
             showToast('خطأ: لم يتم العثور على حقل البحث بعد عدة محاولات', 'error');
+        }
+    }
+
+    // ============================================
+    // SMART UPDATE UTILITIES
+    // ============================================
+    
+    // Update specific user in the list without full reload
+    updateUserInList(userId, updatedData) {
+        try {
+            // Find the user row in the current table
+            const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+            if (!userRow) {
+                console.log(`User row ${userId} not found in current view, skipping update`);
+                return false; // User not in current view (filtered out, different page, etc.)
+            }
+
+            // Update the row cells with new data using data-column selectors
+            if (updatedData.fullName) {
+                const nameCell = userRow.querySelector('td[data-column="name"]');
+                if (nameCell) {
+                    const userInfo = nameCell.querySelector('.user-info .user-name');
+                    if (userInfo) {
+                        userInfo.textContent = updatedData.fullName;
+                    }
+                    // Also update row data attribute for filtering
+                    userRow.setAttribute('data-name', updatedData.fullName.toLowerCase());
+                }
+            }
+            
+            if (updatedData.email) {
+                const emailCell = userRow.querySelector('td[data-column="email"]');
+                if (emailCell) {
+                    const emailSpan = emailCell.querySelector('.email');
+                    if (emailSpan) {
+                        emailSpan.textContent = updatedData.email;
+                    }
+                    // Also update row data attribute for filtering
+                    userRow.setAttribute('data-email', updatedData.email.toLowerCase());
+                }
+            }
+            
+            if (updatedData.phone) {
+                const phoneCell = userRow.querySelector('td[data-column="phone"]');
+                if (phoneCell) {
+                    const phoneSpan = phoneCell.querySelector('.phone');
+                    if (phoneSpan) {
+                        phoneSpan.textContent = updatedData.phone;
+                    }
+                    // Also update row data attribute for filtering
+                    userRow.setAttribute('data-phone', updatedData.phone);
+                }
+            }
+            
+            if (updatedData.workplace !== undefined) {
+                // Update workplace if there's a column for it (may not exist in current table)
+                const workplaceCell = userRow.querySelector('td[data-column="workplace"]');
+                if (workplaceCell) {
+                    workplaceCell.textContent = updatedData.workplace || 'غير محدد';
+                }
+            }
+
+            console.log(`✅ Successfully updated user ${userId} in list`);
+            return true; // Successfully updated
+            
+        } catch (error) {
+            console.error(`❌ Error updating user ${userId} in list:`, error);
+            return false; // Fall back to full reload
+        }
+    }
+
+    // Save current scroll position
+    saveScrollPosition() {
+        const scrollContainer = this.adminDashboard.contentArea;
+        this.savedScrollPosition = scrollContainer ? scrollContainer.scrollTop : 0;
+        console.log(`📍 Saved scroll position: ${this.savedScrollPosition}`);
+    }
+
+    // Restore saved scroll position  
+    restoreScrollPosition() {
+        if (this.savedScrollPosition !== undefined) {
+            setTimeout(() => {
+                const scrollContainer = this.adminDashboard.contentArea;
+                if (scrollContainer) {
+                    scrollContainer.scrollTop = this.savedScrollPosition;
+                    console.log(`📍 Restored scroll position: ${this.savedScrollPosition}`);
+                }
+            }, 50); // Small delay to ensure DOM is updated
         }
     }
 }

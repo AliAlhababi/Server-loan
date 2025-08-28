@@ -41,11 +41,15 @@ router.post('/calculate', verifyToken, async (req, res) => {
   }
 });
 
-// Request a new loan
+// Request a new loan - RACE CONDITION SAFE VERSION
 router.post('/request', verifyToken, async (req, res) => {
+  const connection = await pool.getConnection();
+  
   try {
     const { amount, installmentMonths } = req.body;
     const userId = req.user.user_id;
+
+    console.log(`🔐 Safe loan request started for user ${userId}, amount: ${amount}`);
 
     // Validate input
     if (!amount) {
@@ -62,23 +66,6 @@ router.post('/request', verifyToken, async (req, res) => {
       });
     }
 
-    if (installmentMonths && installmentMonths <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'عدد الأقساط يجب أن يكون أكبر من صفر'
-      });
-    }
-
-    // Check eligibility
-    const eligibility = await UserModel.checkLoanEligibility(userId);
-    
-    if (!eligibility.eligible) {
-      return res.status(400).json({
-        success: false,
-        message: `لا يمكنك طلب قرض: ${eligibility.reason}`
-      });
-    }
-
     // Check maximum loan limit (10,000 KWD system cap)
     const SYSTEM_MAX_LOAN = 10000;
     if (amount > SYSTEM_MAX_LOAN) {
@@ -88,84 +75,174 @@ router.post('/request', verifyToken, async (req, res) => {
       });
     }
 
-    // Check if amount doesn't exceed user's maximum based on balance
-    if (amount > eligibility.maxLoanAmount) {
-      return res.status(400).json({
-        success: false,
-        message: `المبلغ المطلوب يتجاوز الحد الأقصى المسموح لك (${eligibility.maxLoanAmount.toLocaleString()} دينار)`
-      });
-    }
+    // Start transaction with explicit locking
+    await connection.beginTransaction();
+    console.log('🔒 Transaction started with locking');
 
-    // Get system attributes
-    const [attributes] = await pool.execute(
-      'SELECT attribute_name, attribute_value FROM attribute WHERE attribute_name IN (?, ?, ?)',
-      ['max_loan_amount', 'loan_ratio', 'min_installment']
+    // CRITICAL: Lock user record to prevent concurrent requests
+    const [userResults] = await connection.execute(
+      'SELECT user_id, balance, is_blocked, joining_fee_approved, registration_date FROM users WHERE user_id = ? FOR UPDATE',
+      [userId]
     );
 
-    const systemConfig = {};
-    attributes.forEach(attr => {
-      systemConfig[attr.attribute_name] = attr.attribute_value;
-    });
-
-    // Check maximum loan limit
-    if (amount > (systemConfig.max_loan_amount || SYSTEM_MAX_LOAN)) {
-      return res.status(400).json({
+    if (userResults.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
         success: false,
-        message: `المبلغ المطلوب يتجاوز الحد الأقصى للنظام (${systemConfig.max_loan_amount || SYSTEM_MAX_LOAN} دينار)`
+        message: 'المستخدم غير موجود'
       });
     }
 
-    // Get user balance for calculation
-    const user = await UserModel.getUserById(userId);
-    const userBalance = user.balance || 0;
+    const user = userResults[0];
+    const userBalance = parseFloat(user.balance || 0);
+
+    console.log(`🔍 User locked: ${userId}, balance: ${userBalance}`);
+
+    // CRITICAL: Check for active loans with lock to prevent race conditions
+    const [activeLoanResults] = await connection.execute(
+      'SELECT COUNT(*) as count FROM requested_loan WHERE user_id = ? AND status IN ("pending", "approved") AND loan_closed_date IS NULL FOR UPDATE',
+      [userId]
+    );
+
+    const activeLoansCount = activeLoanResults[0].count;
+    console.log(`🎯 Active loans check: ${activeLoansCount} loans found`);
+
+    // Immediate eligibility checks with locked data
+    if (activeLoansCount > 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'يوجد قرض نشط أو معلق بالفعل. لا يمكن طلب قرض إضافي'
+      });
+    }
+
+    if (user.is_blocked === 1) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'الحساب محظور - لا يمكن طلب قرض'
+      });
+    }
+
+    if (user.joining_fee_approved !== 'approved') {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'رسوم الانضمام غير معتمدة - لا يمكن طلب قرض'
+      });
+    }
+
+    if (userBalance < 500) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `الرصيد أقل من 500 دينار (الرصيد الحالي: ${userBalance.toFixed(3)} د.ك)`
+      });
+    }
+
+    // Check one year registration
+    const registrationDate = new Date(user.registration_date);
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     
-    console.log(`User data for loan calculation:`, { userId, balance: user.balance, userBalance });
+    if (registrationDate > oneYearAgo) {
+      const daysRemaining = Math.ceil((registrationDate - oneYearAgo) / (1000 * 60 * 60 * 24));
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `لم يمض عام على التسجيل (باقي ${daysRemaining} يوم)`
+      });
+    }
+
+    // Check 30-day rule since last closure
+    const [lastClosureResults] = await connection.execute(
+      'SELECT loan_closed_date FROM requested_loan WHERE user_id = ? AND loan_closed_date IS NOT NULL ORDER BY loan_closed_date DESC LIMIT 1',
+      [userId]
+    );
     
-    // Use the same calculation logic as dashboard calculator
-    // Use the centralized LoanCalculator for consistent calculations
-    
+    if (lastClosureResults.length > 0) {
+      const lastClosure = new Date(lastClosureResults[0].loan_closed_date);
+      const daysSince = Math.floor((new Date() - lastClosure) / (1000 * 60 * 60 * 24));
+      
+      if (daysSince < 30) {
+        const daysUntilNextLoan = 30 - daysSince;
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          message: `لم يمر 30 يوم على إغلاق آخر قرض (باقي ${daysUntilNextLoan} يوم)`
+        });
+      }
+    }
+
+    // Check if amount doesn't exceed user's maximum based on balance
+    const maxLoanAmount = Math.min(userBalance * 3, SYSTEM_MAX_LOAN);
+    if (amount > maxLoanAmount) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `المبلغ المطلوب يتجاوز الحد الأقصى المسموح لك (${maxLoanAmount.toLocaleString()} دينار)`
+      });
+    }
+
+    // Calculate installment using centralized calculator
     let monthlyInstallment, period;
     try {
-      // Check if user balance is valid for calculation
-      if (userBalance <= 0) {
-        throw new Error('Invalid user balance for installment calculation');
-      }
-      
-      // Use LoanCalculator for consistent installment calculation
       const installmentData = new LoanCalculator().calculateInstallment(amount, userBalance);
       monthlyInstallment = installmentData.amount;
       
-      console.log(`Loan calculation: Amount=${amount}, Balance=${userBalance}`);
-      console.log(`Installment calculation: ${installmentData.baseAmount} → ${monthlyInstallment}`);
+      console.log(`💰 Installment calculated: ${monthlyInstallment} KWD`);
       
-      // Calculate period automatically: period = loanAmount / installment (no maximum cap)
-      period = Math.max(Math.ceil(amount / monthlyInstallment), 6); // minimum 6 months
+      // Calculate period automatically: period = loanAmount / installment (minimum 6 months)
+      period = Math.max(Math.ceil(amount / monthlyInstallment), 6);
       
     } catch (error) {
       console.error('Calculation error:', error);
-      // Fallback to simple calculation
-      monthlyInstallment = Math.max(amount / 24, 20);
-      period = 24;
-    }
-
-    // Validate calculated installment before inserting
-    if (monthlyInstallment <= 0) {
+      await connection.rollback();
       return res.status(500).json({
         success: false,
         message: 'خطأ في حساب القسط الشهري. يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني'
       });
     }
 
-    // Insert loan request
-    const [result] = await pool.execute(`
+    // Validate calculated installment
+    if (monthlyInstallment <= 0) {
+      await connection.rollback();
+      return res.status(500).json({
+        success: false,
+        message: 'خطأ في حساب القسط الشهري. يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني'
+      });
+    }
+
+    // FINAL CHECK: Re-verify no active loans immediately before insert
+    const [finalCheckResults] = await connection.execute(
+      'SELECT COUNT(*) as count FROM requested_loan WHERE user_id = ? AND status IN ("pending", "approved") AND loan_closed_date IS NULL',
+      [userId]
+    );
+
+    if (finalCheckResults[0].count > 0) {
+      await connection.rollback();
+      console.log(`❌ Race condition detected! User ${userId} has ${finalCheckResults[0].count} active loans`);
+      return res.status(400).json({
+        success: false,
+        message: 'تم اكتشاف طلب قرض آخر مُرسل بنفس الوقت. لا يمكن طلب قروض متعددة'
+      });
+    }
+
+    // Insert loan request - this will be blocked by our database constraint if somehow multiple get through
+    const [result] = await connection.execute(`
       INSERT INTO requested_loan 
-      (user_id, loan_amount, installment_amount, status)
-      VALUES (?, ?, ?, 'pending')
+      (user_id, loan_amount, installment_amount, status, request_date)
+      VALUES (?, ?, ?, 'pending', NOW())
     `, [
       userId,
       amount,
       monthlyInstallment
     ]);
+
+    // Commit the transaction
+    await connection.commit();
+    
+    console.log(`✅ Loan request ${result.insertId} created successfully for user ${userId}`);
 
     res.json({
       success: true,
@@ -180,11 +257,40 @@ router.post('/request', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Request loan error:', error);
+    // Rollback transaction on any error
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      console.error('Rollback error:', rollbackError);
+    }
+    
+    console.error('Safe loan request error:', error);
+    
+    // Check if it's a database constraint violation (our safety net)
+    if (error.code === 'ER_DUP_ENTRY' || error.message.includes('idx_one_active_loan_per_user')) {
+      return res.status(400).json({
+        success: false,
+        message: 'يوجد قرض نشط بالفعل. لا يمكن طلب قروض متعددة'
+      });
+    }
+    
+    // Check if it's our custom trigger error
+    if (error.sqlState === '45000') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: error.message
+      message: 'خطأ في النظام. يرجى المحاولة مرة أخرى'
     });
+  } finally {
+    // Always release the connection
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
@@ -300,9 +406,8 @@ router.post('/payment', verifyToken, async (req, res) => {
     const totalPaid = parseFloat(paidAmountResult[0].total_paid || 0);
     const remainingBalance = parseFloat(activeLoan.loan_amount) - totalPaid;
 
-    // Calculate minimum required payment using LoanCalculator for consistency
-    const installmentData = new LoanCalculator().calculateInstallment(activeLoan.loan_amount, userBalance);
-    const minInstallment = installmentData.amount;
+    // Use installment_amount from database (admin can modify this)
+    const minInstallment = Math.max(parseFloat(activeLoan.installment_amount) || 20, 20);
 
     // Special handling for final payment - allow remaining balance even if below minimum
     const effectiveMinimum = remainingBalance <= minInstallment ? remainingBalance : minInstallment;
@@ -442,5 +547,141 @@ router.post('/calculate-realtime', verifyToken, async (req, res) => {
 });
 
 // Removed duplicate routes - see above for the actual implementations
+
+// Cancel pending loan payment (user can only cancel their own pending payments)
+router.delete('/cancel-payment/:paymentId', verifyToken, async (req, res) => {
+  try {
+    const paymentId = parseInt(req.params.paymentId);
+    const userId = req.user.user_id;
+
+    console.log(`User ${userId} attempting to cancel loan payment ${paymentId}`);
+
+    // Get payment details and verify ownership
+    const [payments] = await pool.execute(
+      'SELECT * FROM loan WHERE loan_id = ?',
+      [paymentId]
+    );
+    
+    if (payments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'الدفعة غير موجودة'
+      });
+    }
+
+    const payment = payments[0];
+
+    // Check ownership
+    if (payment.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'ليس لديك صلاحية لإلغاء هذه الدفعة'
+      });
+    }
+
+    // Check if payment is pending
+    if (payment.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'لا يمكن إلغاء الدفعة إلا إذا كانت معلقة'
+      });
+    }
+
+    // Delete the pending payment
+    const [result] = await pool.execute(
+      'DELETE FROM loan WHERE loan_id = ?',
+      [paymentId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'فشل في إلغاء الدفعة'
+      });
+    }
+
+    console.log(`✅ Loan payment ${paymentId} cancelled by user ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'تم إلغاء الدفعة بنجاح'
+    });
+
+  } catch (error) {
+    console.error('Cancel loan payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Cancel pending loan request (user can only cancel their own pending requests)
+router.delete('/cancel-request/:loanId', verifyToken, async (req, res) => {
+  try {
+    const loanId = parseInt(req.params.loanId);
+    const userId = req.user.user_id;
+
+    console.log(`User ${userId} attempting to cancel loan request ${loanId}`);
+
+    // Get loan request details and verify ownership
+    const [loanRequests] = await pool.execute(
+      'SELECT * FROM requested_loan WHERE loan_id = ?',
+      [loanId]
+    );
+    
+    if (loanRequests.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'طلب القرض غير موجود'
+      });
+    }
+
+    const loanRequest = loanRequests[0];
+
+    // Check ownership
+    if (loanRequest.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'ليس لديك صلاحية لإلغاء هذا الطلب'
+      });
+    }
+
+    // Check if loan request is pending
+    if (loanRequest.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'لا يمكن إلغاء طلب القرض إلا إذا كان معلقًا'
+      });
+    }
+
+    // Delete the pending loan request
+    const [result] = await pool.execute(
+      'DELETE FROM requested_loan WHERE loan_id = ?',
+      [loanId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'فشل في إلغاء طلب القرض'
+      });
+    }
+
+    console.log(`✅ Loan request ${loanId} cancelled by user ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'تم إلغاء طلب القرض بنجاح'
+    });
+
+  } catch (error) {
+    console.error('Cancel loan request error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
 module.exports = router;

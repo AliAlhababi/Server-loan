@@ -4,8 +4,39 @@
     padding: var(--padding-lg); border-radius: var(--radius); margin-bottom: var(--padding-lg);
 }
 .quick-actions {
-    background: var(--bg-light); padding: var(--padding); border-radius: var(--radius);
-    border: var(--border);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.quick-actions h4 {
+    color: #667eea;
+    font-size: 16px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quick-actions h4 i {
+    color: #764ba2;
+}
+
+/* Mobile responsive for quick actions */
+@media (max-width: 768px) {
+    .quick-actions {
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 12px;
+    }
+    
+    .quick-actions h4 {
+        font-size: 15px;
+        margin-bottom: 12px;
+    }
 }
 
 .quick-action-btn {
@@ -555,10 +586,62 @@ html {
 .actions-cell {
     text-align: center;
     white-space: nowrap;
+    padding: 4px 2px;
+    min-width: 120px;
 }
 
 .actions-cell .btn {
-    margin: 2px;
+    margin: 1px;
+    padding: 4px;
+    font-size: 0;
+    min-width: 24px;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.actions-cell .btn i {
+    font-size: 12px;
+}
+
+/* Vertical stacking for better mobile layout */
+@media (max-width: 1200px) {
+    .actions-cell {
+        min-width: 40px;
+        padding: 2px;
+    }
+    
+    .actions-cell .btn {
+        display: block;
+        margin: 1px auto;
+        width: 28px;
+        height: 28px;
+        padding: 4px;
+    }
+    
+    .actions-cell .btn i {
+        font-size: 11px;
+    }
+}
+
+/* Very small screens - even more compact */
+@media (max-width: 768px) {
+    .actions-cell {
+        min-width: 35px;
+    }
+    
+    .actions-cell .btn {
+        width: 24px;
+        height: 24px;
+        margin: 1px auto;
+    }
+    
+    .actions-cell .btn i {
+        font-size: 10px;
+    }
 }
 
 /* Report Cards Enhancement */
@@ -900,7 +983,7 @@ html {
     overflow: hidden;
 }
 
-.user-tab {
+.user-tab:not(.priority-tab) {
     flex: 1;
     background: transparent;
     border: none;
@@ -916,12 +999,12 @@ html {
     border-bottom: 3px solid transparent;
 }
 
-.user-tab:hover {
+.user-tab:not(.priority-tab):hover {
     background: #e9ecef;
     color: #007bff;
 }
 
-.user-tab.active {
+.user-tab:not(.priority-tab).active {
     background: white;
     color: #007bff;
     border-bottom: 3px solid #007bff;
@@ -1120,7 +1203,7 @@ html {
         flex-wrap: wrap;
     }
     
-    .user-tab {
+    .user-tab:not(.priority-tab) {
         min-width: 50%;
     }
 }
