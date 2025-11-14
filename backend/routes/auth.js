@@ -27,25 +27,16 @@ router.post('/register', [
   try {
     const { fullName, email, phone, whatsapp, password } = req.body;
 
-    // Check if email already exists
-    const [existingUsers] = await pool.execute(
-      'SELECT user_id FROM users WHERE email = ?',
-      [email]
-    );
-
-    if (existingUsers.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'البريد الإلكتروني مسجل بالفعل'
-      });
-    }
+    // Email duplicates are now allowed - no validation needed
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Insert new user
+    // Insert new user - Back to old system:
+    // joining_fee_approved = 'pending' (admin must approve for website access)
+    // 10 KWD fee will be tracked separately via transactions
     const [result] = await pool.execute(
-      `INSERT INTO users (Aname, email, phone, whatsapp, password, user_type, balance, registration_date, joining_fee_approved, is_blocked) 
+      `INSERT INTO users (Aname, email, phone, whatsapp, password, user_type, balance, registration_date, joining_fee_approved, is_blocked)
        VALUES (?, ?, ?, ?, ?, 'employee', 0, CURDATE(), 'pending', 0)`,
       [fullName, email, phone, whatsapp || phone, hashedPassword]
     );
@@ -124,6 +115,22 @@ router.post('/login', [
     }
 
     const user = users[0];
+
+    // Check if user registration is pending approval (admins can always login)
+    if (user.joining_fee_approved === 'pending' && user.user_type !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'حسابك قيد المراجعة من قبل الإدارة. سيتم إشعارك عند الموافقة على طلب التسجيل.'
+      });
+    }
+
+    // Check if user registration was rejected
+    if (user.joining_fee_approved === 'rejected' && user.user_type !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'تم رفض طلب التسجيل الخاص بك. يرجى التواصل مع الإدارة للاستفسار.'
+      });
+    }
 
     // Check if user is blocked (admins can always login)
     if (user.is_blocked == 1 && user.user_type !== 'admin') {

@@ -27,6 +27,9 @@ class LoansManagement {
                     <button class="admin-tab ${defaultTab === 'payments' ? 'active' : ''}" data-tab="payments">
                         <i class="fas fa-credit-card"></i> أقساط معلقة
                     </button>
+                    <button class="admin-tab ${defaultTab === 'payment-reminders' ? 'active' : ''}" data-tab="payment-reminders">
+                        <i class="fas fa-bell"></i> تذكيرات الدفع
+                    </button>
                     <button class="admin-tab ${defaultTab === 'all-payments' ? 'active' : ''}" data-tab="all-payments">
                         <i class="fas fa-history"></i> سجل المدفوعات
                     </button>
@@ -48,6 +51,7 @@ class LoansManagement {
             </div>
         `;
 
+        this.currentTab = defaultTab;  // Set current tab to match default tab
         this.setupTabListeners();
         await this.loadTab(defaultTab);
     }
@@ -76,7 +80,7 @@ class LoansManagement {
     async loadTab(tab) {
         const contentDiv = document.getElementById('loans-tab-content');
         contentDiv.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
-        
+
         try {
             if (tab === 'pending') {
                 const result = await apiCall('/admin/pending-loans');
@@ -84,6 +88,8 @@ class LoansManagement {
             } else if (tab === 'payments') {
                 const result = await apiCall('/admin/pending-loan-payments');
                 this.displayPendingPayments(result.loanPayments || [], contentDiv);
+            } else if (tab === 'payment-reminders') {
+                await this.displayPaymentReminders(contentDiv);
             } else if (tab === 'all-payments') {
                 const result = await apiCall('/admin/all-loan-payments');
                 this.displayAllLoanPayments(result.loanPayments || [], contentDiv);
@@ -408,8 +414,8 @@ class LoansManagement {
     }
 
     // Approve loan
-    async approveLoan(loanId) {
-        if (!confirm('هل أنت متأكد من الموافقة على هذا القرض؟')) return;
+    async approveLoan(loanId, adminOverride = false) {
+        if (!adminOverride && !confirm('هل أنت متأكد من الموافقة على هذا القرض؟')) return;
         
         try {
             // Get loan details first for WhatsApp notification
@@ -422,7 +428,8 @@ class LoansManagement {
             }
 
             const result = await apiCall(`/admin/loan-action/${loanId}`, 'POST', { 
-                action: 'approve' 
+                action: 'approve',
+                adminOverride: adminOverride
             });
             showToast(result.message, 'success');
             
@@ -476,15 +483,53 @@ class LoansManagement {
                     // Don't show error to user - WhatsApp is supplementary
                 }
             }
-            
-            // Refresh current tab
-            await this.loadTab(this.currentTab);
-            
+
+            // Remove the approved row from the table instead of reloading entire tab
+            this.removeLoanRow(loanId);
+
             // Refresh admin stats
             await this.adminDashboard.loadStats();
-            
+
         } catch (error) {
-            showToast(error.message, 'error');
+            // Handle eligibility validation errors with admin override option
+            if (error.status === 400 && error.data && error.data.canOverride) {
+                const eligibilityMessages = error.data.eligibilityMessages || [];
+                const eligibilityFailures = error.data.eligibilityFailures || [];
+                
+                // Show detailed eligibility modal with override option
+                showModal('🚨 تحذير: المستخدم غير مؤهل للقرض', `
+                    <div class="eligibility-warning">
+                        <div class="alert alert-warning">
+                            <h5><i class="fas fa-exclamation-triangle"></i> فشل في اختبارات الأهلية:</h5>
+                            <ul class="eligibility-failures">
+                                ${eligibilityMessages.map(msg => `<li>${msg}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h5><i class="fas fa-info-circle"></i> الأخطاء التقنية:</h5>
+                            <ul class="technical-failures">
+                                ${eligibilityFailures.map(failure => `<li><code>${failure}</code></li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-danger">
+                            <h5><i class="fas fa-shield-alt"></i> تجاوز إداري</h5>
+                            <p>يمكنك الموافقة على القرض رغم فشل اختبارات الأهلية باستخدام التجاوز الإداري.</p>
+                            <p><strong>تحذير:</strong> سيتم تسجيل هذا الإجراء في السجلات للمراجعة.</p>
+                        </div>
+                    </div>
+                `, `
+                    <button class="btn btn-danger" onclick="loansManagement.approveLoan(${loanId}, true); hideModal();">
+                        <i class="fas fa-shield-alt"></i> تجاوز إداري والموافقة
+                    </button>
+                    <button class="btn btn-secondary" onclick="hideModal();">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                `);
+            } else {
+                showToast(error.message, 'error');
+            }
         }
     }
 
@@ -539,13 +584,13 @@ class LoansManagement {
                     // Don't show error to user - WhatsApp is supplementary
                 }
             }
-            
-            // Refresh current tab
-            await this.loadTab(this.currentTab);
-            
+
+            // Remove the rejected row from the table instead of reloading entire tab
+            this.removeLoanRow(loanId);
+
             // Refresh admin stats
             await this.adminDashboard.loadStats();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -730,13 +775,13 @@ class LoansManagement {
                     // Don't show error to user - WhatsApp is supplementary
                 }
             }
-            
-            // Refresh current tab
-            await this.loadTab(this.currentTab);
-            
+
+            // Remove the approved payment row from the table instead of reloading entire tab
+            this.removePaymentRow(paymentId);
+
             // Refresh admin stats
             await this.adminDashboard.loadStats();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -745,19 +790,19 @@ class LoansManagement {
     // Reject payment
     async rejectPayment(paymentId) {
         if (!confirm('هل أنت متأكد من رفض هذه الدفعة؟')) return;
-        
+
         try {
-            const result = await apiCall(`/admin/loan-payment-action/${paymentId}`, 'POST', { 
-                action: 'reject' 
+            const result = await apiCall(`/admin/loan-payment-action/${paymentId}`, 'POST', {
+                action: 'reject'
             });
             showToast(result.message, 'success');
-            
-            // Refresh current tab
-            await this.loadTab(this.currentTab);
-            
+
+            // Remove the rejected payment row from the table instead of reloading entire tab
+            this.removePaymentRow(paymentId);
+
             // Refresh admin stats
             await this.adminDashboard.loadStats();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -2201,6 +2246,411 @@ class LoansManagement {
             console.error('Error retrying loan WhatsApp notification:', error);
             showToast('حدث خطأ في إرسال الإشعار', 'error');
         }
+    }
+
+    // Payment Reminders Management
+    async displayPaymentReminders(container) {
+        if (!container) {
+            container = document.getElementById('loans-tab-content');
+        }
+
+        try {
+            // Fetch users needing reminders
+            const data = await apiCall('/payment-reminders/users-needing-reminders');
+            const users = data.data || [];
+
+            // Fetch statistics
+            const statsData = await apiCall('/payment-reminders/statistics');
+            const stats = statsData.data || {};
+
+            container.innerHTML = `
+                <div class="payment-reminders-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-bell"></i> تذكيرات الدفع الشهري</h2>
+                        <p>إدارة تذكيرات الدفع للمستخدمين الذين لديهم قروض نشطة ولم يدفعوا هذا الشهر</p>
+                    </div>
+
+                    <!-- Statistics Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card primary">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">${users.length}</div>
+                                <div class="stat-label">مستخدمين يحتاجون تذكير</div>
+                            </div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">${stats.totalRemindersSent || 0}</div>
+                                <div class="stat-label">إجمالي التذكيرات المرسلة</div>
+                            </div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">${stats.remindersThisMonth || 0}</div>
+                                <div class="stat-label">تذكيرات هذا الشهر</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${users.length > 0 ? `
+                        <!-- Action Buttons -->
+                        <div class="reminders-actions">
+                            <button class="btn btn-primary" onclick="window.loansManagement.selectAllReminders()">
+                                <i class="fas fa-check-double"></i> تحديد الكل
+                            </button>
+                            <button class="btn btn-secondary" onclick="window.loansManagement.deselectAllReminders()">
+                                <i class="fas fa-times"></i> إلغاء التحديد
+                            </button>
+                            <button class="btn btn-success" onclick="window.loansManagement.sendSelectedReminders()" id="send-selected-btn" disabled>
+                                <i class="fas fa-paper-plane"></i> إرسال للمحددين (<span id="selected-count">0</span>)
+                            </button>
+                            <button class="btn btn-warning" onclick="window.loansManagement.sendAllReminders()">
+                                <i class="fas fa-bell"></i> إرسال للجميع (${users.length})
+                            </button>
+                        </div>
+
+                        <!-- Users List -->
+                        <div class="reminders-list" id="reminders-list">
+                            ${users.map(user => this.renderReminderUserCard(user)).join('')}
+                        </div>
+                    ` : `
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>رائع! لا توجد تذكيرات معلقة</h3>
+                            <p>جميع المستخدمين قاموا بتسديد أقساطهم لهذا الشهر</p>
+                        </div>
+                    `}
+                </div>
+            `;
+
+        } catch (error) {
+            console.error('Error displaying payment reminders:', error);
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>حدث خطأ في تحميل البيانات</h3>
+                    <p>${error.message}</p>
+                    <button class="btn btn-primary" onclick="window.loansManagement.displayPaymentReminders()">
+                        <i class="fas fa-redo"></i> إعادة المحاولة
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    renderReminderUserCard(user) {
+        const lastPaymentDate = user.last_payment_date
+            ? new Date(user.last_payment_date).toLocaleDateString('en-US')
+            : 'لا توجد دفعات';
+
+        return `
+            <div class="reminder-card" data-user-id="${user.user_id}" data-loan-id="${user.loan_id}">
+                <div class="reminder-checkbox">
+                    <input type="checkbox" id="reminder-${user.user_id}-${user.loan_id}"
+                           class="reminder-select" onchange="window.loansManagement.updateSelectedRemindersCount()">
+                </div>
+                <div class="reminder-info">
+                    <div class="reminder-header">
+                        <h4>${user.user_name}</h4>
+                        <span class="badge badge-warning">متأخر عن الدفع</span>
+                    </div>
+                    <div class="reminder-details">
+                        <div class="detail-row">
+                            <span class="label">مبلغ القرض:</span>
+                            <span class="value">${FormatHelper.formatCurrency(user.loan_amount)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">القسط الشهري:</span>
+                            <span class="value">${FormatHelper.formatCurrency(user.installment_amount)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">المبلغ المسدد:</span>
+                            <span class="value">${FormatHelper.formatCurrency(user.total_paid)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">المتبقي:</span>
+                            <span class="value highlight">${FormatHelper.formatCurrency(user.remaining_amount)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">آخر دفعة:</span>
+                            <span class="value">${lastPaymentDate}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">البريد الإلكتروني:</span>
+                            <span class="value">${user.email || 'غير متوفر'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">واتساب:</span>
+                            <span class="value">${user.whatsapp || user.phone || 'غير متوفر'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="reminder-actions">
+                    <button class="btn btn-sm btn-primary"
+                            onclick="window.loansManagement.sendSingleReminder(${user.user_id}, ${user.loan_id})">
+                        <i class="fas fa-paper-plane"></i> إرسال تذكير
+                    </button>
+                    ${user.whatsapp || user.phone ? `
+                        <button class="btn btn-sm btn-success"
+                                onclick="window.loansManagement.sendWhatsAppReminderOnly(${user.user_id}, ${user.loan_id})"
+                                title="إرسال تذكير عبر واتساب فقط">
+                            <i class="fab fa-whatsapp"></i> واتساب
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    selectAllReminders() {
+        document.querySelectorAll('.reminder-select').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        this.updateSelectedRemindersCount();
+    }
+
+    deselectAllReminders() {
+        document.querySelectorAll('.reminder-select').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        this.updateSelectedRemindersCount();
+    }
+
+    updateSelectedRemindersCount() {
+        const selectedCount = document.querySelectorAll('.reminder-select:checked').length;
+        const countElement = document.getElementById('selected-count');
+        const sendSelectedBtn = document.getElementById('send-selected-btn');
+
+        if (countElement) {
+            countElement.textContent = selectedCount;
+        }
+
+        if (sendSelectedBtn) {
+            sendSelectedBtn.disabled = selectedCount === 0;
+        }
+    }
+
+    async sendSingleReminder(userId, loanId) {
+        try {
+            await apiCall(`/payment-reminders/send/${userId}/${loanId}`, 'POST');
+            showToast('تم إرسال التذكير بنجاح', 'success');
+
+            // Remove the card from the list
+            const card = document.querySelector(`[data-user-id="${userId}"][data-loan-id="${loanId}"]`);
+            if (card) {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(() => card.remove(), 300);
+            }
+
+            // Refresh the display after a short delay
+            setTimeout(() => this.loadTab('payment-reminders'), 500);
+        } catch (error) {
+            console.error('Error sending reminder:', error);
+            showToast(error.message || 'حدث خطأ في إرسال التذكير', 'error');
+        }
+    }
+
+    async sendSelectedReminders() {
+        const selectedCheckboxes = document.querySelectorAll('.reminder-select:checked');
+
+        if (selectedCheckboxes.length === 0) {
+            showToast('الرجاء تحديد مستخدم واحد على الأقل', 'warning');
+            return;
+        }
+
+        const confirmMessage = `هل أنت متأكد من إرسال التذكير لـ ${selectedCheckboxes.length} مستخدم؟`;
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        showToast('جاري إرسال التذكيرات...', 'info');
+
+        for (const checkbox of selectedCheckboxes) {
+            const card = checkbox.closest('.reminder-card');
+            const userId = card.dataset.userId;
+            const loanId = card.dataset.loanId;
+
+            try {
+                await apiCall(`/payment-reminders/send/${userId}/${loanId}`, 'POST');
+                successCount++;
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(() => card.remove(), 300);
+            } catch (error) {
+                console.error(`Error sending reminder to user ${userId}:`, error);
+                failCount++;
+            }
+        }
+
+        // Show results
+        if (successCount > 0) {
+            showToast(`تم إرسال ${successCount} تذكير بنجاح`, 'success');
+        }
+        if (failCount > 0) {
+            showToast(`فشل إرسال ${failCount} تذكير`, 'error');
+        }
+
+        // Refresh the display
+        setTimeout(() => this.loadTab('payment-reminders'), 1000);
+    }
+
+    async sendAllReminders() {
+        const confirmMessage = 'هل أنت متأكد من إرسال التذكير لجميع المستخدمين؟';
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        try {
+            showToast('جاري إرسال التذكيرات...', 'info');
+            const data = await apiCall('/payment-reminders/send-all', 'POST');
+            const results = data.data;
+            showToast(`تم إرسال ${results.successCount} تذكير بنجاح من أصل ${results.totalUsers}`, 'success');
+
+            // Refresh the display
+            setTimeout(() => this.loadTab('payment-reminders'), 1000);
+        } catch (error) {
+            console.error('Error sending all reminders:', error);
+            showToast(error.message || 'حدث خطأ في إرسال التذكيرات', 'error');
+        }
+    }
+
+    async sendWhatsAppReminderOnly(userId, loanId) {
+        try {
+            // Get the WhatsApp link directly and open it
+            const data = await apiCall(`/payment-reminders/whatsapp-link/${userId}/${loanId}`);
+
+            if (data.success && data.whatsappLink) {
+                // Open WhatsApp Web with pre-filled message
+                window.open(data.whatsappLink, '_blank');
+                showToast('تم فتح واتساب. يرجى إرسال الرسالة', 'info');
+
+                // Ask if sent successfully
+                setTimeout(() => {
+                    if (confirm('هل تم إرسال رسالة واتساب بنجاح؟')) {
+                        // Update tracking in backend
+                        apiCall(`/payment-reminders/mark-sent/${userId}/${loanId}`, 'POST')
+                            .then(() => {
+                                showToast('تم تسجيل إرسال التذكير', 'success');
+
+                                // Remove the card from the list
+                                const card = document.querySelector(`[data-user-id="${userId}"][data-loan-id="${loanId}"]`);
+                                if (card) {
+                                    card.style.transition = 'opacity 0.3s, transform 0.3s';
+                                    card.style.opacity = '0';
+                                    card.style.transform = 'scale(0.95)';
+                                    setTimeout(() => card.remove(), 300);
+                                }
+
+                                // Refresh the display
+                                setTimeout(() => this.loadTab('payment-reminders'), 500);
+                            })
+                            .catch(err => {
+                                console.error('Error marking as sent:', err);
+                            });
+                    }
+                }, 2000);
+            } else {
+                showToast('فشل في إنشاء رابط واتساب', 'error');
+            }
+        } catch (error) {
+            console.error('Error opening WhatsApp:', error);
+            showToast(error.message || 'حدث خطأ في فتح واتساب', 'error');
+        }
+    }
+
+    // Remove loan row from table after approval/rejection
+    removeLoanRow(loanId) {
+        // Find all table rows in the current view
+        const rows = document.querySelectorAll('#loans-tab-content tbody tr');
+
+        rows.forEach(row => {
+            // Check if this row contains the loan ID
+            const idCell = row.querySelector('td:first-child strong');
+            if (idCell && idCell.textContent.includes(`#${loanId}`)) {
+                // Animate row removal
+                row.style.transition = 'opacity 0.3s ease-out';
+                row.style.opacity = '0';
+
+                setTimeout(() => {
+                    row.remove();
+
+                    // Check if table is now empty and show empty state
+                    const remainingRows = document.querySelectorAll('#loans-tab-content tbody tr');
+                    if (remainingRows.length === 0) {
+                        const contentDiv = document.getElementById('loans-tab-content');
+                        contentDiv.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <h4>لا توجد طلبات قروض معلقة</h4>
+                                <p>جميع الطلبات تم معالجتها</p>
+                            </div>`;
+                    } else {
+                        // Update the count in the table header
+                        const tableHeader = document.querySelector('#loans-tab-content .table-header h4');
+                        if (tableHeader) {
+                            const currentText = tableHeader.textContent;
+                            const newCount = remainingRows.length;
+                            tableHeader.innerHTML = currentText.replace(/\(\d+\)/, `(${newCount})`);
+                        }
+                    }
+                }, 300);
+            }
+        });
+    }
+
+    // Remove payment row from table after approval/rejection
+    removePaymentRow(paymentId) {
+        // Find all table rows in the current view
+        const rows = document.querySelectorAll('#loans-tab-content tbody tr');
+
+        rows.forEach(row => {
+            // Check if this row contains the payment ID
+            const idCell = row.querySelector('td:first-child strong');
+            if (idCell && idCell.textContent.includes(`#${paymentId}`)) {
+                // Animate row removal
+                row.style.transition = 'opacity 0.3s ease-out';
+                row.style.opacity = '0';
+
+                setTimeout(() => {
+                    row.remove();
+
+                    // Check if table is now empty and show empty state
+                    const remainingRows = document.querySelectorAll('#loans-tab-content tbody tr');
+                    if (remainingRows.length === 0) {
+                        const contentDiv = document.getElementById('loans-tab-content');
+                        contentDiv.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <h4>لا توجد أقساط معلقة</h4>
+                                <p>جميع الأقساط تم معالجتها</p>
+                            </div>`;
+                    } else {
+                        // Update the count in the table header
+                        const tableHeader = document.querySelector('#loans-tab-content .table-header h4');
+                        if (tableHeader) {
+                            const currentText = tableHeader.textContent;
+                            const newCount = remainingRows.length;
+                            tableHeader.innerHTML = currentText.replace(/\(\d+\)/, `(${newCount})`);
+                        }
+                    }
+                }, 300);
+            }
+        });
     }
 }
 

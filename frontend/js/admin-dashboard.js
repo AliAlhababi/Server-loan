@@ -11,9 +11,7 @@ class AdminDashboard {
     async init() {
         console.log('🚀 Initializing admin dashboard...');
         await this.loadStats();
-        console.log('✅ Stats loaded, now loading financial summary...');
-        await this.loadFinancialSummary();
-        console.log('✅ Financial summary loaded, checking for multiple loans...');
+        console.log('✅ Stats loaded, checking for multiple loans...');
         await this.checkMultipleLoans();
         console.log('✅ Security checks complete, setting up views...');
         this.showMainView();
@@ -84,10 +82,13 @@ class AdminDashboard {
         window.loansManagement = new LoansManagement(this);
         window.transactionsManagement = new TransactionsManagement(this);
         window.usersManagement = new UsersManagement(this);
+        window.registrationManagement = new RegistrationManagement(this);
         window.reportsManagement = new ReportsManagement(this);
         window.familyDelegationsManagement = new FamilyDelegationsManagement(this);
         window.banksManagement = new BanksManagement(this);
         window.ticketsManagement = new TicketsManagement(this);
+        window.whatsappQueueManagement = new WhatsAppQueueManagement(this);
+        window.paymentRemindersManagement = new PaymentRemindersManagement(this);
     }
 
     // Load admin statistics
@@ -107,6 +108,7 @@ class AdminDashboard {
                 const pendingLoanPaymentsEl = document.getElementById('pendingLoanPayments');
                 const pendingFamilyDelegationsEl = document.getElementById('pendingFamilyDelegations');
                 const pendingTicketsEl = document.getElementById('pendingTickets');
+                const pendingRegistrationsEl = document.getElementById('pendingRegistrations');
                 const totalBanksBalanceEl = document.getElementById('totalBanksBalance');
                 
                 if (totalUsersEl) {
@@ -129,12 +131,12 @@ class AdminDashboard {
                     console.log('Updated pending loan payments:', stats.pendingLoanPayments);
                 }
                 
-                // Update combined loans counter
+                // Update requested loans counter (طلبات القروض shows requested loans only)
                 const totalLoansPendingEl = document.getElementById('totalLoansPending');
                 if (totalLoansPendingEl) {
-                    const totalLoans = (stats.pendingLoans || 0) + (stats.pendingLoanPayments || 0);
-                    totalLoansPendingEl.textContent = totalLoans;
-                    console.log('Updated total loans pending:', totalLoans);
+                    const requestedLoans = stats.pendingLoans || 0;
+                    totalLoansPendingEl.textContent = requestedLoans;
+                    console.log('Updated requested loans pending:', requestedLoans);
                 }
                 
                 if (pendingFamilyDelegationsEl) {
@@ -147,11 +149,19 @@ class AdminDashboard {
                     console.log('Updated pending tickets:', stats.pendingTickets);
                 }
                 
+                if (pendingRegistrationsEl) {
+                    pendingRegistrationsEl.textContent = stats.pendingRegistrations || '0';
+                    console.log('Updated pending registrations:', stats.pendingRegistrations);
+                }
+                
                 if (totalBanksBalanceEl) {
                     const formattedBalance = FormatHelper.formatCurrency(stats.totalBanksBalance || 0);
                     totalBanksBalanceEl.textContent = formattedBalance;
                     console.log('Updated total banks balance:', stats.totalBanksBalance);
                 }
+                
+                // Load WhatsApp queue statistics separately
+                this.loadWhatsAppStats();
             } else {
                 console.error('Invalid response format:', result);
                 showToast('تنسيق استجابة غير صحيح', 'error');
@@ -183,6 +193,34 @@ class AdminDashboard {
             if (pendingTicketsEl) pendingTicketsEl.textContent = 'خطأ';
             if (totalBanksBalanceEl) totalBanksBalanceEl.textContent = 'خطأ';
             if (totalLoansPendingEl) totalLoansPendingEl.textContent = 'خطأ';
+        }
+    }
+
+    // Load WhatsApp queue statistics
+    async loadWhatsAppStats() {
+        try {
+            const result = await apiCall('/admin/whatsapp-queue/stats');
+            if (result.success && result.stats) {
+                const pendingWhatsAppEl = document.getElementById('pendingWhatsApp');
+                if (pendingWhatsAppEl) {
+                    pendingWhatsAppEl.textContent = result.stats.pending || '0';
+                    console.log('Updated pending WhatsApp:', result.stats.pending);
+                    
+                    // Add visual indicator if there are pending messages
+                    const whatsappCard = document.querySelector('.whatsapp-card');
+                    if (whatsappCard && result.stats.pending > 0) {
+                        whatsappCard.style.borderColor = '#25D366';
+                        whatsappCard.style.boxShadow = '0 0 10px rgba(37, 211, 102, 0.3)';
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Error loading WhatsApp stats:', error);
+            // Don't show error toast for WhatsApp stats - it's not critical
+            const pendingWhatsAppEl = document.getElementById('pendingWhatsApp');
+            if (pendingWhatsAppEl) {
+                pendingWhatsAppEl.textContent = '0';
+            }
         }
     }
 
@@ -331,6 +369,9 @@ class AdminDashboard {
                     case 'reports':
                         await window.reportsManagement.show();
                         break;
+                    case 'payment-reminders':
+                        await window.paymentRemindersTab.init();
+                        break;
                 }
             });
         });
@@ -400,33 +441,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // System Reports & Backup functionality
 function initializeSystemReports() {
-    const sqlBackupBtn = document.getElementById('sqlBackupBtn');
+    const fullBackupBtn = document.getElementById('fullBackupBtn');
     const financialReportBtn = document.getElementById('financialReportBtn');
     const excelBackupBtn = document.getElementById('excelBackupBtn');
-    const excelToPdfBtn = document.getElementById('excelToPdfBtn');
-    
-    if (sqlBackupBtn) {
-        sqlBackupBtn.addEventListener('click', handleSQLBackupDownload);
+
+    if (fullBackupBtn) {
+        fullBackupBtn.addEventListener('click', handleFullBackupDownload);
     }
-    
+
     if (financialReportBtn) {
         financialReportBtn.addEventListener('click', handleFinancialReportDownload);
     }
-    
+
     if (excelBackupBtn) {
         excelBackupBtn.addEventListener('click', handleExcelBackupDownload);
     }
-    
-    if (excelToPdfBtn) {
-        excelToPdfBtn.addEventListener('click', handleExcelToPDFDownload);
-    }
 }
 
-// Handle SQL Backup Download
-async function handleSQLBackupDownload() {
-    const btn = document.getElementById('sqlBackupBtn');
+// Handle Full Backup Download
+async function handleFullBackupDownload() {
+    const btn = document.getElementById('fullBackupBtn');
     const originalContent = btn.innerHTML;
-    
+
     try {
         // Show loading state
         btn.classList.add('loading');
@@ -434,41 +470,40 @@ async function handleSQLBackupDownload() {
             <i class="fas fa-spinner fa-spin"></i>
             <div class="btn-content">
                 <span class="btn-title">جاري إنشاء النسخة الاحتياطية...</span>
-                <small class="btn-desc">يرجى الانتظار، قد يستغرق بعض الوقت</small>
+                <small class="btn-desc">يتم الآن نسخ قواعد البيانات وملفات التطبيق لكلا الموقعين، يرجى الانتظار...</small>
             </div>
         `;
         btn.disabled = true;
-        
+
         const token = localStorage.getItem('authToken');
-        const response = await fetch('/api/admin/download-sql-backup', {
+        const response = await fetch('/api/admin/download-full-backup', {
             method: 'GET',
             headers: {
-                'Authorization': token ? `Bearer ${token}` : '',
-                'Content-Type': 'application/json'
+                'Authorization': token ? `Bearer ${token}` : ''
             }
         });
-        
+
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'فشل في تحميل النسخة الاحتياطية');
+            const error = await response.json().catch(() => ({ message: 'فشل في إنشاء النسخة الاحتياطية' }));
+            throw new Error(error.message || 'فشل في إنشاء النسخة الاحتياطية');
         }
-        
-        // Download the file
+
+        // Download the backup file
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `backup_${new Date().toISOString().split('T')[0]}.sql`;
+        a.download = `full_backup_${new Date().toISOString().split('T')[0]}.tar.gz`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
-        Utils.showToast('تم تحميل النسخة الاحتياطية بنجاح', 'success');
-        
+
+        Utils.showToast('تم تحميل النسخة الاحتياطية الكاملة بنجاح', 'success');
+
     } catch (error) {
-        console.error('SQL Backup error:', error);
-        Utils.showToast('خطأ في تحميل النسخة الاحتياطية: ' + error.message, 'error');
+        console.error('Full backup error:', error);
+        Utils.showToast('خطأ في إنشاء النسخة الاحتياطية: ' + error.message, 'error');
     } finally {
         // Restore button state
         btn.classList.remove('loading');
@@ -577,60 +612,6 @@ async function handleExcelBackupDownload() {
     } catch (error) {
         console.error('Excel backup error:', error);
         Utils.showToast('Error creating Excel backup: ' + error.message, 'error');
-    } finally {
-        // Restore button state
-        btn.classList.remove('loading');
-        btn.innerHTML = originalContent;
-        btn.disabled = false;  
-    }
-}
-
-// Handle Excel to PDF Download
-async function handleExcelToPDFDownload() {
-    const btn = document.getElementById('excelToPdfBtn');
-    const originalContent = btn.innerHTML;
-    
-    try {
-        // Show loading state
-        btn.classList.add('loading');
-        btn.innerHTML = `
-            <i class="fas fa-spinner fa-spin"></i>
-            <div class="btn-content">
-                <span class="btn-title">Converting to PDF...</span>
-                <small class="btn-desc">Creating Excel and converting to PDF with Arabic text</small>
-            </div>
-        `;
-        btn.disabled = true;
-        
-        const token = localStorage.getItem('authToken');
-        const response = await fetch('/api/admin/download-excel-as-pdf', {
-            method: 'GET',
-            headers: {
-                'Authorization': token ? `Bearer ${token}` : ''
-            }
-        });
-        
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Failed to convert Excel to PDF' }));
-            throw new Error(error.message || 'Failed to convert Excel to PDF');
-        }
-        
-        // Download the PDF file
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `database_backup_${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        Utils.showToast('Excel to PDF backup downloaded successfully', 'success');
-        
-    } catch (error) {
-        console.error('Excel to PDF error:', error);
-        Utils.showToast('Error converting Excel to PDF: ' + error.message, 'error');
     } finally {
         // Restore button state
         btn.classList.remove('loading');

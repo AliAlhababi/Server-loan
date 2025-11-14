@@ -8,12 +8,14 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         BRAND_NAME: 'siteA',
-        PORT: 3002
+        PORT: 3002,
+        DISPLAY: ':99'
       },
       env_production: {
         NODE_ENV: 'production',
         BRAND_NAME: 'siteA',
-        PORT: 3002
+        PORT: 3002,
+        DISPLAY: ':99'
       },
       // Logging
       log_file: './logs/daraa-combined.log',
@@ -41,12 +43,14 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         BRAND_NAME: 'siteB',
-        PORT: 3003
+        PORT: 3003,
+        DISPLAY: ':98'
       },
       env_production: {
         NODE_ENV: 'production',
         BRAND_NAME: 'siteB',
-        PORT: 3003
+        PORT: 3003,
+        DISPLAY: ':98'
       },
       // Logging
       log_file: './logs/aman-combined.log',

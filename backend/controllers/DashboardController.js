@@ -15,6 +15,7 @@ class DashboardController {
       pendingLoanPayments,
       pendingFamilyDelegations,
       pendingTickets,
+      pendingRegistrations,
       banksSummary
     ] = await Promise.all([
       DatabaseService.count('users'),
@@ -23,6 +24,7 @@ class DashboardController {
       DatabaseService.count('loan', { status: 'pending' }),
       DatabaseService.count('family_delegations', { delegation_status: 'pending' }),
       this.getPendingTicketsCount(),
+      this.getPendingRegistrationsCount(),
       this.getBanksSummary()
     ]);
 
@@ -33,6 +35,7 @@ class DashboardController {
       pendingLoanPayments,
       pendingFamilyDelegations,
       pendingTickets,
+      pendingRegistrations,
       banksSummary
     });
 
@@ -43,10 +46,10 @@ class DashboardController {
       pendingLoanPayments,
       pendingFamilyDelegations,
       pendingTickets,
+      pendingRegistrations,
       totalBanks: banksSummary.totalBanks,
       totalBanksBalance: banksSummary.totalBalance,
       pendingTransactions: pendingSubscriptions + pendingLoanPayments, // Keep for backward compatibility
-      pendingRegistrations: 0 // Keep for frontend compatibility
     };
 
     console.log('✅ Dashboard stats compiled:', stats);
@@ -114,6 +117,21 @@ class DashboardController {
       return result[0].count;
     } catch (error) {
       console.error('Error counting pending tickets:', error);
+      return 0;
+    }
+  }
+
+  static async getPendingRegistrationsCount() {
+    try {
+      const { pool } = require('../config/database');
+      const [result] = await pool.execute(`
+        SELECT COUNT(*) as count 
+        FROM users 
+        WHERE joining_fee_approved = 'pending'
+      `);
+      return result[0].count;
+    } catch (error) {
+      console.error('Error counting pending registrations:', error);
       return 0;
     }
   }

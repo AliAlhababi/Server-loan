@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نسخة احتياطية أسبوعية - ملف كبير</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: #ffffff;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border-right: 4px solid #ff6b6b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        .info-value {
+            color: #333;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .alert-icon {
+            font-size: 40px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .alert-title {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 18px;
+            text-align: center;
+        }
+        .alert-text {
+            color: #856404;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .download-instructions {
+            background-color: #e3f2fd;
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .download-title {
+            font-weight: 600;
+            color: #0d47a1;
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .download-instructions ol {
+            margin: 10px 0;
+            padding-right: 20px;
+            color: #1565c0;
+        }
+        .download-instructions li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .server-path {
+            background-color: #263238;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        .warning {
+            background-color: #ffebee;
+            border: 1px solid #ef5350;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-title {
+            font-weight: 600;
+            color: #c62828;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .warning p {
+            margin: 5px 0;
+            color: #d32f2f;
+            font-size: 14px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #777;
+            font-size: 12px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .brand-name {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-icon">⚠️</div>
+            <h1>نسخة احتياطية أسبوعية</h1>
+            <p>Backup File Too Large for Email</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Greeting -->
+            <div class="greeting">
+                مرحباً {{adminName}}،
+            </div>
+
+            <p style="color: #555; line-height: 1.6;">
+                تم إنشاء النسخة الاحتياطية الأسبوعية بنجاح لنظام إدارة القروض. هذه النسخة تشمل جميع قواعد البيانات وملفات التطبيق لكلا الموقعين.
+            </p>
+
+            <!-- Backup Information -->
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">📅 تاريخ النسخ:</span>
+                    <span class="info-value">{{backupDate}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">⏰ وقت النسخ:</span>
+                    <span class="info-value">{{backupTime}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">📦 اسم الملف:</span>
+                    <span class="info-value">{{backupFileName}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">💾 حجم الملف:</span>
+                    <span class="info-value">{{backupSize}} ميجابايت</span>
+                </div>
+            </div>
+
+            <!-- Alert Box -->
+            <div class="alert-box">
+                <div class="alert-icon">📧</div>
+                <div class="alert-title">حجم الملف كبير جداً للإرسال عبر البريد الإلكتروني</div>
+                <p class="alert-text">
+                    حجم النسخة الاحتياطية ({{backupSize}} MB) يتجاوز حد المرفقات في Gmail (25 MB).
+                    <br>
+                    الملف محفوظ على الخادم ويمكنك تحميله مباشرة.
+                </p>
+            </div>
+
+            <!-- Download Instructions -->
+            <div class="download-instructions">
+                <div class="download-title">📥 طرق التحميل المتاحة:</div>
+
+                <p style="font-weight: 600; color: #0d47a1; margin-bottom: 10px;">
+                    الطريقة 1: التحميل من لوحة التحكم
+                </p>
+                <ol>
+                    <li>قم بتسجيل الدخول إلى لوحة تحكم المدير</li>
+                    <li>انتقل إلى قسم "التقارير والنسخ الاحتياطية"</li>
+                    <li>انقر على زر "نسخة احتياطية كاملة - Full Site Backup"</li>
+                    <li>سيتم تحميل أحدث نسخة احتياطية تلقائياً</li>
+                </ol>
+
+                <p style="font-weight: 600; color: #0d47a1; margin: 20px 0 10px 0;">
+                    الطريقة 2: التحميل من الخادم مباشرة
+                </p>
+                <p style="color: #1565c0;">
+                    موقع الملف على الخادم:
+                </p>
+                <div class="server-path">
+                    /root/backups/{{backupFileName}}
+                </div>
+
+                <p style="margin-top: 15px; color: #1565c0;">
+                    💡 <strong>للمطورين:</strong> يمكنك تحميل الملف باستخدام SCP أو SFTP:
+                </p>
+                <div class="server-path">
+                    scp root@server:/root/backups/{{backupFileName}} .
+                </div>
+            </div>
+
+            <!-- Security Warning -->
+            <div class="warning">
+                <div class="warning-title">🔐 تحذير أمني مهم:</div>
+                <p>
+                    ⚠️ تحتوي هذه النسخة الاحتياطية على معلومات حساسة بما في ذلك كلمات مرور قواعد البيانات وإعدادات البريد الإلكتروني.
+                </p>
+                <p>
+                    🔒 يرجى حفظ هذا الملف في مكان آمن ومشفر وعدم مشاركته مع أي شخص غير مصرح له.
+                </p>
+            </div>
+
+            <!-- Restoration Instructions -->
+            <p style="color: #555; line-height: 1.6; margin-top: 20px;">
+                <strong>📝 تعليمات الاستعادة:</strong>
+            </p>
+            <ol style="color: #555; line-height: 1.8;">
+                <li>فك ضغط ملف النسخة الاحتياطية (.tar.gz)</li>
+                <li>استيراد ملفات SQL إلى MySQL</li>
+                <li>نسخ ملفات التطبيق إلى المسار الصحيح</li>
+                <li>تحديث ملفات الإعدادات (.env)</li>
+                <li>إعادة تشغيل خدمات النظام (PM2)</li>
+            </ol>
+
+            <!-- Closing -->
+            <p style="color: #555; line-height: 1.6; margin-top: 20px;">
+                يتم إنشاء هذه النسخة الاحتياطية تلقائياً كل يوم أحد الساعة 2:00 صباحاً. للحفاظ على أمان البيانات، يتم الاحتفاظ بآخر 4 نسخ احتياطية على الخادم.
+            </p>
+
+            <p style="color: #555; margin-top: 20px;">
+                <strong>في حالة وجود أي مشاكل أو استفسارات، يرجى الاتصال بالدعم الفني.</strong>
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>تم إنشاء هذا البريد تلقائياً بواسطة نظام إدارة القروض</p>
+            <p>This email was generated automatically by the Loan Management System</p>
+            <p style="margin-top: 10px;">
+                © 2025 <span class="brand-name">صندوق الكوثر & صندوق المجادي</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

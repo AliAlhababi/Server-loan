@@ -7,7 +7,7 @@ class FormatHelper {
         return showSymbol ? `${formatted} د.ك` : formatted;
     }
     
-    // Format date with English locale support
+    // Format date with Kuwait timezone and DD/MM/YYYY format
     static formatDate(dateString, includeTime = false) {
         if (!dateString) return 'غير محدد';
         
@@ -15,11 +15,15 @@ class FormatHelper {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return 'تاريخ غير صحيح';
             
+            // Convert to Kuwait time (UTC+3)
+            const kuwaitTime = new Date(date.getTime() + (3 * 60 * 60 * 1000) - (date.getTimezoneOffset() * 60 * 1000));
+            
             const options = {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
-                calendar: 'gregory'
+                calendar: 'gregory',
+                timeZone: 'Asia/Kuwait'
             };
             
             if (includeTime) {
@@ -28,7 +32,9 @@ class FormatHelper {
                 options.hour12 = false;
             }
             
-            return date.toLocaleDateString('en-US', options);
+            // Format as DD/MM/YYYY for Kuwait
+            const formatted = kuwaitTime.toLocaleDateString('en-GB', options);
+            return formatted;
         } catch (error) {
             console.warn('Date formatting error:', error);
             return 'تاريخ غير صحيح';

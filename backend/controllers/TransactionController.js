@@ -3,6 +3,7 @@ const UserService = require('../services/UserService');
 const ResponseHelper = require('../utils/ResponseHelper');
 const { asyncHandler } = require('../utils/ErrorHandler');
 const emailService = require('../services/emailService');
+const whatsappService = require('../services/whatsappService');
 
 class TransactionController {
   static getPendingTransactions = asyncHandler(async (req, res) => {
@@ -86,7 +87,7 @@ class TransactionController {
       }
     }
 
-    // Send email notification to user
+    // Send email and WhatsApp notifications to user (AFTER balance update)
     try {
       // Get transaction details with user info for email
       const transactionDetailsQuery = `
@@ -107,7 +108,8 @@ class TransactionController {
           amount: (transaction.credit || 0) - (transaction.debit || 0),
           transaction_type: transaction.transaction_type,
           memo: transaction.memo,
-          date: transaction.date
+          date: transaction.date,
+          transaction_id: transaction.transaction_id
         };
 
         // Calculate total subscriptions if this is a subscription transaction
@@ -133,6 +135,29 @@ class TransactionController {
         );
         
         console.log(`✅ Transaction status email sent to ${transaction.email}`);
+
+        // Queue WhatsApp notification if action is accept (AFTER balance update)
+        if (action === 'accept') {
+          try {
+            const whatsappResult = await whatsappService.sendTransactionApprovalNotification(
+              transaction.user_id,
+              transaction.full_name,
+              transactionData,
+              transaction.admin_name || 'الإدارة',
+              totalSubscriptions
+              // brandName will be automatically determined by whatsappService from brandConfig
+            );
+            
+            if (whatsappResult.success) {
+              console.log(`📱 WhatsApp notification queued for ${transaction.email}`);
+            } else {
+              console.warn(`⚠️  WhatsApp notification failed for ${transaction.email}:`, whatsappResult.reason || whatsappResult.error);
+            }
+          } catch (whatsappError) {
+            console.error('❌ WhatsApp notification error:', whatsappError);
+            // Don't fail the request if WhatsApp fails
+          }
+        }
       }
     } catch (emailError) {
       console.error('❌ Failed to send transaction status email:', emailError);
@@ -294,6 +319,29 @@ class TransactionController {
         );
         
         console.log(`✅ Loan payment status email sent to ${payment.email}`);
+
+        // Queue WhatsApp notification if action is accept
+        if (normalizedAction === 'accept') {
+          try {
+            const whatsappResult = await whatsappService.sendLoanPaymentApprovalNotification(
+              payment.user_id,
+              payment.full_name,
+              paymentData,
+              payment.admin_name || 'الإدارة',
+              loanSummary
+              // brandName will be automatically determined by whatsappService from brandConfig
+            );
+            
+            if (whatsappResult.success) {
+              console.log(`📱 WhatsApp loan payment notification queued for ${payment.email}`);
+            } else {
+              console.warn(`⚠️  WhatsApp loan payment notification failed for ${payment.email}:`, whatsappResult.reason || whatsappResult.error);
+            }
+          } catch (whatsappError) {
+            console.error('❌ WhatsApp loan payment notification error:', whatsappError);
+            // Don't fail the request if WhatsApp fails
+          }
+        }
       }
     } catch (emailError) {
       console.error('❌ Failed to send loan payment status email:', emailError);

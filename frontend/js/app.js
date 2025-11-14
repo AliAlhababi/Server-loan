@@ -27,7 +27,7 @@ async function loadBrandConfig() {
     } catch (error) {
         console.error('Failed to load brand config:', error);
         // Fallback to default name
-        brandConfig = { brand: { displayName: 'درع العائلة' } };
+        brandConfig = { brand: { displayName: 'نظام إدارة القروض' } };
     }
 }
 
@@ -36,23 +36,122 @@ function updateBrandElements() {
     if (!brandConfig) return;
     
     const brandName = brandConfig.brand.displayName;
+    const logoUrl = brandConfig.brand.logoUrl;
+    const primaryColor = brandConfig.brand.colors?.primary || '#667eea';
     
     // Update page title
     document.title = `${brandName} - نظام إدارة القروض`;
     
+    // Update meta tags for social media previews
+    updateMetaTags(brandName, logoUrl);
+    
+    // Update theme colors
+    updateThemeColors(primaryColor);
+    
     // Update header brand name
     const logoH1 = document.querySelector('.logo h1');
+    const brandNameElement = document.getElementById('brand-name');
     if (logoH1) {
         logoH1.textContent = brandName;
+    }
+    if (brandNameElement) {
+        brandNameElement.textContent = brandName;
+    }
+    
+    // Update logo image
+    const logoElement = document.querySelector('.logo');
+    if (logoElement && logoUrl) {
+        // Check if logo image already exists
+        let logoImg = logoElement.querySelector('.logo-image');
+        if (!logoImg) {
+            // Create new logo image element
+            logoImg = document.createElement('img');
+            logoImg.className = 'logo-image';
+            logoImg.alt = brandName;
+            logoImg.style.height = '40px';
+            logoImg.style.marginRight = '10px';
+            logoImg.style.borderRadius = '8px';
+            // Insert before the icon or h1
+            const firstChild = logoElement.firstElementChild;
+            logoElement.insertBefore(logoImg, firstChild);
+        }
+        logoImg.src = logoUrl;
+        
+        // Hide the default shield icon when using custom logo
+        const logoIcon = logoElement.querySelector('.logo-icon');
+        if (logoIcon) {
+            logoIcon.style.display = 'none';
+        }
     }
     
     // Update any other brand-specific elements
     console.log(`Brand updated to: ${brandName}`);
 }
 
+// Update meta tags for social media previews and SEO
+function updateMetaTags(brandName, logoUrl) {
+    const description = `نظام إدارة القروض للتعاونيات المالية - ${brandName}`;
+    const pageTitle = `${brandName} - نظام إدارة القروض`;
+    const logoImageUrl = logoUrl || '/assets/logo-default.png';
+    
+    // Helper function to update or create meta tag
+    const updateMetaTag = (selector, content) => {
+        let metaTag = document.querySelector(selector);
+        if (metaTag) {
+            if (selector.includes('property=')) {
+                metaTag.setAttribute('content', content);
+            } else if (selector.includes('name=')) {
+                metaTag.setAttribute('content', content);
+            }
+        }
+    };
+    
+    // Update basic meta tags
+    updateMetaTag('meta[name="description"]', description);
+    updateMetaTag('meta[name="author"]', brandName);
+    updateMetaTag('meta[name="apple-mobile-web-app-title"]', brandName);
+    
+    // Update Open Graph tags
+    updateMetaTag('meta[property="og:title"]', pageTitle);
+    updateMetaTag('meta[property="og:description"]', description);
+    updateMetaTag('meta[property="og:site_name"]', brandName);
+    updateMetaTag('meta[property="og:image"]', logoImageUrl);
+    updateMetaTag('meta[property="og:image:alt"]', `شعار ${brandName}`);
+    
+    // Update Twitter Card tags
+    updateMetaTag('meta[name="twitter:title"]', pageTitle);
+    updateMetaTag('meta[name="twitter:description"]', description);
+    updateMetaTag('meta[name="twitter:image"]', logoImageUrl);
+    updateMetaTag('meta[name="twitter:image:alt"]', `شعار ${brandName}`);
+    
+    console.log(`Meta tags updated for: ${brandName}`);
+}
+
+// Update theme colors
+function updateThemeColors(primaryColor) {
+    // Update theme color meta tags
+    const updateThemeColorTag = (selector, color) => {
+        const metaTag = document.querySelector(selector);
+        if (metaTag) {
+            metaTag.setAttribute('content', color);
+        }
+    };
+    
+    updateThemeColorTag('meta[name="theme-color"]', primaryColor);
+    updateThemeColorTag('meta[name="msapplication-TileColor"]', primaryColor);
+    
+    console.log(`Theme colors updated to: ${primaryColor}`);
+}
+
+// Simple hash change monitoring
+window.addEventListener('hashchange', function() {
+    console.log('🔄 Hash changed to:', window.location.hash);
+});
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('App initialized, token:', token);
+    console.log('🔗 Hash at app init:', window.location.hash);
     
     // Load brand configuration first
     await loadBrandConfig();
@@ -145,6 +244,9 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
         throw error;
     }
 };
+
+// Expose apiCall globally for use by other modules
+window.apiCall = apiCall;
 
 // Authentication functions
 async function handleLogin(e) {
@@ -252,6 +354,13 @@ const showDashboard = () => {
     showSection('dashboard');
     if (currentUser.isAdmin || currentUser.user_type === 'admin') {
         showAdminDashboard();
+        // Trigger admin router initialization
+        setTimeout(() => {
+            if (window.adminRouter && !window.adminRouter.isInitialized) {
+                console.log('🔄 Triggering admin router initialization from showDashboard');
+                window.adminRouter.init();
+            }
+        }, 100);
     } else {
         showUserDashboard();
     }
@@ -636,7 +745,7 @@ function showUserCredentialsCard(data) {
                     <i class="fas fa-check-circle"></i>
                     تم إنشاء حسابك بنجاح!
                 </h4>
-                <p style="color: #6c757d; margin: 10px 0;">مرحباً بك ${fullName} في درع العائلة</p>
+                <p style="color: #6c757d; margin: 10px 0;">مرحباً بك ${fullName} في ${brandConfig?.brand?.displayName || 'نظام إدارة القروض'}</p>
             </div>
 
             <h3 style="color: #667eea; text-align: center; margin: 20px 0;">
@@ -753,7 +862,7 @@ function copyToClipboard(text) {
 
 // Copy all credentials
 function copyAllCredentials(userId, password) {
-    const credentials = `معلومات تسجيل الدخول - درع العائلة
+    const credentials = `معلومات تسجيل الدخول - ${brandConfig?.brand?.displayName || 'نظام إدارة القروض'}
 رقم المستخدم: ${userId}
 كلمة المrور: ${password}
 
@@ -775,7 +884,7 @@ function showRegistrationRulesPopup() {
         <div class="registration-rules-modal">
             <div class="rules-header">
                 <h2 style="color: #007bff; text-align: center; margin-bottom: 20px;">
-                    <i class="fas fa-shield-alt"></i> قواعد صندوق درع العائلة
+                    <i class="fas fa-shield-alt"></i> قواعد صندوق ${brandConfig?.brand?.displayName || 'نظام إدارة القروض'}
                 </h2>
                 <p style="text-align: center; color: #666; margin-bottom: 25px;">
                     يرجى قراءة هذه القواعد الأساسية بعناية قبل التسجيل

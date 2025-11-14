@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نسخة احتياطية أسبوعية</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border-right: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        .info-value {
+            color: #333;
+        }
+        .attachment-notice {
+            background-color: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .attachment-icon {
+            font-size: 32px;
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+        .attachment-notice p {
+            margin: 5px 0;
+            color: #1565c0;
+        }
+        .instructions {
+            background-color: #fff3e0;
+            border: 1px solid #ffb74d;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .instructions-title {
+            font-weight: 600;
+            color: #e65100;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-right: 20px;
+            color: #555;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+        .warning {
+            background-color: #ffebee;
+            border: 1px solid #ef5350;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-title {
+            font-weight: 600;
+            color: #c62828;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .warning p {
+            margin: 5px 0;
+            color: #d32f2f;
+            font-size: 14px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #777;
+            font-size: 12px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .brand-name {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-icon">💾</div>
+            <h1>نسخة احتياطية أسبوعية</h1>
+            <p>Weekly Automated Backup</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Greeting -->
+            <div class="greeting">
+                مرحباً {{adminName}}،
+            </div>
+
+            <p style="color: #555; line-height: 1.6;">
+                تم إنشاء النسخة الاحتياطية الأسبوعية بنجااح لنظام إدارة القروض. هذه النسخة تشمل جميع قواعد البيانات وملفات التطبيق لكلا الموقعين.
+            </p>
+
+            <!-- Backup Information -->
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">📅 تاريخ النسخ:</span>
+                    <span class="info-value">{{backupDate}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">⏰ وقت النسخ:</span>
+                    <span class="info-value">{{backupTime}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">📦 اسم الملف:</span>
+                    <span class="info-value">{{backupFileName}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">💾 حجم الملف:</span>
+                    <span class="info-value">{{backupSize}} ميجابايت</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">🗄️ المحتويات:</span>
+                    <span class="info-value">قاعدتي بيانات + ملفات التطبيق + الإعدادات</span>
+                </div>
+            </div>
+
+            <!-- Attachment Notice -->
+            <div class="attachment-notice">
+                <div class="attachment-icon">📎</div>
+                <p><strong>الملف المرفق:</strong> النسخة الاحتياطية الكاملة ({{backupSize}} MB)</p>
+                <p style="font-size: 13px;">يرجى حفظ هذا الملف في مكان آمن للاستخدام في حالة الطوارئ</p>
+            </div>
+
+            <!-- Restoration Instructions -->
+            <div class="instructions">
+                <div class="instructions-title">📝 تعليمات الاستعادة (Restoration Instructions):</div>
+                <ol>
+                    <li>فك ضغط ملف النسخة الاحتياطية (.tar.gz)</li>
+                    <li>استيراد ملفات SQL إلى MySQL باستخدام phpMyAdmin أو الأوامر</li>
+                    <li>نسخ ملفات التطبيق إلى المسار الصحيح</li>
+                    <li>تحديث ملفات الإعدادات (.env) حسب الحاجة</li>
+                    <li>إعادة تشغيل خدمات النظام (PM2)</li>
+                </ol>
+                <p style="margin-top: 10px; font-size: 13px; color: #666;">
+                    💡 <strong>ملاحظة:</strong> تحتوي النسخة الاحتياطية على ملف manifest.json يحتوي على تفاصيل إضافية
+                </p>
+            </div>
+
+            <!-- Security Warning -->
+            <div class="warning">
+                <div class="warning-title">🔐 تحذير أمني مهم:</div>
+                <p>
+                    ⚠️ تحتوي هذه النسخة الاحتياطية على معلومات حساسة بما في ذلك كلمات مرور قواعد البيانات وإعدادات البريد الإلكتروني.
+                </p>
+                <p>
+                    🔒 يرجى حفظ هذا الملف في مكان آمن ومشفر وعدم مشاركته مع أي شخص غير مصرح له.
+                </p>
+            </div>
+
+            <!-- Closing -->
+            <p style="color: #555; line-height: 1.6; margin-top: 20px;">
+                يتم إنشاء هذه النسخة الاحتياطية تلقائياً كل يوم أحد الساعة 2:00 صباحاً. للحفاظ على أمان البيانات، يتم الاحتفاظ بآخر 4 نسخ احتياطية فقط.
+            </p>
+
+            <p style="color: #555; margin-top: 20px;">
+                <strong>في حالة وجود أي مشاكل أو استفسارات، يرجى الاتصال بالدعم الفني.</strong>
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>تم إنشاء هذا البريد تلقائياً بواسطة نظام إدارة القروض</p>
+            <p>This email was generated automatically by the Loan Management System</p>
+            <p style="margin-top: 10px;">
+                © 2025 <span class="brand-name">صندوق الكوثر & صندوق المجادي</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

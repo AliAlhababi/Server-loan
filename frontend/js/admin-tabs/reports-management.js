@@ -12,11 +12,78 @@ class ReportsManagement {
             <div class="management-section">
                 <div class="section-header">
                     <h3 style="color: #ffc107;">
-                        <i class="fas fa-chart-bar"></i> التقارير والإحصائيات
+                        <i class="fas fa-chart-pie"></i> الصندوق - الملخص المالي
                     </h3>
                     <button onclick="adminDashboard.showMainView()" class="btn-back">
                         <i class="fas fa-arrow-right"></i> العودة
                     </button>
+                </div>
+                
+                <!-- Financial Summary Table -->
+                <div class="financial-summary-section" style="margin-bottom: 30px;">
+                    <div class="financial-summary-table">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>البيان</th>
+                                    <th>المبلغ (دينار كويتي)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="summary-row">
+                                    <td class="summary-label">
+                                        <i class="fas fa-coins text-success"></i>
+                                        إجمالي الاشتراكات
+                                    </td>
+                                    <td class="summary-value" id="totalSubscriptions">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                                <tr class="summary-row">
+                                    <td class="summary-label">
+                                        <i class="fas fa-hand-holding-usd text-warning"></i>
+                                        القروض النشطة المتبقية
+                                    </td>
+                                    <td class="summary-value" id="totalActiveLoansRemaining">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                                <tr class="summary-row calculation-row">
+                                    <td class="summary-label">
+                                        <i class="fas fa-calculator text-secondary"></i>
+                                        الرصيد المحسوب
+                                    </td>
+                                    <td class="summary-value" id="calculatedBalance">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                                <tr class="summary-row bank-row">
+                                    <td class="summary-label">
+                                        <i class="fas fa-university text-success"></i>
+                                        إجمالي أرصدة البنوك المسجلة
+                                    </td>
+                                    <td class="summary-value" id="totalBanksBalanceSummary">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                                <tr class="summary-row difference-auto-row">
+                                    <td class="summary-label">
+                                        <i class="fas fa-balance-scale"></i>
+                                        الفرق (البنوك المسجلة - المحسوب)
+                                    </td>
+                                    <td class="summary-value" id="banksDifference">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section-header" style="margin-top: 30px;">
+                    <h3 style="color: #17a2b8;">
+                        <i class="fas fa-chart-bar"></i> التقارير التفصيلية
+                    </h3>
                 </div>
                 
                 <div class="reports-grid">
@@ -88,6 +155,80 @@ class ReportsManagement {
                 </div>
             </div>
         `;
+        
+        // Load financial summary data
+        await this.loadFinancialSummary();
+    }
+
+    // Load financial summary data (moved from admin dashboard)
+    async loadFinancialSummary() {
+        try {
+            console.log('🔄 Loading financial summary in Treasury tab...');
+            const result = await apiCall('/admin/financial-summary');
+            console.log('📊 Financial summary result:', result);
+            
+            if (result.success && result.data) {
+                const data = result.data;
+                
+                // Update financial summary elements
+                const totalSubscriptionsEl = document.getElementById('totalSubscriptions');
+                const totalActiveLoansRemainingEl = document.getElementById('totalActiveLoansRemaining');
+                const calculatedBalanceEl = document.getElementById('calculatedBalance');
+                const totalBanksBalanceSummaryEl = document.getElementById('totalBanksBalanceSummary');
+                const banksDifferenceEl = document.getElementById('banksDifference');
+                
+                if (totalSubscriptionsEl) {
+                    totalSubscriptionsEl.textContent = this.formatCurrency(data.totalSubscriptions || 0);
+                }
+                
+                if (totalActiveLoansRemainingEl) {
+                    totalActiveLoansRemainingEl.textContent = this.formatCurrency(data.totalActiveLoansRemaining || 0);
+                }
+                
+                // Use calculated balance from backend (more accurate)
+                const calculatedBalance = data.calculatedBalance || 0;
+                if (calculatedBalanceEl) {
+                    calculatedBalanceEl.textContent = this.formatCurrency(calculatedBalance);
+                }
+                
+                // Total banks balance (from banks table)
+                const totalBanksBalance = data.totalBanksBalance || 0;
+                if (totalBanksBalanceSummaryEl) {
+                    totalBanksBalanceSummaryEl.textContent = this.formatCurrency(totalBanksBalance);
+                }
+                
+                // Calculate difference: registered banks - calculated
+                const difference = totalBanksBalance - calculatedBalance;
+                if (banksDifferenceEl) {
+                    banksDifferenceEl.textContent = this.formatCurrency(difference);
+                    banksDifferenceEl.classList.remove('positive', 'negative', 'zero');
+                    
+                    if (difference > 0) {
+                        banksDifferenceEl.classList.add('positive');
+                    } else if (difference < 0) {
+                        banksDifferenceEl.classList.add('negative');
+                    } else {
+                        banksDifferenceEl.classList.add('zero');
+                    }
+                }
+                
+                console.log('Financial summary loaded in Treasury tab:', data);
+            } else {
+                console.error('Financial summary API failed:', result);
+                showToast('فشل في تحميل الملخص المالي: ' + (result.message || 'خطأ غير معروف'), 'error');
+            }
+        } catch (error) {
+            console.error('Error loading financial summary:', error);
+            showToast('خطأ في تحميل الملخص المالي: ' + error.message, 'error');
+        }
+    }
+
+    // Format currency helper
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
     }
 
     // Generate report
@@ -398,7 +539,7 @@ class ReportsManagement {
     // Display report in a new window/modal
     displayReport(title, htmlContent) {
         // Get brand name from global brandConfig or use fallback
-        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 'درع العائلة';
+        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 'نظام إدارة القروض';
         const fullHtml = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">

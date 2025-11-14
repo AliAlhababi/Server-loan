@@ -1,0 +1,24 @@
+2025/10/04-18:14:30.512 1b6b38 Reusing MANIFEST /root/Loan-Management-System/backend/data/whatsapp-session-siteA/Default/Local Storage/leveldb/MANIFEST-000001
+2025/10/04-18:14:30.526 1b6b38 Recovering log #12
+2025/10/04-18:14:30.527 1b6b38 Reusing old log /root/Loan-Management-System/backend/data/whatsapp-session-siteA/Default/Local Storage/leveldb/000012.log 
+2025/10/04-18:24:41.726 1b6b39 Level-0 table #16: started
+2025/10/04-18:24:41.732 1b6b39 Level-0 table #16: 20751 bytes OK
+2025/10/04-18:24:41.736 1b6b39 Delete type=0 #12
+2025/10/04-18:36:41.724 1b6b39 Level-0 table #18: started
+2025/10/04-18:36:41.728 1b6b39 Level-0 table #18: 16713 bytes OK
+2025/10/04-18:36:41.733 1b6b39 Delete type=0 #15
+2025/10/04-18:36:41.734 1b6b39 Compacting 4@0 + 1@1 files
+2025/10/04-18:36:41.740 1b6b39 Generated table #19@0: 167 keys, 8121 bytes
+2025/10/04-18:36:41.740 1b6b39 Compacted 4@0 + 1@1 files => 8121 bytes
+2025/10/04-18:36:41.742 1b6b39 compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/10/04-18:36:41.744 1b6b39 Delete type=2 #10
+2025/10/04-18:36:41.744 1b6b39 Delete type=2 #16
+2025/10/04-18:36:41.744 1b6b39 Delete type=2 #18
+2025/10/04-18:36:41.744 1b6b39 Delete type=2 #13
+2025/10/04-18:36:41.744 1b6b39 Delete type=2 #8
+2025/10/05-05:51:35.650 1b6b38 Level-0 table #21: started
+2025/10/05-05:51:35.657 1b6b38 Level-0 table #21: 17460 bytes OK
+2025/10/05-05:51:35.662 1b6b38 Delete type=0 #17
+2025/10/05-19:19:18.162 1b6b39 Level-0 table #23: started
+2025/10/05-19:19:18.187 1b6b39 Level-0 table #23: 17926 bytes OK
+2025/10/05-19:19:18.203 1b6b39 Delete type=0 #20

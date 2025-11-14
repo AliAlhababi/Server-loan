@@ -78,7 +78,7 @@ router.get('/status', verifyToken, async (req, res) => {
         WHERE status = 'accepted'
         GROUP BY target_loan_id
       ) loan_payments ON rl.loan_id = loan_payments.target_loan_id
-      WHERE fd.family_head_id = ? AND fd.delegation_status = 'approved' 
+      WHERE fd.family_head_id = ? AND fd.delegation_status = 'approved'
       AND fd.delegation_type = 'delegation_request'
       ORDER BY fd.created_date DESC
     `, [userId]);
@@ -203,7 +203,7 @@ router.post('/request-join-family', verifyToken, async (req, res) => {
       });
     }
     
-    // Check if delegation already exists
+    // Check if delegation already exists (active only)
     const existingDelegation = await checkExistingDelegation(familyHeadId, memberId);
     if (existingDelegation) {
       return res.status(400).json({
@@ -211,11 +211,31 @@ router.post('/request-join-family', verifyToken, async (req, res) => {
         message: 'طلب التفويض موجود بالفعل لهذا العضو'
       });
     }
-    
-    // Create delegation request
+
+    // Check for revoked delegation that can be reactivated
+    const [revokedDelegation] = await pool.execute(`
+      SELECT delegation_id FROM family_delegations
+      WHERE family_head_id = ? AND family_member_id = ? AND delegation_status = 'revoked'
+    `, [familyHeadId, memberId]);
+
+    if (revokedDelegation.length > 0) {
+      // Reactivate the revoked delegation
+      await pool.execute(`
+        UPDATE family_delegations
+        SET delegation_status = 'pending', notes = ?, revoked_date = NULL, approved_date = NULL
+        WHERE delegation_id = ?
+      `, [notes || 'إعادة تفعيل طلب انضمام للعائلة', revokedDelegation[0].delegation_id]);
+
+      return res.json({
+        success: true,
+        message: `تم إعادة إرسال طلب الانضمام لعائلة ${targetUser.Aname} للمراجعة من الإدارة`
+      });
+    }
+
+    // Create new delegation request
     await pool.execute(`
       INSERT INTO family_delegations (
-        family_head_id, family_member_id, delegation_status, 
+        family_head_id, family_member_id, delegation_status,
         delegation_type, notes, created_date
       ) VALUES (?, ?, 'pending', 'delegation_request', ?, NOW())
     `, [familyHeadId, memberId, notes || 'طلب انضمام للعائلة']);
@@ -282,7 +302,7 @@ router.post('/add-member', verifyToken, async (req, res) => {
       });
     }
     
-    // Check if delegation already exists
+    // Check if delegation already exists (active only)
     const existingDelegation = await checkExistingDelegation(familyHeadId, memberId);
     if (existingDelegation) {
       return res.status(400).json({
@@ -290,11 +310,31 @@ router.post('/add-member', verifyToken, async (req, res) => {
         message: 'طلب التفويض موجود بالفعل لهذا العضو'
       });
     }
-    
-    // Create delegation request
+
+    // Check for revoked delegation that can be reactivated
+    const [revokedDelegation] = await pool.execute(`
+      SELECT delegation_id FROM family_delegations
+      WHERE family_head_id = ? AND family_member_id = ? AND delegation_status = 'revoked'
+    `, [familyHeadId, memberId]);
+
+    if (revokedDelegation.length > 0) {
+      // Reactivate the revoked delegation
+      await pool.execute(`
+        UPDATE family_delegations
+        SET delegation_status = 'pending', notes = ?, revoked_date = NULL, approved_date = NULL
+        WHERE delegation_id = ?
+      `, [notes || `إعادة تفعيل إضافة عضو من قبل رب الأسرة`, revokedDelegation[0].delegation_id]);
+
+      return res.json({
+        success: true,
+        message: `تم إعادة إرسال طلب إضافة ${targetUser.Aname} للعائلة للمراجعة من الإدارة`
+      });
+    }
+
+    // Create new delegation request
     await pool.execute(`
       INSERT INTO family_delegations (
-        family_head_id, family_member_id, delegation_status, 
+        family_head_id, family_member_id, delegation_status,
         delegation_type, notes, created_date
       ) VALUES (?, ?, 'pending', 'delegation_request', ?, NOW())
     `, [familyHeadId, memberId, notes || `إضافة عضو من قبل رب الأسرة`]);
@@ -331,7 +371,7 @@ router.post('/make-payment', verifyToken, async (req, res) => {
     // Verify delegation exists and is approved
     const [delegationResults] = await pool.execute(`
       SELECT delegation_id FROM family_delegations 
-      WHERE family_head_id = ? AND family_member_id = ? 
+      WHERE family_head_id = ? AND family_member_id = ?
       AND delegation_status = 'approved' AND delegation_type = 'delegation_request'
     `, [familyHeadId, memberId]);
     

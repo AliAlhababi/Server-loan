@@ -140,11 +140,16 @@ class EmailService {
             return null;
         }
 
-        // Prepare template data with brand information
+        // Prepare template data with brand information and Kuwait time
         const templateData = {
             ...data,
             brand: brandConfig.getSection('brand'),
-            currentDate: new Date().toLocaleDateString('en-US')
+            currentDate: new Date().toLocaleDateString('en-GB', {
+                timeZone: 'Asia/Kuwait',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            })
         };
 
         try {
@@ -230,7 +235,7 @@ class EmailService {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مرحباً بك في درع العائلة</title>
+    <title>مرحباً بك في ${brandConfig.getBrandDisplayName()}</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -340,14 +345,17 @@ class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ درع العائلة</h1>
+            <div class="logo" style="margin-bottom: 15px;">
+                <img src="https://${brandConfig.getSection('brand').domain}${brandConfig.getSection('brand').logoUrl}" alt="${brandConfig.getBrandDisplayName()} Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+            </div>
+            <h1>${brandConfig.getBrandDisplayName()}</h1>
             <p>نظام إدارة القروض والمعاملات المالية</p>
         </div>
         
         <div class="content">
             <div class="welcome-message">
                 <h2>مرحباً بك ${fullName}!</h2>
-                <p>نحن سعداء بانضمامك إلى عائلة درع العائلة. تم إنشاء حسابك بنجاح وأصبح بإمكانك الوصول إلى جميع خدماتنا المالية.</p>
+                <p>نحن سعداء بانضمامك إلى عائلة ${brandConfig.getBrandDisplayName()}. تم إنشاء حسابك بنجاح وأصبح بإمكانك الوصول إلى جميع خدماتنا المالية.</p>
             </div>
             
             <div class="credentials-box">
@@ -385,7 +393,7 @@ class EmailService {
         </div>
         
         <div class="footer">
-            <p><strong>درع العائلة</strong> - نظام إدارة القروض والمعاملات المالية</p>
+            <p><strong>${brandConfig.getBrandDisplayName()}</strong> - نظام إدارة القروض والمعاملات المالية</p>
             <p>هذا البريد الإلكتروني تلقائي، يرجى عدم الرد عليه.</p>
         </div>
     </div>
@@ -395,11 +403,11 @@ class EmailService {
 
     getWelcomeEmailText(fullName, userId, password) {
         return `
-مرحباً بك في درع العائلة!
+مرحباً بك في ${brandConfig.getBrandDisplayName()}!
 
 عزيزي/عزيزتي ${fullName}،
 
-نحن سعداء بانضمامك إلى عائلة درع العائلة. تم إنشاء حسابك بنجاح وأصبح بإمكانك الوصول إلى جميع خدماتنا المالية.
+نحن سعداء بانضمامك إلى عائلة ${brandConfig.getBrandDisplayName()}. تم إنشاء حسابك بنجاح وأصبح بإمكانك الوصول إلى جميع خدماتنا المالية.
 
 معلومات تسجيل الدخول:
 - رقم المستخدم: ${userId}
@@ -420,7 +428,7 @@ class EmailService {
 
 مرحباً بك مرة أخرى!
 
-درع العائلة
+${brandConfig.getBrandDisplayName()}
 نظام إدارة القروض والمعاملات المالية
 
 هذا البريد الإلكتروني تلقائي، يرجى عدم الرد عليه.
@@ -430,9 +438,10 @@ class EmailService {
     // Joining Fee Approval Email
     async sendJoiningFeeApprovalEmail(email, fullName, status, userFinancials = null) {
         const isApproved = status === 'approved';
+        const brandDisplayName = brandConfig.getBrandDisplayName();
         const subject = isApproved ? 
-            'تم اعتماد رسوم الانضمام - مرحباً بك في درع العائلة' : 
-            'تحديث حالة رسوم الانضمام - درع العائلة';
+            `تم اعتماد رسوم الانضمام - مرحباً بك في ${brandDisplayName}` : 
+            `تحديث حالة رسوم الانضمام - ${brandDisplayName}`;
         
         const htmlContent = this.getJoiningFeeEmailHTML(fullName, status, userFinancials);
         const textContent = this.getJoiningFeeEmailText(fullName, status, userFinancials);
@@ -443,9 +452,10 @@ class EmailService {
     // Loan Approval/Rejection Email
     async sendLoanStatusEmail(email, fullName, loanData, status, adminName, userFinancials = null) {
         const isApproved = status === 'approved';
+        const brandDisplayName = brandConfig.getBrandDisplayName();
         const subject = isApproved ? 
-            `تم اعتماد طلب القرض ${loanData.loanAmount} د.ك - درع العائلة` : 
-            'تحديث حالة طلب القرض - درع العائلة';
+            `تم اعتماد طلب القرض ${loanData.loanAmount} د.ك - ${brandDisplayName}` : 
+            `تحديث حالة طلب القرض - ${brandDisplayName}`;
         
         const htmlContent = this.getLoanStatusEmailHTML(fullName, loanData, status, adminName, userFinancials);
         const textContent = this.getLoanStatusEmailText(fullName, loanData, status, adminName, userFinancials);
@@ -456,9 +466,10 @@ class EmailService {
     // Transaction Approval/Rejection Email
     async sendTransactionStatusEmail(email, fullName, transactionData, status, adminName, userFinancials = null) {
         const isApproved = status === 'accepted';
+        const brandDisplayName = brandConfig.getBrandDisplayName();
         const subject = isApproved ? 
-            `تم قبول المعاملة ${transactionData.amount} د.ك - درع العائلة` : 
-            'تحديث حالة المعاملة المالية - درع العائلة';
+            `تم قبول المعاملة ${transactionData.amount} د.ك - ${brandDisplayName}` : 
+            `تحديث حالة المعاملة المالية - ${brandDisplayName}`;
         
         const htmlContent = this.getTransactionStatusEmailHTML(fullName, transactionData, status, adminName, userFinancials);
         const textContent = this.getTransactionStatusEmailText(fullName, transactionData, status, adminName, userFinancials);
@@ -469,52 +480,99 @@ class EmailService {
     // Loan Payment Approval/Rejection Email
     async sendLoanPaymentStatusEmail(email, fullName, paymentData, status, adminName, loanSummary, userFinancials = null) {
         const isApproved = status === 'accepted';
-        const subject = isApproved ? 
-            `تم قبول دفعة القرض ${paymentData.amount} د.ك - درع العائلة` : 
-            'تحديث حالة دفعة القرض - درع العائلة';
-        
+        const brandDisplayName = brandConfig.getBrandDisplayName();
+        const subject = isApproved ?
+            `تم قبول دفعة القرض ${paymentData.amount} د.ك - ${brandDisplayName}` :
+            `تحديث حالة دفعة القرض - ${brandDisplayName}`;
+
         const htmlContent = this.getLoanPaymentStatusEmailHTML(fullName, paymentData, status, adminName, loanSummary, userFinancials);
         const textContent = this.getLoanPaymentStatusEmailText(fullName, paymentData, status, adminName, loanSummary, userFinancials);
 
         return await this.sendEmail(email, subject, htmlContent, textContent);
     }
 
-    // Generic email sender
-    async sendEmail(email, subject, htmlContent, textContent) {
-        const mailOptions = {
-            from: {
-                name: process.env.EMAIL_FROM_NAME || 'درع العائلة',
-                address: process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || process.env.SMTP_USER || 'aal7babi2@gmail.com'
-            },
-            to: email,
-            subject: subject,
-            html: htmlContent,
-            text: textContent,
-            headers: {
-                'Message-ID': `<${Date.now()}-${Math.random()}@daraalfamilia.com>`,
-                'X-Mailer': 'درع العائلة System',
-                'List-Unsubscribe': '<mailto:unsubscribe@daraalfamilia.com>'
+    // Payment Reminder Email
+    async sendPaymentReminderEmail(email, reminderData, brandName = null) {
+        const brandDisplayName = brandName || brandConfig.getBrandDisplayName();
+        const subject = `${brandDisplayName} - تذكير بالدفعة الشهرية`;
+
+        const htmlContent = this.getPaymentReminderEmailHTML(reminderData);
+        const textContent = this.getPaymentReminderEmailText(reminderData);
+
+        return await this.sendEmail(email, subject, htmlContent, textContent);
+    }
+
+    // Generic email sender - supports both old signature and new object-based signature
+    async sendEmail(emailOrOptions, subject, htmlContent, textContent) {
+        let mailOptions;
+
+        // Support both old positional parameters and new object-based approach
+        if (typeof emailOrOptions === 'object' && emailOrOptions.to) {
+            // New object-based approach for template emails
+            const options = emailOrOptions;
+
+            // Render template if template name provided
+            let html = options.html;
+            let text = options.text;
+
+            if (options.template && options.context) {
+                html = this.renderEmailWithTemplate(options.template, options.context);
+                text = text || `${brandConfig.getBrandDisplayName()} - ${options.subject}`;
             }
-        };
+
+            mailOptions = {
+                from: {
+                    name: process.env.EMAIL_FROM_NAME || brandConfig.getBrandDisplayName(),
+                    address: process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || 'aal7babi2@gmail.com'
+                },
+                to: options.to,
+                subject: options.subject,
+                html: html,
+                text: text,
+                attachments: options.attachments || [],
+                headers: {
+                    'Message-ID': `<${Date.now()}-${Math.random()}@${brandConfig.getSection('brand').domain || 'daraalfamilia.com'}>`,
+                    'X-Mailer': `${brandConfig.getBrandDisplayName()} System`,
+                    'List-Unsubscribe': `<mailto:unsubscribe@${brandConfig.getSection('brand').domain || 'daraalfamilia.com'}>`
+                }
+            };
+        } else {
+            // Old positional parameters approach (backward compatibility)
+            mailOptions = {
+                from: {
+                    name: process.env.EMAIL_FROM_NAME || brandConfig.getBrandDisplayName(),
+                    address: process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || 'aal7babi2@gmail.com'
+                },
+                to: emailOrOptions,
+                subject: subject,
+                html: htmlContent,
+                text: textContent,
+                headers: {
+                    'Message-ID': `<${Date.now()}-${Math.random()}@${brandConfig.getSection('brand').domain || 'daraalfamilia.com'}>`,
+                    'X-Mailer': `${brandConfig.getBrandDisplayName()} System`,
+                    'List-Unsubscribe': `<mailto:unsubscribe@${brandConfig.getSection('brand').domain || 'daraalfamilia.com'}>`
+                }
+            };
+        }
 
         try {
-            console.log(`📧 Attempting to send email to ${email}: ${subject}`);
+            console.log(`📧 Attempting to send email to ${mailOptions.to}: ${mailOptions.subject}`);
             const result = await this.transporter.sendMail(mailOptions);
-            console.log(`✅ Email sent to ${email}:`, result.messageId);
+            console.log(`✅ Email sent to ${mailOptions.to}:`, result.messageId);
             return {
                 success: true,
                 messageId: result.messageId
             };
         } catch (error) {
-            console.error(`❌ Failed to send email to ${email}:`, error);
-            
+            console.error(`❌ Failed to send email to ${mailOptions.to}:`, error);
+
             let userFriendlyMessage = 'خطأ في إرسال البريد الإلكتروني';
             if (error.code === 'EDNS' || error.code === 'ETIMEOUT') {
                 userFriendlyMessage = 'مشكلة في الاتصال بخادم البريد الإلكتروني';
             } else if (error.code === 'EAUTH') {
                 userFriendlyMessage = 'خطأ في مصادقة البريد الإلكتروني';
             }
-            
+
             return {
                 success: false,
                 error: error.message,
@@ -542,21 +600,24 @@ class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ درع العائلة</h1>
+            <div class="logo" style="margin-bottom: 15px;">
+                <img src="https://${brandConfig.getSection('brand').domain}${brandConfig.getSection('brand').logoUrl}" alt="${brandConfig.getBrandDisplayName()} Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+            </div>
+            <h1>${brandConfig.getBrandDisplayName()}</h1>
             <p>تحديث حالة رسوم الانضمام</p>
         </div>
         
         <div class="content">
             <div class="welcome-message">
                 <h2>مرحباً ${fullName}</h2>
-                <p>نود إعلامك بتحديث حالة رسوم الانضمام الخاصة بك في صندوق درع العائلة.</p>
+                <p>نود إعلامك بتحديث حالة رسوم الانضمام الخاصة بك في صندوق ${brandConfig.getBrandDisplayName()}.</p>
             </div>
             
             <div class="status-box" style="border-color: ${statusColor}; background-color: ${statusColor}15;">
                 <h3 style="color: ${statusColor};">${statusIcon} حالة رسوم الانضمام: ${statusText}</h3>
                 <div class="status-details">
                     <p><strong>المبلغ:</strong> 10.000 د.ك</p>
-                    <p><strong>التاريخ:</strong> ${new Date().toLocaleDateString('en-US')}</p>
+                    <p><strong>التاريخ:</strong> ${new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kuwait'})}</p>
                     <p><strong>الحالة:</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></p>
                 </div>
             </div>
@@ -620,7 +681,10 @@ class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ درع العائلة</h1>
+            <div class="logo" style="margin-bottom: 15px;">
+                <img src="https://${brandConfig.getSection('brand').domain}${brandConfig.getSection('brand').logoUrl}" alt="${brandConfig.getBrandDisplayName()} Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+            </div>
+            <h1>${brandConfig.getBrandDisplayName()}</h1>
             <p>تحديث حالة طلب القرض</p>
         </div>
         
@@ -651,7 +715,7 @@ class EmailService {
                     </div>
                     <div class="detail-row">
                         <span>تاريخ الطلب:</span>
-                        <span>${new Date(loanData.requestDate).toLocaleDateString('en-US')}</span>
+                        <span>${new Date(loanData.requestDate).toLocaleDateString('en-GB', {timeZone: 'Asia/Kuwait'})}</span>
                     </div>
                 </div>
             </div>
@@ -704,7 +768,10 @@ class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ درع العائلة</h1>
+            <div class="logo" style="margin-bottom: 15px;">
+                <img src="https://${brandConfig.getSection('brand').domain}${brandConfig.getSection('brand').logoUrl}" alt="${brandConfig.getBrandDisplayName()} Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+            </div>
+            <h1>${brandConfig.getBrandDisplayName()}</h1>
             <p>تحديث حالة المعاملة المالية</p>
         </div>
         
@@ -735,7 +802,7 @@ class EmailService {
                     </div>
                     <div class="detail-row">
                         <span>تاريخ المعاملة:</span>
-                        <span>${new Date(transactionData.date).toLocaleDateString('en-US')}</span>
+                        <span>${new Date(transactionData.date).toLocaleDateString('en-GB', {timeZone: 'Asia/Kuwait'})}</span>
                     </div>
                 </div>
             </div>
@@ -799,7 +866,10 @@ class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ درع العائلة</h1>
+            <div class="logo" style="margin-bottom: 15px;">
+                <img src="https://${brandConfig.getSection('brand').domain}${brandConfig.getSection('brand').logoUrl}" alt="${brandConfig.getBrandDisplayName()} Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+            </div>
+            <h1>${brandConfig.getBrandDisplayName()}</h1>
             <p>تحديث حالة دفعة القرض</p>
         </div>
         
@@ -826,7 +896,7 @@ class EmailService {
                     </div>
                     <div class="detail-row">
                         <span>تاريخ الدفعة:</span>
-                        <span>${new Date(paymentData.date).toLocaleDateString('en-US')}</span>
+                        <span>${new Date(paymentData.date).toLocaleDateString('en-GB', {timeZone: 'Asia/Kuwait'})}</span>
                     </div>
                 </div>
             </div>
@@ -836,7 +906,7 @@ class EmailService {
                 <h4>📊 ملخص حالة القرض</h4>
                 <div class="progress-details">
                     <div class="detail-row">
-                        <span>إجمالي القرض:</span>
+                        <span>أصل القرض:</span>
                         <span style="font-weight: bold;">${loanSummary.totalLoan} د.ك</span>
                     </div>
                     <div class="detail-row">
@@ -844,7 +914,7 @@ class EmailService {
                         <span style="font-weight: bold; color: #28a745;">${loanSummary.totalPaid} د.ك</span>
                     </div>
                     <div class="detail-row">
-                        <span>القرض:</span>
+                        <span>المتبقي:</span>
                         <span style="font-weight: bold; color: #dc3545;">${loanSummary.remainingAmount} د.ك</span>
                     </div>
                     <div class="detail-row">
@@ -858,12 +928,7 @@ class EmailService {
                     <h4 style="color: #28a745;">🎉 مبروك! تم سداد القرض بالكامل!</h4>
                     <p>لقد أكملت سداد قرضك بنجاح. يمكنك الآن طلب قرض جديد بعد مرور 30 يوماً.</p>
                 </div>
-                ` : `
-                <div class="next-payment">
-                    <h5>💡 تذكير:</h5>
-                    <p>القسط التالي المطلوب: <strong>${loanSummary.nextInstallment} د.ك</strong></p>
-                </div>
-                `}
+                ` : ''}
             </div>
             ` : ''}
 
@@ -884,36 +949,36 @@ class EmailService {
     // Helper methods for text versions
     getJoiningFeeEmailText(fullName, status) {
         const statusText = status === 'approved' ? 'معتمدة' : 'مرفوضة';
-        return `درع العائلة - تحديث حالة رسوم الانضمام\n\nمرحباً ${fullName}\n\nحالة رسوم الانضمام: ${statusText}\nالمبلغ: 10.000 د.ك\nالتاريخ: ${new Date().toLocaleDateString('en-US')}\n\nدرع العائلة\nنظام إدارة القروض والمعاملات المالية`;
+        return `${brandConfig.getBrandDisplayName()} - تحديث حالة رسوم الانضمام\n\nمرحباً ${fullName}\n\nحالة رسوم الانضمام: ${statusText}\nالمبلغ: 10.000 د.ك\nالتاريخ: ${new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kuwait'})}\n\n${brandConfig.getBrandDisplayName()}\nنظام إدارة القروض والمعاملات المالية`;
     }
 
     getLoanStatusEmailText(fullName, loanData, status, adminName) {
         const statusText = status === 'approved' ? 'معتمد' : 'مرفوض';
-        return `درع العائلة - تحديث حالة طلب القرض\n\nمرحباً ${fullName}\n\nحالة طلب القرض: ${statusText}\nمبلغ القرض: ${loanData.loanAmount} د.ك\nالقسط الشهري: ${loanData.installmentAmount} د.ك\nالمدير المعتمد: ${adminName}\n\nدرع العائلة`;
+        return `${brandConfig.getBrandDisplayName()} - تحديث حالة طلب القرض\n\nمرحباً ${fullName}\n\nحالة طلب القرض: ${statusText}\nمبلغ القرض: ${loanData.loanAmount} د.ك\nالقسط الشهري: ${loanData.installmentAmount} د.ك\nالمدير المعتمد: ${adminName}\n\n${brandConfig.getBrandDisplayName()}`;
     }
 
     getTransactionStatusEmailText(fullName, transactionData, status, adminName, totalSubscriptions = null) {
         const statusText = status === 'accepted' ? 'مقبولة' : 'مرفوضة';
         const isSubscription = transactionData.transaction_type === 'subscription';
         
-        let text = `درع العائلة - تحديث حالة المعاملة\n\nمرحباً ${fullName}\n\nحالة المعاملة: ${statusText}\nالمبلغ: ${transactionData.amount} د.ك\nالمدير المعتمد: ${adminName}`;
+        let text = `${brandConfig.getBrandDisplayName()} - تحديث حالة المعاملة\n\nمرحباً ${fullName}\n\nحالة المعاملة: ${statusText}\nالمبلغ: ${transactionData.amount} د.ك\nالمدير المعتمد: ${adminName}`;
         
         if (status === 'accepted' && isSubscription && totalSubscriptions) {
             text += `\n\nملخص اشتراكاتك:\nإجمالي الاشتراكات: ${totalSubscriptions} د.ك\nهذا الاشتراك: ${transactionData.amount} د.ك`;
         }
         
-        return text + '\n\nدرع العائلة';
+        return text + '\n\n${brandConfig.getBrandDisplayName()}';
     }
 
     getLoanPaymentStatusEmailText(fullName, paymentData, status, adminName, loanSummary) {
         const statusText = status === 'accepted' ? 'مقبولة' : 'مرفوضة';
-        let text = `درع العائلة - تحديث حالة دفعة القرض\n\nمرحباً ${fullName}\n\nحالة الدفعة: ${statusText}\nمبلغ الدفعة: ${paymentData.amount} د.ك\nالمدير المعتمد: ${adminName}`;
+        let text = `${brandConfig.getBrandDisplayName()} - تحديث حالة دفعة القرض\n\nمرحباً ${fullName}\n\nحالة الدفعة: ${statusText}\nمبلغ الدفعة: ${paymentData.amount} د.ك\nالمدير المعتمد: ${adminName}`;
         
         if (status === 'accepted' && loanSummary) {
-            text += `\n\nملخص القرض:\nالمبلغ المسدد: ${loanSummary.totalPaid} د.ك\nالقرض: ${loanSummary.remainingAmount} د.ك`;
+            text += `\n\nملخص القرض:\nأصل القرض: ${loanSummary.totalLoan} د.ك\nالمبلغ المسدد: ${loanSummary.totalPaid} د.ك\nالمتبقي: ${loanSummary.remainingAmount} د.ك`;
         }
         
-        return text + '\n\nدرع العائلة';
+        return text + '\n\n${brandConfig.getBrandDisplayName()}';
     }
 
     // Helper methods
@@ -945,9 +1010,106 @@ class EmailService {
 
     getEmailFooter() {
         return `<div class="footer">
-            <p><strong>درع العائلة</strong> - نظام إدارة القروض والمعاملات المالية</p>
+            <p><strong>${brandConfig.getBrandDisplayName()}</strong> - نظام إدارة القروض والمعاملات المالية</p>
             <p>هذا البريد الإلكتروني تلقائي، يرجى عدم الرد عليه.</p>
         </div>`;
+    }
+
+    // Email Template: Payment Reminder
+    getPaymentReminderEmailHTML(reminderData) {
+        return `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تذكير بالدفعة الشهرية</title>
+    ${this.getEmailStyles()}
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo" style="margin-bottom: 15px;">
+                <img src="https://${brandConfig.getSection('brand').domain}${brandConfig.getSection('brand').logoUrl}" alt="${brandConfig.getBrandDisplayName()} Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+            </div>
+            <h1>${brandConfig.getBrandDisplayName()}</h1>
+            <p>تذكير بالدفعة الشهرية</p>
+        </div>
+
+        <div class="content">
+            <div class="welcome-message">
+                <h2>عزيزي ${reminderData.userName}</h2>
+                <p>يرجى تسديد المستحقات المطلوبة من القرض المستفيد منه.</p>
+                <p>هذه الرسالة بمثابة تذكير.</p>
+            </div>
+
+            <div class="status-box" style="border-color: #f59e0b; background-color: #fef3c7;">
+                <h3 style="color: #d97706;">📊 تفاصيل القرض</h3>
+                <div class="loan-details">
+                    <div class="detail-row">
+                        <span>مبلغ القرض:</span>
+                        <span style="font-weight: bold;">${reminderData.loanAmount}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>القسط الشهري المطلوب:</span>
+                        <span style="font-weight: bold;">${reminderData.installmentAmount}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>المبلغ المسدد:</span>
+                        <span style="font-weight: bold; color: #10b981;">${reminderData.totalPaid}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>المتبقي:</span>
+                        <span style="font-weight: bold; color: #dc3545;">${reminderData.remainingAmount}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>⏰ آخر دفعة:</span>
+                        <span style="font-weight: bold;">${reminderData.lastPaymentDate}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="important-note">
+                <h4>📞 للاستفسار</h4>
+                <p>يرجى التواصل مع الإدارة لأية استفسارات أو لتسديد الدفعة المطلوبة.</p>
+            </div>
+
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">
+                    شكراً لتعاونك
+                </p>
+            </div>
+        </div>
+
+        ${this.getEmailFooter()}
+    </div>
+</body>
+</html>`;
+    }
+
+    getPaymentReminderEmailText(reminderData) {
+        return `${brandConfig.getBrandDisplayName()} - تذكير بالدفعة الشهرية
+
+عزيزي ${reminderData.userName}
+
+يرجى تسديد المستحقات المطلوبة من القرض المستفيد منه.
+هذه الرسالة بمثابة تذكير.
+
+📊 تفاصيل القرض:
+• مبلغ القرض: ${reminderData.loanAmount}
+• القسط الشهري المطلوب: ${reminderData.installmentAmount}
+• المبلغ المسدد: ${reminderData.totalPaid}
+• المتبقي: ${reminderData.remainingAmount}
+
+⏰ آخر دفعة: ${reminderData.lastPaymentDate}
+
+📞 للاستفسار، يرجى التواصل مع الإدارة
+
+شكراً لتعاونك
+إدارة ${brandConfig.getBrandDisplayName()}
+
+هذا البريد الإلكتروني تلقائي، يرجى عدم الرد عليه.
+        `;
     }
 }
 

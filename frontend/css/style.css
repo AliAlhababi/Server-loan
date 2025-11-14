@@ -1259,25 +1259,153 @@ textarea:focus {
 /* Legacy stats grid - kept for compatibility */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
     margin-bottom: 40px;
 }
 
+/* Responsive adjustments for better mobile experience */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        padding: 20px;
+        margin: 0 4px;
+    }
+
+    #remainingLoanCard:hover {
+        transform: translateY(-4px);
+    }
+}
+
 .stat-card {
-    background: rgba(255, 255, 255, 0.95);
-    -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
     padding: 25px;
     border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     display: flex;
     align-items: center;
     gap: 20px;
-    transition: transform 0.3s ease;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .stat-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border-color: rgba(102, 126, 234, 0.2);
+}
+
+/* Special styling for loan cards - better visual hierarchy */
+
+/* Original loan amount card */
+#originalLoanCard {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid rgba(108, 117, 125, 0.2);
+}
+
+#originalLoanCard .stat-icon {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+#originalLoanCard .stat-value {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+/* Remaining loan card - highly prominent */
+#remainingLoanCard {
+    background: linear-gradient(135deg, #d4edda 0%, #ffffff 100%);
+    border: 2px solid #28a745;
+    box-shadow: 0 6px 25px rgba(40, 167, 69, 0.2);
+}
+
+#remainingLoanCard:hover {
+    background: linear-gradient(135deg, #c3e6cb 0%, #f8f9fa 100%);
+    border-color: #20c997;
+    transform: translateY(-8px);
+    box-shadow: 0 10px 35px rgba(40, 167, 69, 0.3);
+}
+
+#remainingLoanCard .stat-icon {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+#remainingLoanCard .stat-icon i {
+    color: #ffffff;
+    font-size: 26px;
+}
+
+#remainingLoanCard .stat-value {
+    color: #155724;
+    font-weight: 700;
+    font-size: 28px;
+}
+
+#remainingLoanCard .stat-label {
+    color: #155724;
+    font-weight: 600;
+}
+
+/* No loan card styling */
+#noLoanCard {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid rgba(108, 117, 125, 0.15);
+}
+
+#noLoanCard .stat-icon {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+#noLoanCard .stat-value {
+    color: #6c757d;
+}
+
+/* Balance card - primary info */
+.stat-card:first-child {
+    background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);
+    border: 1px solid rgba(33, 150, 243, 0.2);
+}
+
+.stat-card:first-child .stat-icon {
+    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+}
+
+.stat-card:first-child .stat-value {
+    color: #0d47a1;
+    font-weight: 700;
+}
+
+.stat-card:first-child .stat-label {
+    color: #1565c0;
+    font-weight: 600;
+}
+
+/* Max loan card styling */
+#maxLoanCard {
+    background: linear-gradient(135deg, #fff3e0 0%, #ffffff 100%);
+    border: 1px solid rgba(255, 152, 0, 0.2);
+}
+
+#maxLoanCard .stat-icon {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+#maxLoanCard .stat-value {
+    color: #e65100;
+    font-weight: 700;
+}
+
+#maxLoanCard .stat-label {
+    color: #ef6c00;
+    font-weight: 600;
 }
 
 /* New compact stats grid */

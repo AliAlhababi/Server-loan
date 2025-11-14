@@ -52,26 +52,66 @@ class UserDashboardLoader {
         try {
             const result = await apiCall(`/users/dashboard/${this.user.user_id}`);
             const dashboard = result.dashboard;
-            
-            const loanStatusElement = document.getElementById('loanStatus');
-            if (loanStatusElement) {
-                if (dashboard.activeLoan) {
-                    const statusText = `قرض نشط - ${formatCurrency(dashboard.activeLoan.remaining_amount)} متبقي`;
-                    loanStatusElement.textContent = statusText;
-                    loanStatusElement.className = 'stat-value active-loan';
-                    console.log('Loan status updated to:', statusText);
-                } else {
-                    loanStatusElement.textContent = 'لا يوجد قرض نشط';
-                    loanStatusElement.className = 'stat-value no-loan';
-                    console.log('Loan status updated to: لا يوجد قرض نشط');
+
+            // Get card elements
+            const maxLoanCard = document.getElementById('maxLoanCard');
+            const originalLoanCard = document.getElementById('originalLoanCard');
+            const remainingLoanCard = document.getElementById('remainingLoanCard');
+            const noLoanCard = document.getElementById('noLoanCard');
+            const originalLoanAmount = document.getElementById('originalLoanAmount');
+            const remainingLoanAmount = document.getElementById('remainingLoanAmount');
+
+            if (dashboard.activeLoan) {
+                // User has active loan - show two separate cards
+                const originalAmount = dashboard.activeLoan.loan_amount;
+                const remainingAmount = dashboard.activeLoan.remaining_amount;
+
+                // Update values
+                if (originalLoanAmount) {
+                    originalLoanAmount.textContent = formatCurrency(originalAmount);
                 }
+                if (remainingLoanAmount) {
+                    remainingLoanAmount.textContent = formatCurrency(remainingAmount);
+                    remainingLoanAmount.style.color = '#28a745';
+                    remainingLoanAmount.style.fontWeight = 'bold';
+                }
+
+                // Show loan cards, hide others
+                if (originalLoanCard) originalLoanCard.style.display = 'block';
+                if (remainingLoanCard) remainingLoanCard.style.display = 'block';
+                if (maxLoanCard) maxLoanCard.style.display = 'none';
+                if (noLoanCard) noLoanCard.style.display = 'none';
+
+                console.log('Active loan displayed - Original:', originalAmount, 'Remaining:', remainingAmount);
+            } else {
+                // No active loan - show eligibility cards
+                if (originalLoanCard) originalLoanCard.style.display = 'none';
+                if (remainingLoanCard) remainingLoanCard.style.display = 'none';
+                if (maxLoanCard) maxLoanCard.style.display = 'block';
+                if (noLoanCard) noLoanCard.style.display = 'block';
+
+                console.log('No active loan - showing eligibility');
             }
         } catch (error) {
             console.error('Error updating loan status:', error);
+
+            // Get card elements for error handling
+            const maxLoanCard = document.getElementById('maxLoanCard');
+            const originalLoanCard = document.getElementById('originalLoanCard');
+            const remainingLoanCard = document.getElementById('remainingLoanCard');
+            const noLoanCard = document.getElementById('noLoanCard');
             const loanStatusElement = document.getElementById('loanStatus');
-            if (loanStatusElement) {
-                loanStatusElement.textContent = 'خطأ في التحميل';
-                loanStatusElement.className = 'stat-value error';
+
+            // Hide loan cards and show error in no-loan card
+            if (originalLoanCard) originalLoanCard.style.display = 'none';
+            if (remainingLoanCard) remainingLoanCard.style.display = 'none';
+            if (maxLoanCard) maxLoanCard.style.display = 'block';
+            if (noLoanCard) {
+                noLoanCard.style.display = 'block';
+                if (loanStatusElement) {
+                    loanStatusElement.textContent = 'خطأ في التحميل';
+                    loanStatusElement.className = 'stat-value error';
+                }
             }
         }
     }

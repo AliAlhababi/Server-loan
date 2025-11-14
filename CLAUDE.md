@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Loan Management System for درع العائلة**  
+**Loan Management System for صندوق الكوثر**  
 Arabic financial cooperative system with streamlined loan management and admin controls.
 
 ## Quick Commands
@@ -287,7 +287,7 @@ EMAIL_HOST=smtp.gmail.com           # SMTP server
 EMAIL_PORT=587                      # TLS port (recommended)
 EMAIL_USER=your-email@gmail.com     # Gmail address
 EMAIL_PASSWORD=your-app-password    # Gmail app password (16-character)
-EMAIL_FROM_NAME=درع العائلة         # Sender name
+EMAIL_FROM_NAME=صندوق الكوثر         # Sender name
 EMAIL_FROM_ADDRESS=your-email@gmail.com # From address
 ```
 

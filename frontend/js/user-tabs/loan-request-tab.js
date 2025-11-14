@@ -398,7 +398,12 @@ class LoanRequestTab {
         if (!tests.hasMinimumBalance) failed.push('رصيد 500 دينار كحد أدنى');
         if (!tests.oneYearRegistration) failed.push('مرور عام على التسجيل');
         if (!tests.noActiveLoans) failed.push('إغلاق القرض النشط');
-        if (!tests.thirtyDaysSinceClosure) failed.push('انتظار 30 يوم من إغلاق آخر قرض');
+        if (!tests.thirtyDaysSinceClosure) {
+            const daysMsg = eligibility.daysUntilNextLoan > 0
+                ? `انتظار ${eligibility.daysUntilNextLoan} يوم من إغلاق آخر قرض`
+                : 'انتظار 30 يوم من إغلاق آخر قرض';
+            failed.push(daysMsg);
+        }
         
         return failed;
     }

@@ -76,6 +76,8 @@ async function createDatabase() {
         \`admin_id\` int DEFAULT NULL,
         \`notes\` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
         \`loan_closed_date\` datetime DEFAULT NULL COMMENT 'When loan is fully paid',
+        \`admin_override\` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Was this loan approved via admin override?',
+        \`override_reason\` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Admin reason for override',
         \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
         \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (\`loan_id\`),
@@ -84,6 +86,7 @@ async function createDatabase() {
         KEY \`idx_admin_id\` (\`admin_id\`),
         KEY \`idx_loan_closed_date\` (\`loan_closed_date\`),
         KEY \`idx_user_loan_closure\` (\`user_id\`,\`loan_closed_date\`),
+        KEY \`idx_admin_override\` (\`admin_override\`),
         CONSTRAINT \`fk_requested_loan_admin\` FOREIGN KEY (\`admin_id\`) REFERENCES \`users\` (\`user_id\`) ON DELETE SET NULL,
         CONSTRAINT \`fk_requested_loan_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`user_id\`) ON DELETE CASCADE
       ) ENGINE=InnoDB AUTO_INCREMENT=2001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -154,14 +157,60 @@ async function createDatabase() {
         UNIQUE KEY \`attribute_name\` (\`attribute_name\`)
       ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+    // 6. Create loan_payment_reminders table
+    console.log('📝 Creating loan_payment_reminders table...');
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`loan_payment_reminders\` (
+        \`reminder_id\` int NOT NULL AUTO_INCREMENT,
+        \`user_id\` int NOT NULL,
+        \`loan_id\` int NOT NULL COMMENT 'FK to requested_loan',
+        \`last_payment_date\` datetime DEFAULT NULL COMMENT 'Last accepted payment date',
+        \`last_reminder_sent\` datetime DEFAULT NULL COMMENT 'Last reminder sent date',
+        \`reminder_count\` int NOT NULL DEFAULT '0' COMMENT 'Number of reminders sent',
+        \`status\` enum('active','paused','completed') NOT NULL DEFAULT 'active' COMMENT 'Reminder status',
+        \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`reminder_id\`),
+        KEY \`idx_user_id\` (\`user_id\`),
+        KEY \`idx_loan_id\` (\`loan_id\`),
+        KEY \`idx_status\` (\`status\`),
+        KEY \`idx_last_reminder_sent\` (\`last_reminder_sent\`),
+        CONSTRAINT \`fk_reminder_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`user_id\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_reminder_loan\` FOREIGN KEY (\`loan_id\`) REFERENCES \`requested_loan\` (\`loan_id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB AUTO_INCREMENT=5001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 7. Create admin_overrides table
+    console.log('📝 Creating admin_overrides table...');
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`admin_overrides\` (
+        \`override_id\` int NOT NULL AUTO_INCREMENT,
+        \`admin_id\` int NOT NULL COMMENT 'Admin who performed the override',
+        \`user_id\` int NOT NULL COMMENT 'User receiving the loan',
+        \`loan_id\` int NOT NULL COMMENT 'Loan that was overridden',
+        \`override_type\` varchar(50) NOT NULL DEFAULT 'loan_eligibility' COMMENT 'Type of override',
+        \`failed_requirements\` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Comma-separated list of failed eligibility tests',
+        \`override_reason\` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Admin justification in Arabic',
+        \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`override_id\`),
+        KEY \`idx_admin_id\` (\`admin_id\`),
+        KEY \`idx_user_id\` (\`user_id\`),
+        KEY \`idx_loan_id\` (\`loan_id\`),
+        KEY \`idx_created_at\` (\`created_at\`),
+        CONSTRAINT \`fk_override_admin\` FOREIGN KEY (\`admin_id\`) REFERENCES \`users\` (\`user_id\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_override_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`user_id\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_override_loan\` FOREIGN KEY (\`loan_id\`) REFERENCES \`requested_loan\` (\`loan_id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
     
     console.log('✅ All tables created successfully!');
-    
-    // 6. Insert system configuration
+
+    // 8. Insert system configuration
     console.log('📝 Inserting system configuration...');
     await connection.execute(`
       INSERT IGNORE INTO \`attribute\` (\`attribute_name\`, \`attribute_value\`, \`description\`) VALUES
-      ('system_name', 'درع العائلة', 'System name in Arabic'),
+      ('system_name', 'صندوق الكوثر', 'System name in Arabic'),
       ('minimum_balance', '500', 'Minimum balance required for loan eligibility'),
       ('minimum_subscription', '240', 'Minimum subscription amount required in 24 months'),
       ('loan_formula_rate', '0.006667', 'Loan calculation rate (2% annually / 12 months / 25)'),
@@ -171,7 +220,7 @@ async function createDatabase() {
       ('minimum_loan_period', '6', 'Minimum loan period in months')
     `);
     
-    // 7. Insert admin users
+    // 8. Insert admin users
     console.log('📝 Inserting admin users...');
     await connection.execute(`
       INSERT IGNORE INTO \`users\` (\`user_id\`, \`Aname\`, \`phone\`, \`email\`, \`password\`, \`workplace\`, \`whatsapp\`, \`user_type\`, \`balance\`, \`registration_date\`, \`joining_fee_approved\`, \`is_blocked\`, \`approved_by_admin_id\`) VALUES
@@ -179,7 +228,7 @@ async function createDatabase() {
       (1002, 'سارة المساعدة', '+96599654321', 'admin2@daraalfamily.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'إدارة النظام', '+96599654321', 'admin', 0.00, '2024-01-01', 'approved', 0, NULL)
     `);
     
-    // 8. Insert test users
+    // 9. Insert test users
     console.log('📝 Inserting test users...');
     await connection.execute(`
       INSERT IGNORE INTO \`users\` (\`user_id\`, \`Aname\`, \`phone\`, \`email\`, \`password\`, \`workplace\`, \`whatsapp\`, \`user_type\`, \`balance\`, \`registration_date\`, \`joining_fee_approved\`, \`is_blocked\`, \`approved_by_admin_id\`) VALUES
@@ -193,7 +242,7 @@ async function createDatabase() {
     console.log('✅ Database setup complete!');
     console.log('');
     console.log('=== SUMMARY ===');
-    console.log('📋 Tables created: users, requested_loan, loan, transaction, attribute');
+    console.log('📋 Tables created: users, requested_loan, loan, transaction, attribute, loan_payment_reminders');
     console.log('👤 Admin users: 2 (password: 123456)');
     console.log('🧪 Test users: 5 (password: 123456)');
     console.log('⚙️  System configuration: 8 settings');

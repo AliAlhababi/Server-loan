@@ -6,11 +6,25 @@ const Utils = {
     // Format currency
     formatCurrency: (amount) => parseFloat(amount || 0).toFixed(3),
     
-    // Format date safely
+    // Format date safely with Kuwait timezone and DD/MM/YYYY format
     formatDate: (dateString) => {
         if (!dateString) return 'غير محدد';
-        const date = new Date(dateString);
-        return isNaN(date.getTime()) ? 'غير محدد' : date.toLocaleDateString('en-US');
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'غير محدد';
+            
+            // Convert to Kuwait time (UTC+3) and format as DD/MM/YYYY
+            const options = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                timeZone: 'Asia/Kuwait'
+            };
+            
+            return date.toLocaleDateString('en-GB', options);
+        } catch (error) {
+            return 'غير محدد';
+        }
     },
     
     // Loading state
@@ -35,7 +49,7 @@ const Utils = {
         // Use provided brand name, global brandConfig, or fallback
         const finalBrandName = brandName || 
                               (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 
-                              'درع العائلة';
+                              'نظام إدارة القروض';
         
         return `
         <div class="terms-header">
@@ -277,9 +291,13 @@ const Utils = {
     // WhatsApp notification message templates
     getWhatsAppTemplates: (brandName = null) => {
         // Use provided brand name, global brandConfig, or fallback
-        const finalBrandName = brandName || 
-                              (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 
-                              'درع العائلة';
+        const finalBrandName = brandName ||
+                              (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) ||
+                              'نظام إدارة القروض';
+
+        // Add website link only for site A (صندوق الكوثر)
+        const websiteLink = (finalBrandName === 'صندوق الكوثر' || finalBrandName.includes('الكوثر')) ?
+            '\n\n🌐 موقعنا الإلكتروني: https://www.alkawtharb.com/' : '';
         
         return {
         joiningFeeApproved: (userName, userFinancials = null) => {
@@ -307,7 +325,7 @@ const Utils = {
 <!-- • الهدف: 240 د.ك خلال 24 شهر للتأهل للقروض --> <!-- TEMPORARILY DISABLED -->
 • بعد سنة كاملة ستصبح مؤهلاً لطلب القروض
 
-أهلاً وسهلاً بك في عائلة ${finalBrandName}
+أهلاً وسهلاً بك في عائلة ${finalBrandName}${websiteLink}
 إدارة الصندوق`;
             return message;
         },
@@ -318,7 +336,7 @@ const Utils = {
 
 للأسف لم يتم اعتماد رسوم الانضمام في الوقت الحالي.
 
-📞 يرجى التواصل معنا للاستفسار عن الأسباب والخطوات المطلوبة.
+📞 يرجى التواصل معنا للاستفسار عن الأسباب والخطوات المطلوبة.${websiteLink}
 
 شكراً لتفهمك
 إدارة ${finalBrandName}`,
@@ -339,7 +357,7 @@ const Utils = {
 • متابعة حالة القرض من حسابك
 • التواصل معنا عند الحاجة
 
-تهانينا وبالتوفيق!
+تهانينا وبالتوفيق!${websiteLink}
 إدارة ${finalBrandName}`;
             return message;
         },
@@ -350,7 +368,7 @@ const Utils = {
 
 للأسف لم يتم اعتماد طلب القرض بمبلغ ${loanAmount} في الوقت الحالي.
 
-📞 يرجى التواصل معنا للاستفسار عن الأسباب وإمكانية إعادة التقديم لاحقاً.
+📞 يرجى التواصل معنا للاستفسار عن الأسباب وإمكانية إعادة التقديم لاحقاً.${websiteLink}
 
 شكراً لتفهمك
 إدارة ${finalBrandName}`,
@@ -397,7 +415,9 @@ const Utils = {
                 }
             }
 
-            message += `\n\nشكراً لك
+            message += `\n${websiteLink}
+
+شكراً لك
 إدارة ${finalBrandName}`;
             return message;
         },
@@ -416,7 +436,7 @@ const Utils = {
 
 للأسف لم يتم قبول ${typeText} بمبلغ ${amount}.
 
-📞 يرجى التواصل معنا للاستفسار عن الأسباب.
+📞 يرجى التواصل معنا للاستفسار عن الأسباب.${websiteLink}
 
 شكراً لتفهمك
 إدارة ${finalBrandName}`;
@@ -452,7 +472,9 @@ const Utils = {
                 message += `\n\n💡 استمر في دفع الأقساط حسب الجدول المحدد`;
             }
 
-            message += `\n\nشكراً لك
+            message += `\n${websiteLink}
+
+شكراً لك
 إدارة ${finalBrandName}`;
             return message;
         },
@@ -463,7 +485,7 @@ const Utils = {
 
 للأسف لم يتم قبول دفعة القرض بمبلغ ${paymentAmount}.
 
-📞 يرجى التواصل معنا للاستفسار عن الأسباب وإعادة تقديم الدفعة.
+📞 يرجى التواصل معنا للاستفسار عن الأسباب وإعادة تقديم الدفعة.${websiteLink}
 
 شكراً لتفهمك
 إدارة ${finalBrandName}`

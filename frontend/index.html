@@ -3,7 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>درع العائلة - نظام إدارة القروض</title>
+    <title id="page-title">Loading...</title>
+    
+    <!-- SEO and Social Media Meta Tags -->
+    <meta name="description" content="" id="meta-description">
+    <meta name="keywords" content="قروض, تمويل, تعاونيات مالية, نظام إدارة">
+    <meta name="author" content="" id="meta-author">
+    
+    <!-- Open Graph (Facebook, LinkedIn) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="">
+    <meta property="og:title" content="" id="og-title">
+    <meta property="og:description" content="" id="og-description">
+    <meta property="og:site_name" content="" id="og-site-name">
+    <meta property="og:locale" content="ar_KW">
+    <meta property="og:image" content="/assets/logo-siteA.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="" id="og-image-alt">
+    
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="" id="twitter-title">
+    <meta name="twitter:description" content="" id="twitter-description">
+    <meta name="twitter:image" content="/assets/logo-siteA.svg">
+    <meta name="twitter:image:alt" content="" id="twitter-image-alt">
+    
+    <!-- Mobile App -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="apple-mobile-web-app-title" content="" id="app-title">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-styles.css">
     <link rel="stylesheet" href="css/user-tabs-styles.css">
@@ -16,7 +48,7 @@
             <div class="header-content">
                 <div class="logo">
                     <i class="fas fa-shield-alt logo-icon"></i>
-                    <h1>درع العائلة</h1>
+                    <h1 id="brand-name">Loading...</h1>
                 </div>
                 <div class="user-info" id="userInfo" style="display: none;">
                     <span id="userName">مرحباً بك</span>
@@ -155,7 +187,7 @@
                                 <span class="stat-value" id="userBalance">0.000</span>
                             </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-card" id="maxLoanCard">
                             <div class="stat-icon">
                                 <i class="fas fa-hand-holding-usd"></i>
                             </div>
@@ -164,13 +196,32 @@
                                 <span class="stat-value" id="maxLoanAmount">0.000</span>
                             </div>
                         </div>
-                        <div class="stat-card">
+                        <!-- Dynamic loan cards will be inserted here -->
+                        <div class="stat-card" id="originalLoanCard" style="display: none;">
+                            <div class="stat-icon">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">مبلغ القرض الأصلي</span>
+                                <span class="stat-value" id="originalLoanAmount">0.000</span>
+                            </div>
+                        </div>
+                        <div class="stat-card" id="remainingLoanCard" style="display: none;">
                             <div class="stat-icon">
                                 <i class="fas fa-chart-line"></i>
                             </div>
                             <div class="stat-info">
-                                <span class="stat-label">حالة القرض</span>
-                                <span class="stat-value" id="loanStatus">لا يوجد</span>
+                                <span class="stat-label">المبلغ المتبقي</span>
+                                <span class="stat-value" id="remainingLoanAmount">0.000</span>
+                            </div>
+                        </div>
+                        <div class="stat-card" id="noLoanCard">
+                            <div class="stat-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">قرضك الحالي</span>
+                                <span class="stat-value" id="loanStatus">لا يوجد قرض نشط</span>
                             </div>
                         </div>
                     </div>
@@ -360,13 +411,21 @@
                     <!-- Compact Admin Stats -->
                     <div class="compact-stats-grid">
                         <!-- الصندوق - Main Financial Dashboard -->
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(reportsManagement.show.bind(reportsManagement))" title="الصندوق - الملخص المالي">
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(reportsManagement.show.bind(reportsManagement))"
+                             data-admin-nav="admin/reports"
+                             data-nav-title="الصندوق - الملخص المالي"
+                             title="الصندوق - الملخص المالي (Shift+Click لفتح في تبويب جديد)">
                             <i class="fas fa-chart-pie"></i>
                             <span class="compact-stat-label">الصندوق</span>
                         </div>
                         
                         <!-- اشتراكات - Subscriptions -->
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(transactionsManagement.show.bind(transactionsManagement))" title="إدارة الاشتراكات">
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(transactionsManagement.show.bind(transactionsManagement))"
+                             data-admin-nav="admin/transactions"
+                             data-nav-title="إدارة الاشتراكات والمعاملات"
+                             title="إدارة الاشتراكات (Shift+Click لفتح في تبويب جديد)">
                             <i class="fas fa-coins"></i>
                             <div class="compact-stat-text">
                                 <span class="compact-stat-label">اشتراكات</span>
@@ -374,17 +433,38 @@
                             </div>
                         </div>
                         
-                        <!-- القروض - Loans (combining loan requests and installments) -->
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement))" title="إدارة القروض والأقساط">
-                            <i class="fas fa-hand-holding-usd"></i>
+                        <!-- القروض - Loan installment payments -->
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(() => loansManagement.show('payments'))"
+                             data-admin-nav="admin/loan-payments"
+                             data-nav-title="إدارة أقساط القروض"
+                             title="إدارة أقساط القروض المعلقة (Shift+Click لفتح في تبويب جديد)">
+                            <i class="fas fa-credit-card"></i>
                             <div class="compact-stat-text">
                                 <span class="compact-stat-label">القروض</span>
+                                <span class="compact-stat-value" id="pendingLoanPayments">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- طلبات القروض - Loan requests -->
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(loansManagement.show.bind(loansManagement))"
+                             data-admin-nav="admin/loans"
+                             data-nav-title="إدارة طلبات القروض"
+                             title="إدارة طلبات القروض (Shift+Click لفتح في تبويب جديد)">
+                            <i class="fas fa-hand-holding-usd"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">طلبات القروض</span>
                                 <span class="compact-stat-value" id="totalLoansPending">0</span>
                             </div>
                         </div>
                         
                         <!-- رصيد البنك - Bank Balance -->
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(banksManagement.show.bind(banksManagement))" title="إدارة البنوك والأرصدة">
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(banksManagement.show.bind(banksManagement))"
+                             data-admin-nav="admin/banks"
+                             data-nav-title="إدارة البنوك والأرصدة"
+                             title="إدارة البنوك (Shift+Click لفتح في تبويب جديد)"
                             <i class="fas fa-university"></i>
                             <div class="compact-stat-text">
                                 <span class="compact-stat-label">رصيد البنك</span>
@@ -393,7 +473,11 @@
                         </div>
                         
                         <!-- الأعضاء - Members -->
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(usersManagement.show.bind(usersManagement))" title="إدارة الأعضاء">
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(usersManagement.show.bind(usersManagement))"
+                             data-admin-nav="admin/users"
+                             data-nav-title="إدارة الأعضاء"
+                             title="إدارة الأعضاء (Shift+Click لفتح في تبويب جديد)">
                             <i class="fas fa-users"></i>
                             <div class="compact-stat-text">
                                 <span class="compact-stat-label">الأعضاء</span>
@@ -401,26 +485,64 @@
                             </div>
                         </div>
                         
-                        <!-- طلبات التسجيل - Registration Requests (placeholder for future feature) -->
-                        <div class="compact-stat-card clickable-card" onclick="showToast('هذه الميزة ستكون متاحة قريباً', 'info')" title="طلبات التسجيل الجديدة">
+                        <!-- طلبات التسجيل - Registration Requests -->
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(registrationManagement.show.bind(registrationManagement))"
+                             data-admin-nav="admin/registrations"
+                             data-nav-title="إدارة طلبات التسجيل"
+                             title="طلبات التسجيل الجديدة (Shift+Click لفتح في تبويب جديد)">
                             <i class="fas fa-user-plus"></i>
                             <div class="compact-stat-text">
                                 <span class="compact-stat-label">طلبات التسجيل</span>
-                                <span class="compact-stat-value">0</span>
+                                <span class="compact-stat-value" id="pendingRegistrations">0</span>
                             </div>
                         </div>
                         
                         <!-- الرسائل - Messages -->
-                        <div class="compact-stat-card clickable-card" onclick="adminDashboard.navigateToSection(ticketsManagement.show.bind(ticketsManagement))" title="إدارة الرسائل والتذاكر">
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="adminDashboard.navigateToSection(ticketsManagement.show.bind(ticketsManagement))"
+                             data-admin-nav="admin/tickets"
+                             data-nav-title="إدارة الرسائل والتذاكر"
+                             title="إدارة الرسائل (Shift+Click لفتح في تبويب جديد)">
                             <i class="fas fa-envelope"></i>
                             <div class="compact-stat-text">
                                 <span class="compact-stat-label">الرسائل</span>
                                 <span class="compact-stat-value" id="pendingTickets">0</span>
                             </div>
                         </div>
+
+                        <!-- العائلات - Family Delegations -->
+                        <div class="compact-stat-card clickable-card"
+                             onclick="adminDashboard.navigateToSection(familyDelegationsManagement.load.bind(familyDelegationsManagement))"
+                             data-admin-nav="admin/family-delegations"
+                             data-nav-title="إدارة التفويض العائلي"
+                             title="إدارة التفويض العائلي (Shift+Click لفتح في تبويب جديد)">
+                            <i class="fas fa-handshake"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">العائلات</span>
+                                <span class="compact-stat-value" id="pendingFamilyDelegations">0</span>
+                            </div>
+                        </div>
+
+                        <!-- واتساب - WhatsApp Queue -->
+                        <div class="compact-stat-card clickable-card whatsapp-card" 
+                             onclick="adminDashboard.navigateToSection(whatsappQueueManagement.show.bind(whatsappQueueManagement))"
+                             data-admin-nav="admin/whatsapp"
+                             data-nav-title="إدارة إشعارات الواتساب"
+                             title="إدارة إشعارات الواتساب (Shift+Click لفتح في تبويب جديد)">
+                            <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                            <div class="compact-stat-text">
+                                <span class="compact-stat-label">واتساب</span>
+                                <span class="compact-stat-value" id="pendingWhatsApp">0</span>
+                            </div>
+                        </div>
                         
                         <!-- معلوماتي - Admin Profile -->
-                        <div class="compact-stat-card clickable-card" onclick="openEditProfileModal()" title="تعديل المعلومات الشخصية">
+                        <div class="compact-stat-card clickable-card" 
+                             onclick="openEditProfileModal()"
+                             data-admin-nav="admin/profile"
+                             data-nav-title="تعديل المعلومات الشخصية"
+                             title="تعديل المعلومات الشخصية (Shift+Click لفتح في تبويب جديد)">
                             <i class="fas fa-user-edit"></i>
                             <span class="compact-stat-label">معلوماتي</span>
                         </div>
@@ -441,63 +563,6 @@
                             <!-- Multiple loan alerts will be loaded here -->
                         </div>
                     </div>
-
-                    <!-- Financial Summary Table -->
-                    <div class="financial-summary-section">
-                        <h3 class="section-title">
-                            <i class="fas fa-chart-line"></i>
-                            الملخص المالي
-                        </h3>
-                        
-                        <div class="financial-summary-table">
-                            <table class="summary-table">
-                                <thead>
-                                    <tr>
-                                        <th>البيان</th>
-                                        <th>المبلغ (دينار كويتي)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="summary-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-coins text-success"></i>
-                                            إجمالي الاشتراكات
-                                        </td>
-                                        <td class="summary-value" id="totalSubscriptions">--</td>
-                                    </tr>
-                                    <tr class="summary-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-hand-holding-usd text-warning"></i>
-                                            القروض النشطة المتبقية
-                                        </td>
-                                        <td class="summary-value" id="totalActiveLoansRemaining">--</td>
-                                    </tr>
-                                    <tr class="summary-row calculation-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-calculator text-secondary"></i>
-                                            الرصيد المحسوب
-                                        </td>
-                                        <td class="summary-value" id="calculatedBalance">--</td>
-                                    </tr>
-                                    <tr class="summary-row bank-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-university text-success"></i>
-                                            إجمالي أرصدة البنوك المسجلة
-                                        </td>
-                                        <td class="summary-value" id="totalBanksBalanceSummary">--</td>
-                                    </tr>
-                                    <tr class="summary-row difference-auto-row">
-                                        <td class="summary-label">
-                                            <i class="fas fa-balance-scale"></i>
-                                            الفرق (البنوك المسجلة - المحسوب)
-                                        </td>
-                                        <td class="summary-value" id="banksDifference">--</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                        </div>
 
                         
                     </div>
@@ -529,6 +594,20 @@
                                     <i class="fas fa-credit-card"></i>
                                     <span>إدارة المعاملات المالية</span>
                                     <small>المعلقة والمكتملة</small>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Payment Reminders Section -->
+                        <div class="admin-section">
+                            <h4 style="color: #f59e0b; margin: 20px 0 10px 0; font-size: 16px; border-bottom: 2px solid #f59e0b; padding-bottom: 5px;">
+                                <i class="fas fa-bell"></i> تذكيرات الدفع
+                            </h4>
+                            <div class="section-buttons">
+                                <button class="action-btn admin warning" data-action="payment-reminders">
+                                    <i class="fas fa-envelope"></i>
+                                    <span>إرسال تذكيرات الدفع</span>
+                                    <small>إدارة وإرسال تذكيرات للأعضاء المتأخرين</small>
                                 </button>
                             </div>
                         </div>
@@ -570,15 +649,18 @@
 
                     <div id="admin-content-area" class="admin-content-area" style="margin-top: 20px;"></div>
 
+                    <!-- Payment Reminders Content Area -->
+                    <div id="payment-reminders-content" style="display: none;"></div>
+
                     <!-- System Reports & Backup -->
                     <div class="system-reports-section">
                         <h3><i class="fas fa-download"></i> التقارير والنسخ الاحتياطية</h3>
                         <div class="reports-actions">
-                            <button class="system-report-btn" id="sqlBackupBtn">
-                                <i class="fas fa-database"></i>
+                            <button class="system-report-btn primary-backup-btn" id="fullBackupBtn">
+                                <i class="fas fa-server"></i>
                                 <div class="btn-content">
-                                    <span class="btn-title">نسخة احتياطية SQL</span>
-                                    <small class="btn-desc">تحميل نسخة كاملة من قاعدة البيانات</small>
+                                    <span class="btn-title">نسخة احتياطية كاملة - Full Site Backup</span>
+                                    <small class="btn-desc">نسخة شاملة تشمل قواعد البيانات والملفات لكلا الموقعين (Both Sites)</small>
                                 </div>
                             </button>
                             <button class="system-report-btn" id="excelBackupBtn">
@@ -586,13 +668,6 @@
                                 <div class="btn-content">
                                     <span class="btn-title">Excel Database Backup</span>
                                     <small class="btn-desc">Complete database backup in Excel format with Arabic support</small>
-                                </div>
-                            </button>
-                            <button class="system-report-btn" id="excelToPdfBtn">
-                                <i class="fas fa-file-pdf"></i>
-                                <div class="btn-content">
-                                    <span class="btn-title">Excel to PDF Backup</span>
-                                    <small class="btn-desc">Excel backup converted to PDF with proper Arabic formatting</small>
                                 </div>
                             </button>
                             <button class="system-report-btn" id="financialReportBtn">
@@ -950,6 +1025,9 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Simple user actions (must load first to fix modal issues) -->
+    <script src="js/SimpleUserActions.js"></script>
+    
     <!-- Shared utility modules (load first) -->
     <script src="js/shared/FormatHelper.js"></script>
     <script src="js/shared/LoanStatusHelper.js"></script>
@@ -975,19 +1053,31 @@
     <script src="js/admin-tabs/loans-management.js"></script>
     <script src="js/admin-tabs/transactions-management.js"></script>
     <script src="js/admin-tabs/users-management.js"></script>
+    <script src="js/admin-tabs/registrations-management.js"></script>
     <script src="js/admin-tabs/reports-management.js"></script>
     <script src="js/admin-tabs/family-delegations-management.js"></script>
     <script src="js/admin-tabs/banks-management.js"></script>
     <script src="js/admin-tabs/tickets-management.js"></script>
+    <script src="js/admin-tabs/whatsapp-queue-management.js"></script>
+    <script src="js/admin-tabs/payment-reminders-management.js"></script>
+    <script src="js/whatsapp-automation.js"></script>
     <script src="js/admin-tabs/multiple-loan-alerts.js"></script>
+    <script src="js/admin-tabs/admin-personal-info-tab.js"></script>
     
     <!-- Utility modules (load first) -->
     <script src="js/config.js"></script>
     <script src="js/ModalManager.js"></script>
     <script src="js/ApiService.js"></script>
     
+    <!-- Admin components -->
+    <script src="js/UserDetailsPage.js?v=3.0"></script>
+    
+    <!-- Admin routing and navigation -->
+    <script src="js/AdminRouter.js"></script>
+    <script src="js/AdminNavigationHelper.js"></script>
+    
     <!-- Admin dashboard main -->
-    <script src="js/admin-dashboard.js"></script>
+    <script src="js/admin-dashboard.js?v=2.0"></script>
     
     <!-- Main application script -->
     <script src="js/app.js"></script>

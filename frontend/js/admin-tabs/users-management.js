@@ -192,7 +192,7 @@ class UsersManagement {
                     </thead>
                     <tbody>
                         ${users.map(user => `
-                            <tr data-status="${user.status}" data-type="${user.user_type}" data-name="${(user.Aname || '').toLowerCase()}" 
+                            <tr data-status="${user.is_blocked ? 'blocked' : user.joining_fee_approved === 'approved' ? 'active' : 'inactive'}" data-type="${user.user_type}" data-name="${(user.Aname || '').toLowerCase()}" 
                                 data-user-id="${user.user_id}" data-email="${(user.email || '').toLowerCase()}" 
                                 data-phone="${user.phone || ''}" data-balance="${user.balance || 0}" 
                                 data-remaining-loan="${user.remaining_loan_amount || 0}" 
@@ -201,8 +201,9 @@ class UsersManagement {
                                 <td data-column="user_id"><strong>#${user.user_id}</strong></td>
                                 <td data-column="name">
                                     <div class="user-info">
-                                        <span class="user-name">${user.Aname || 'غير محدد'}</span>
+                                        <span class="user-name ${user.joining_fee_paid === 'pending' ? 'fee-unpaid-name' : ''}">${user.Aname || 'غير محدد'}</span>
                                         ${user.is_blocked ? '<small class="blocked-indicator">محظور</small>' : ''}
+                                        ${user.joining_fee_paid === 'pending' ? '<small class="fee-unpaid-indicator">لم يدفع رسوم العضوية</small>' : ''}
                                     </div>
                                 </td>
                                 <td data-column="user_type">
@@ -252,22 +253,12 @@ class UsersManagement {
                                 <td data-column="actions" class="actions-cell">
                                     <div class="btn-group" style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;">
                                         <!-- Primary Actions -->
-                                        <button class="btn btn-sm btn-info" onclick="usersManagement.viewUserDetails(${user.user_id})" title="التفاصيل" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                                            <i class="fas fa-eye"></i>
+                                        <button class="btn btn-sm btn-info" 
+                                                onclick="window.adminRouter.openInNewTab('admin/users/details', {id: ${user.user_id}})"
+                                                title="فتح تفاصيل العضو في تبويب جديد" 
+                                                style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-external-link-alt"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-warning" onclick="usersManagement.editUser(${user.user_id})" title="تعديل" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        
-                                        <!-- Status Actions -->
-                                        ${user.is_blocked ? 
-                                            `<button class="btn btn-sm btn-success" onclick="usersManagement.toggleUserBlock(${user.user_id}, false)" title="إلغاء الحظر" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                                                <i class="fas fa-unlock"></i>
-                                            </button>` :
-                                            `<button class="btn btn-sm btn-danger" onclick="usersManagement.toggleUserBlock(${user.user_id}, true)" title="حظر" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                                                <i class="fas fa-ban"></i>
-                                            </button>`
-                                        }
                                         ${user.joining_fee_approved === 'pending' ? 
                                             `<button class="btn btn-sm btn-success" onclick="usersManagement.approveJoiningFee(${user.user_id})" title="موافقة رسوم الانضمام" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                                                 <i class="fas fa-check-circle"></i>
@@ -292,6 +283,9 @@ class UsersManagement {
         
         // Setup column visibility functionality
         this.setupColumnVisibility();
+        
+        // Load and apply saved sorting preferences
+        this.loadAndApplySavedSorting();
     }
 
     // Display user registration form
@@ -537,19 +531,45 @@ class UsersManagement {
         });
     }
 
-    // View user details
+    // COMMENTED OUT: Modal view functionality - using dedicated page instead
+    /* 
+    // View user details - used for modal/popup display (Ctrl+Click behavior)
     async viewUserDetails(userId) {
         try {
-            // Fetch user details and payment history in parallel
-            const [userResult, loanPaymentsResult, transactionsResult] = await Promise.all([
+            // Fetch user details and payment history in parallel using ApiHelper
+            const [userResult, loanPaymentsResult, transactionsResult, userLoansResult] = await Promise.all([
                 apiCall(`/admin/user-details/${userId}`),
-                apiCall(`/users/loans/payments/${userId}`).catch(() => ({ loanPayments: [] })),
-                apiCall(`/users/transactions/${userId}`).catch(() => ({ transactions: [] }))
+                ApiHelper.getAdminUserLoanPayments(userId).catch((error) => {
+                    console.error('❌ Failed to load loan payments:', error);
+                    return { loanPayments: [] };
+                }),
+                ApiHelper.getAdminUserTransactions(userId).catch((error) => {
+                    console.error('❌ Failed to load transactions:', error);
+                    return { transactions: [] };
+                }),
+                apiCall('/admin/all-loans').then(result => {
+                    // Filter loans for this specific user
+                    const userLoans = (result.loans || []).filter(loan => loan.user_id == userId);
+                    console.log(`📊 Found ${userLoans.length} loans for user ${userId}`);
+                    return { loans: userLoans };
+                }).catch((error) => {
+                    console.error('❌ Failed to load loans for user', userId, ':', error);
+                    return { loans: [] };
+                })
             ]);
             
             const user = userResult.user;
             const loanPayments = loanPaymentsResult.loanPayments || [];
             const transactions = transactionsResult.transactions || [];
+            const userLoans = userLoansResult.loans || [];
+            
+            console.log(`📊 User ${userId} data:`, {
+                user: user?.user_id,
+                loanPayments: loanPayments.length,
+                transactions: transactions.length,
+                userLoans: userLoans.length,
+                userLoansData: userLoans
+            });
             
             // Filter subscription payments from transactions
             const subscriptionPayments = transactions.filter(t => 
@@ -566,13 +586,50 @@ class UsersManagement {
                         </span>
                     </div>
                     
+                    <!-- Financial Summary Highlight Section -->
+                    <div class="financial-highlight-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                         color: white; padding: 20px; margin: 16px 0; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                            <div class="balance-highlight" style="text-align: center; flex: 1;">
+                                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">
+                                    <i class="fas fa-wallet" style="margin-left: 8px;"></i>الرصيد الحالي
+                                </div>
+                                <div style="font-size: 24px; font-weight: bold; color: #a8ff78;">
+                                    ${FormatHelper.formatCurrency(user.balance)}
+                                </div>
+                            </div>
+                            
+                            <div class="loan-highlight" style="text-align: center; flex: 1;">
+                                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">
+                                    <i class="fas fa-credit-card" style="margin-left: 8px;"></i>القرض المتبقي
+                                </div>
+                                <div style="font-size: 24px; font-weight: bold; color: ${user.remaining_loan_amount && user.remaining_loan_amount > 0 ? '#ff9f43' : '#26de81'};">
+                                    ${user.remaining_loan_amount && user.remaining_loan_amount > 0 ? 
+                                        FormatHelper.formatCurrency(user.remaining_loan_amount) : 
+                                        '<span style="color: #26de81;"><i class="fas fa-check-circle" style="margin-left: 6px;"></i>لا يوجد قرض</span>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="net-position" style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2); padding-right: 20px;">
+                                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">
+                                    <i class="fas fa-calculator" style="margin-left: 8px;"></i>صافي الموقف المالي
+                                </div>
+                                <div style="font-size: 20px; font-weight: bold; color: #78e5ff;">
+                                    ${FormatHelper.formatCurrency(user.balance - (user.remaining_loan_amount || 0))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="user-details-content">
                         <div class="details-grid">
                             <div class="detail-section">
                                 <h4><i class="fas fa-id-card"></i> المعلومات الشخصية</h4>
                                 <div class="detail-row">
                                     <span class="label">الاسم الكامل:</span>
-                                    <span class="value">${user.Aname || 'غير محدد'}</span>
+                                    <span class="value ${user.joining_fee_paid === 'pending' ? 'fee-unpaid-name' : ''}">${user.Aname || 'غير محدد'}</span>
+                                    ${user.joining_fee_paid === 'pending' ? '<small class="fee-unpaid-indicator" style="margin-right: 10px;">لم يدفع رسوم العضوية</small>' : ''}
                                 </div>
                                 <div class="detail-row">
                                     <span class="label">البريد الإلكتروني:</span>
@@ -610,12 +667,19 @@ class UsersManagement {
                                         ${user.user_type === 'employee' ? 'عضو' : 'إداري'}
                                     </span>
                                 </div>
-                                ${user.user_type === 'employee' && user.approved_by_admin_name ? `
+                                ${user.user_type === 'employee' ? `
                                 <div class="detail-row">
                                     <span class="label">المدير المعتمد:</span>
-                                    <span class="value">
-                                        <i class="fas fa-user-check"></i>
-                                        ${user.approved_by_admin_name}
+                                    <span class="value" style="display: flex; align-items: center; gap: 10px;">
+                                        <span>
+                                            <i class="fas fa-user-check"></i>
+                                            ${user.approved_by_admin_name || 'غير محدد'}
+                                        </span>
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                onclick="usersManagement.showAdminReassignmentModal(${user.user_id}, '${user.Aname}', ${user.approved_by_admin_id || 'null'})"
+                                                title="إعادة تعيين المدير">
+                                            <i class="fas fa-exchange-alt"></i> تغيير
+                                        </button>
                                     </span>
                                 </div>
                                 ` : ''}
@@ -671,6 +735,19 @@ class UsersManagement {
                                     ${this.generateLoanPaymentsTable(loanPayments)}
                                 </div>
                             </div>
+
+                            <!-- User Loans Section -->
+                            <div class="user-loans-section" style="margin-top: 20px;">
+                                <div class="table-header" style="background: #f3f4f6; padding: 12px 16px; border-radius: 8px 8px 0 0; border-bottom: 2px solid #e5e7eb;">
+                                    <h4 style="margin: 0; color: #374151; display: flex; align-items: center; gap: 8px;">
+                                        <i class="fas fa-file-contract" style="color: #f59e0b;"></i> 
+                                        قروض العضو (${userLoans.length})
+                                    </h4>
+                                </div>
+                                <div class="table-content" style="max-height: 300px; overflow-y: auto; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+                                    ${this.generateUserLoansTable(userLoans)}
+                                </div>
+                            </div>
                         </div>
 
                         <div class="user-actions" style="margin-top: 20px; text-align: center;">
@@ -681,6 +758,9 @@ class UsersManagement {
                                 </button>
                                 <button class="btn btn-info" onclick="usersManagement.openLoanManagement(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'غير محدد'}\`)" style="margin: 0 6px;">
                                     <i class="fas fa-money-bill-wave"></i> إدارة القروض
+                                </button>
+                                <button class="btn btn-secondary" onclick="usersManagement.resetUserPassword(${user.user_id}, \`${user.Aname?.replace(/`/g, '\\`') || 'المستخدم'}\`)" style="margin: 0 6px;" title="إعادة تعيين كلمة المرور">
+                                    <i class="fas fa-key"></i> إعادة تعيين كلمة المرور
                                 </button>
                                 <button class="btn ${user.is_blocked ? 'btn-success' : 'btn-warning'}" 
                                         onclick="usersManagement.toggleUserBlock(${user.user_id}, ${!user.is_blocked})" style="margin: 0 6px;">
@@ -718,6 +798,26 @@ class UsersManagement {
             console.error('Error loading user details:', error);
             showToast(`خطأ في تحميل تفاصيل المستخدم: ${error.message}`, 'error');
         }
+    }
+    */ // END COMMENTED OUT MODAL VIEW
+
+    // View user details - now redirects to dedicated page
+    async viewUserDetails(userId) {
+        this.openUserDetailsInNewTab(userId);
+    }
+
+    // Open user details in new tab
+    openUserDetailsInNewTab(userId) {
+        if (window.adminRouter) {
+            window.adminRouter.openInNewTab('admin/users/details', { id: userId });
+        } else {
+            console.warn('Admin router not available');
+        }
+    }
+
+    // Enhanced method for showing user details modal (used by router)
+    async showUserDetailsModal(userId) {
+        return this.viewUserDetails(userId);
     }
 
     // Edit user
@@ -775,15 +875,24 @@ class UsersManagement {
                                 </select>
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                             <div class="form-group">
-                                <label>حالة رسوم الانضمام</label>
+                                <label>الوصول للموقع (معرفة شخصية)</label>
                                 <select name="joining_fee_approved">
                                     <option value="pending" ${user.joining_fee_approved === 'pending' ? 'selected' : ''}>معلق</option>
                                     <option value="approved" ${user.joining_fee_approved === 'approved' ? 'selected' : ''}>موافق</option>
                                     <option value="rejected" ${user.joining_fee_approved === 'rejected' ? 'selected' : ''}>مرفوض</option>
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label>رسوم العضوية (10 د.ك)</label>
+                                <select name="joining_fee_paid">
+                                    <option value="pending" ${user.joining_fee_paid === 'pending' ? 'selected' : ''}>لم يدفع</option>
+                                    <option value="paid" ${user.joining_fee_paid === 'paid' ? 'selected' : ''}>تم الدفع</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px;">
                             <div class="form-group">
                                 <label>حالة الحساب</label>
                                 <select name="is_blocked">
@@ -860,16 +969,19 @@ class UsersManagement {
     async toggleUserBlock(userId, block) {
         const action = block ? 'حظر' : 'إلغاء حظر';
         if (!confirm(`هل أنت متأكد من ${action} هذا المستخدم؟`)) return;
-        
+
         try {
-            const result = await apiCall(`/admin/block-user/${userId}`, 'PUT', { 
+            const result = await apiCall(`/admin/block-user/${userId}`, 'PUT', {
                 action: block ? 'block' : 'unblock'
             });
             showToast(result.message, 'success');
-            
-            // Refresh users list
-            await this.loadTab('list');
-            
+
+            // Update the user row status instead of reloading entire list
+            this.updateUserRowStatus(userId, 'is_blocked', block);
+
+            // Refresh admin stats
+            await this.adminDashboard.loadStats();
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -918,26 +1030,26 @@ class UsersManagement {
                 console.warn('Could not fetch user details for WhatsApp notification:', detailError);
             }
 
-            const result = await apiCall(`/admin/joining-fee-action/${userId}`, 'PUT', { 
-                action: 'approve' 
+            const result = await apiCall(`/admin/joining-fee-action/${userId}`, 'PUT', {
+                action: 'approve'
             });
             showToast(result.message, 'success');
-            
+
             // Send WhatsApp notification if user details are available
             if (userDetails && (userDetails.whatsapp || userDetails.phone)) {
                 try {
                     const phoneNumber = userDetails.whatsapp || userDetails.phone;
                     const userName = userDetails.Aname || 'العضو';
-                    
+
                     // Get user financial data
                     let userFinancials = null;
                     try {
                         const userTransactionsResult = await apiCall(`/users/transactions/${userId}`);
-                        const subscriptions = userTransactionsResult.transactions?.filter(t => 
+                        const subscriptions = userTransactionsResult.transactions?.filter(t =>
                             t.transaction_type === 'subscription' && t.status === 'accepted'
                         ) || [];
                         const totalSubscriptions = subscriptions.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
-                        
+
                         userFinancials = {
                             currentBalance: FormatHelper.formatCurrency(userDetails.balance || 0),
                             totalSubscriptions: totalSubscriptions.toFixed(3)
@@ -945,7 +1057,7 @@ class UsersManagement {
                     } catch (financialError) {
                         console.warn('Could not fetch user financial data:', financialError);
                     }
-                    
+
                     // Send WhatsApp notification
                     const whatsappSent = Utils.sendWhatsAppNotification(
                         phoneNumber,
@@ -953,7 +1065,7 @@ class UsersManagement {
                         'joiningFeeApproved',
                         userFinancials
                     );
-                    
+
                     if (whatsappSent) {
                         showToast('تم فتح واتساب ويب لإرسال إشعار اعتماد العضوية للعضو', 'info');
                     }
@@ -962,10 +1074,13 @@ class UsersManagement {
                     // Don't show error to user - WhatsApp is supplementary
                 }
             }
-            
-            // Refresh users list
-            await this.loadTab('list');
-            
+
+            // Update the user row status instead of reloading entire list
+            this.updateUserRowStatus(userId, 'joining_fee_approved', 'approved');
+
+            // Refresh admin stats
+            await this.adminDashboard.loadStats();
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -1027,7 +1142,7 @@ class UsersManagement {
     // Chat with user via WhatsApp
     chatWithUser(phoneNumber, userName) {
         // Get brand name from global brandConfig or use fallback
-        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 'درع العائلة';
+        const brandName = (typeof brandConfig !== 'undefined' && brandConfig?.brand?.displayName) || 'نظام إدارة القروض';
         const defaultMessage = `مرحباً ${userName}، أتواصل معك من إدارة ${brandName}. كيف يمكنني مساعدتك؟`;
         
         // Try to open WhatsApp Web (defaults to true)
@@ -1177,12 +1292,13 @@ class UsersManagement {
 
             showToast('تم إضافة الإيداع بنجاح', 'success');
             hideModal();
-            
-            // Refresh the user details if the modal is still open
-            setTimeout(() => {
-                location.reload(); // Simple refresh to show updated balance
-            }, 1000);
-            
+
+            // Update the user row balance instead of full page reload
+            this.updateUserBalance(userId, amount, 'credit');
+
+            // Refresh admin stats
+            await this.adminDashboard.loadStats();
+
         } catch (error) {
             showToast(`خطأ في إضافة الإيداع: ${error.message}`, 'error');
         } finally {
@@ -1223,12 +1339,13 @@ class UsersManagement {
 
             showToast('تم إضافة السحب بنجاح', 'success');
             hideModal();
-            
-            // Refresh the user details if the modal is still open
-            setTimeout(() => {
-                location.reload(); // Simple refresh to show updated balance
-            }, 1000);
-            
+
+            // Update the user row balance instead of full page reload
+            this.updateUserBalance(userId, amount, 'debit');
+
+            // Refresh admin stats
+            await this.adminDashboard.loadStats();
+
         } catch (error) {
             showToast(`خطأ في إضافة السحب: ${error.message}`, 'error');
         } finally {
@@ -1378,6 +1495,144 @@ class UsersManagement {
         localStorage.setItem('usersTableColumnPreferences', JSON.stringify(preferences));
     }
 
+    // Save sorting preferences to localStorage
+    saveSortingPreferences() {
+        if (this.currentSort) {
+            localStorage.setItem('usersTableSortPreferences', JSON.stringify(this.currentSort));
+        }
+    }
+
+    // Load sorting preferences from localStorage
+    loadSortingPreferences() {
+        const savedSort = localStorage.getItem('usersTableSortPreferences');
+        
+        if (savedSort) {
+            try {
+                this.currentSort = JSON.parse(savedSort);
+                console.log('Loaded saved sort preferences:', this.currentSort);
+                return this.currentSort;
+            } catch (error) {
+                console.warn('Error loading sort preferences:', error);
+                this.currentSort = null;
+            }
+        }
+        return null;
+    }
+
+    // Load and apply saved sorting preferences after table is rendered
+    loadAndApplySavedSorting() {
+        setTimeout(() => {
+            const savedSort = this.loadSortingPreferences();
+            if (savedSort) {
+                console.log('Applying saved sort:', savedSort);
+                // Apply the saved sorting
+                this.applySorting(savedSort.column, savedSort.direction);
+            }
+        }, 100);
+    }
+
+    // Apply sorting without toggling direction (used for restoring saved state)
+    applySorting(column, direction) {
+        const table = document.getElementById('usersTable');
+        const tbody = table?.querySelector('tbody');
+        
+        if (!table || !tbody) {
+            console.warn('Table not found, cannot apply sorting');
+            return;
+        }
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // Update current sort state
+        this.currentSort = { column, direction };
+        
+        // Update sort icons
+        this.updateSortIcons(column, direction);
+        
+        // Sort rows (same logic as sortTable method)
+        rows.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch (column) {
+                case 'user_id':
+                    aValue = parseInt(a.getAttribute('data-user-id')) || 0;
+                    bValue = parseInt(b.getAttribute('data-user-id')) || 0;
+                    break;
+                case 'name':
+                    aValue = (a.getAttribute('data-name') || '').trim();
+                    bValue = (b.getAttribute('data-name') || '').trim();
+                    break;
+                case 'user_type':
+                    aValue = (a.getAttribute('data-type') || '').trim();
+                    bValue = (b.getAttribute('data-type') || '').trim();
+                    break;
+                case 'email':
+                    aValue = (a.getAttribute('data-email') || '').trim();
+                    bValue = (b.getAttribute('data-email') || '').trim();
+                    break;
+                case 'phone':
+                    aValue = (a.getAttribute('data-phone') || '').trim();
+                    bValue = (b.getAttribute('data-phone') || '').trim();
+                    break;
+                case 'balance':
+                    aValue = parseFloat(a.getAttribute('data-balance')) || 0;
+                    bValue = parseFloat(b.getAttribute('data-balance')) || 0;
+                    break;
+                case 'remaining_loan':
+                    aValue = parseFloat(a.getAttribute('data-remaining-loan')) || 0;
+                    bValue = parseFloat(b.getAttribute('data-remaining-loan')) || 0;
+                    break;
+                case 'registration_date':
+                    const aDateStr = a.getAttribute('data-registration-date');
+                    const bDateStr = b.getAttribute('data-registration-date');
+                    aValue = aDateStr && aDateStr !== 'null' && aDateStr !== 'undefined' ? new Date(aDateStr) : new Date('1970-01-01');
+                    bValue = bDateStr && bDateStr !== 'null' && bDateStr !== 'undefined' ? new Date(bDateStr) : new Date('1970-01-01');
+                    break;
+                case 'status':
+                    aValue = (a.getAttribute('data-status-text') || '').trim();
+                    bValue = (b.getAttribute('data-status-text') || '').trim();
+                    break;
+                default:
+                    return 0;
+            }
+            
+            // Compare values
+            let result = 0;
+            const type = this.getSortType(column);
+            if (type === 'number' || type === 'currency') {
+                result = aValue - bValue;
+            } else if (type === 'date') {
+                result = aValue.getTime() - bValue.getTime();
+            } else {
+                result = aValue.localeCompare(bValue, 'ar', { sensitivity: 'base' });
+            }
+            
+            return direction === 'asc' ? result : -result;
+        });
+        
+        // Clear tbody and append sorted rows
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+        
+        console.log(`Applied saved sort: ${column} (${direction})`);
+    }
+
+    // Get sort type for a column
+    getSortType(column) {
+        const typeMap = {
+            'user_id': 'number',
+            'name': 'text',
+            'user_type': 'text',
+            'email': 'text',
+            'phone': 'text',
+            'balance': 'currency',
+            'remaining_loan': 'currency',
+            'registration_date': 'date',
+            'status': 'text'
+        };
+        return typeMap[column] || 'text';
+    }
+
     // Load column preferences from localStorage
     loadColumnPreferences() {
         const savedPreferences = localStorage.getItem('usersTableColumnPreferences');
@@ -1481,6 +1736,100 @@ class UsersManagement {
         `;
     }
 
+    // Generate user loans table with edit functionality
+    generateUserLoansTable(userLoans) {
+        if (!userLoans || userLoans.length === 0) {
+            return `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <i class="fas fa-file-contract" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p style="font-size: 16px; margin: 0;">لا توجد قروض لهذا العضو</p>
+                </div>
+            `;
+        }
+
+        return `
+            <div style="padding: 16px;">
+                ${userLoans.slice(0, 6).map((loan, index) => {
+                    const remainingAmount = Math.max(0, parseFloat(loan.loan_amount) - parseFloat(loan.total_paid || 0));
+                    const isActive = loan.status === 'approved' && remainingAmount > 0;
+                    const statusColors = {
+                        'approved': '#10b981',
+                        'pending': '#f59e0b', 
+                        'rejected': '#ef4444'
+                    };
+                    const statusTexts = {
+                        'approved': 'موافق عليه',
+                        'pending': 'معلق',
+                        'rejected': 'مرفوض'
+                    };
+
+                    return `
+                        <div style="background: ${isActive ? '#f0fdf4' : '#fafafa'}; border: 2px solid ${isActive ? '#10b981' : '#e5e7eb'}; 
+                             border-radius: 12px; padding: 16px; margin-bottom: 12px; position: relative;">
+                            
+                            <!-- Loan Header -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-weight: bold; color: #374151; font-size: 16px;">#${loan.loan_id}</span>
+                                    <span style="background: ${statusColors[loan.status]}; color: white; padding: 4px 8px; 
+                                          border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        ${statusTexts[loan.status]}
+                                    </span>
+                                    ${isActive ? '<span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">نشط</span>' : ''}
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="usersManagement.editUserLoan(${loan.loan_id})" 
+                                        style="padding: 6px 12px; font-size: 12px;" title="تعديل القرض">
+                                    <i class="fas fa-edit"></i> تعديل
+                                </button>
+                            </div>
+
+                            <!-- Loan Details Grid -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px;">
+                                <div>
+                                    <label style="color: #6b7280; font-weight: 600; font-size: 12px;">مبلغ القرض</label>
+                                    <div style="color: #374151; font-weight: 600; font-size: 16px;">${FormatHelper.formatCurrency(loan.loan_amount)}</div>
+                                </div>
+                                <div>
+                                    <label style="color: #6b7280; font-weight: 600; font-size: 12px;">القسط الشهري</label>
+                                    <div style="color: #374151; font-weight: 600; font-size: 16px;">${FormatHelper.formatCurrency(loan.installment_amount)}</div>
+                                </div>
+                                <div>
+                                    <label style="color: #6b7280; font-weight: 600; font-size: 12px;">المدفوع</label>
+                                    <div style="color: #10b981; font-weight: 600; font-size: 16px;">${FormatHelper.formatCurrency(loan.total_paid || 0)}</div>
+                                </div>
+                                <div>
+                                    <label style="color: #6b7280; font-weight: 600; font-size: 12px;">المتبقي</label>
+                                    <div style="color: ${isActive ? '#ef4444' : '#10b981'}; font-weight: 600; font-size: 16px;">${FormatHelper.formatCurrency(remainingAmount)}</div>
+                                </div>
+                            </div>
+
+                            <!-- Additional Info -->
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6b7280;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>تاريخ الطلب: <strong>${FormatHelper.formatDate(loan.request_date)}</strong></span>
+                                    ${loan.approval_date ? `<span>تاريخ الموافقة: <strong>${FormatHelper.formatDate(loan.approval_date)}</strong></span>` : ''}
+                                </div>
+                                ${loan.admin_name ? `
+                                    <div style="margin-top: 8px;">
+                                        <i class="fas fa-user-shield" style="margin-left: 6px; color: #9ca3af;"></i>
+                                        المدير المسؤول: <strong style="color: #374151;">${loan.admin_name}</strong>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+                
+                ${userLoans.length > 6 ? `
+                    <div style="text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; color: #64748b; font-size: 14px; font-weight: 500;">
+                        <i class="fas fa-ellipsis-h" style="margin-left: 8px;"></i>
+                        و ${userLoans.length - 6} قرض إضافي...
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
     // === Table Sorting Functionality ===
 
     // Sort table by column
@@ -1501,6 +1850,9 @@ class UsersManagement {
         // Update current sort state
         this.currentSort = { column, direction };
         
+        // Save sorting preferences
+        this.saveSortingPreferences();
+        
         // Update sort icons
         this.updateSortIcons(column, direction);
         
@@ -1510,24 +1862,24 @@ class UsersManagement {
             
             switch (column) {
                 case 'user_id':
-                    aValue = parseInt(a.getAttribute('data-user-id'));
-                    bValue = parseInt(b.getAttribute('data-user-id'));
+                    aValue = parseInt(a.getAttribute('data-user-id')) || 0;
+                    bValue = parseInt(b.getAttribute('data-user-id')) || 0;
                     break;
                 case 'name':
-                    aValue = a.getAttribute('data-name') || '';
-                    bValue = b.getAttribute('data-name') || '';
+                    aValue = (a.getAttribute('data-name') || '').trim();
+                    bValue = (b.getAttribute('data-name') || '').trim();
                     break;
                 case 'user_type':
-                    aValue = a.getAttribute('data-type') || '';
-                    bValue = b.getAttribute('data-type') || '';
+                    aValue = (a.getAttribute('data-type') || '').trim();
+                    bValue = (b.getAttribute('data-type') || '').trim();
                     break;
                 case 'email':
-                    aValue = a.getAttribute('data-email') || '';
-                    bValue = b.getAttribute('data-email') || '';
+                    aValue = (a.getAttribute('data-email') || '').trim();
+                    bValue = (b.getAttribute('data-email') || '').trim();
                     break;
                 case 'phone':
-                    aValue = a.getAttribute('data-phone') || '';
-                    bValue = b.getAttribute('data-phone') || '';
+                    aValue = (a.getAttribute('data-phone') || '').trim();
+                    bValue = (b.getAttribute('data-phone') || '').trim();
                     break;
                 case 'balance':
                     aValue = parseFloat(a.getAttribute('data-balance')) || 0;
@@ -1538,24 +1890,35 @@ class UsersManagement {
                     bValue = parseFloat(b.getAttribute('data-remaining-loan')) || 0;
                     break;
                 case 'registration_date':
-                    aValue = new Date(a.getAttribute('data-registration-date') || '1970-01-01');
-                    bValue = new Date(b.getAttribute('data-registration-date') || '1970-01-01');
+                    const aDateStr = a.getAttribute('data-registration-date');
+                    const bDateStr = b.getAttribute('data-registration-date');
+                    aValue = aDateStr && aDateStr !== 'null' && aDateStr !== 'undefined' ? new Date(aDateStr) : new Date('1970-01-01');
+                    bValue = bDateStr && bDateStr !== 'null' && bDateStr !== 'undefined' ? new Date(bDateStr) : new Date('1970-01-01');
                     break;
                 case 'status':
-                    aValue = a.getAttribute('data-status-text') || '';
-                    bValue = b.getAttribute('data-status-text') || '';
+                    aValue = (a.getAttribute('data-status-text') || '').trim();
+                    bValue = (b.getAttribute('data-status-text') || '').trim();
                     break;
                 default:
                     return 0;
             }
             
-            // Compare values
+            // Compare values with null/undefined safety
             let result = 0;
             if (type === 'number' || type === 'currency') {
+                // Handle NaN cases
+                if (isNaN(aValue)) aValue = 0;
+                if (isNaN(bValue)) bValue = 0;
                 result = aValue - bValue;
             } else if (type === 'date') {
+                // Handle invalid dates
+                if (isNaN(aValue.getTime())) aValue = new Date('1970-01-01');
+                if (isNaN(bValue.getTime())) bValue = new Date('1970-01-01');
                 result = aValue.getTime() - bValue.getTime();
             } else {
+                // Handle null/undefined strings
+                if (!aValue) aValue = '';
+                if (!bValue) bValue = '';
                 result = aValue.localeCompare(bValue, 'ar', { sensitivity: 'base' });
             }
             
@@ -1587,6 +1950,41 @@ class UsersManagement {
                 }
             }
         });
+    }
+
+    // Edit user loan directly from user details modal
+    async editUserLoan(loanId) {
+        try {
+            // Hide the current user details modal
+            hideModal();
+            
+            // Switch to loans management tab
+            if (window.adminDashboard && window.adminDashboard.switchToMainTab) {
+                window.adminDashboard.switchToMainTab('loans');
+                
+                // Wait for tab to load then open edit modal
+                setTimeout(() => {
+                    if (window.loansManagement) {
+                        console.log(`Opening edit modal for loan ${loanId}`);
+                        
+                        // Make sure loans management is properly shown
+                        if (window.loansManagement.show) {
+                            window.loansManagement.show();
+                        }
+                        
+                        // Open the edit loan modal
+                        setTimeout(() => {
+                            if (window.loansManagement.editLoan) {
+                                window.loansManagement.editLoan(loanId);
+                            }
+                        }, 500);
+                    }
+                }, 300);
+            }
+        } catch (error) {
+            console.error('Error opening loan edit:', error);
+            showToast('خطأ في فتح تعديل القرض', 'error');
+        }
     }
 
     // Open loan management for specific user
@@ -1791,7 +2189,7 @@ class UsersManagement {
         console.log(`📍 Saved scroll position: ${this.savedScrollPosition}`);
     }
 
-    // Restore saved scroll position  
+    // Restore saved scroll position
     restoreScrollPosition() {
         if (this.savedScrollPosition !== undefined) {
             setTimeout(() => {
@@ -1802,6 +2200,216 @@ class UsersManagement {
                 }
             }, 50); // Small delay to ensure DOM is updated
         }
+    }
+
+    // ============================================
+    // ADMIN REASSIGNMENT FUNCTIONALITY
+    // ============================================
+
+    // Show admin reassignment modal
+    async showAdminReassignmentModal(userId, userName, currentAdminId) {
+        try {
+            console.log(`🔄 Opening admin reassignment modal for user ${userId} (${userName})`);
+
+            // Fetch available admins
+            const result = await apiCall('/admin/available-admins');
+            const admins = result.admins || [];
+
+            // Create modal HTML
+            const modalHtml = `
+                <div class="admin-reassignment-modal">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-exchange-alt"></i> إعادة تعيين المدير</h3>
+                        <button type="button" class="close-btn" onclick="hideModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="modal-content">
+                        <div class="user-info-section">
+                            <h4><i class="fas fa-user"></i> معلومات العضو</h4>
+                            <p><strong>اسم العضو:</strong> ${userName}</p>
+                            <p><strong>معرف العضو:</strong> #${userId}</p>
+                        </div>
+
+                        <div class="admin-selection-section">
+                            <h4><i class="fas fa-users-cog"></i> اختيار المدير الجديد</h4>
+                            <div class="form-group">
+                                <label for="newAdminSelect">المدير المعتمد الجديد:</label>
+                                <select id="newAdminSelect" class="form-control">
+                                    <option value="">-- اختر المدير --</option>
+                                    ${admins.map(admin => `
+                                        <option value="${admin.user_id}" ${admin.user_id == currentAdminId ? 'selected' : ''}>
+                                            #${admin.user_id} - ${admin.admin_name}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button class="btn btn-success" onclick="usersManagement.confirmAdminReassignment(${userId})">
+                                <i class="fas fa-check"></i> تأكيد التعيين
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideModal()">
+                                <i class="fas fa-times"></i> إلغاء
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Show modal
+            showModal(modalHtml);
+
+        } catch (error) {
+            console.error('❌ Error loading admin reassignment modal:', error);
+            showToast('خطأ في تحميل قائمة المديرين', 'error');
+        }
+    }
+
+    // Confirm admin reassignment
+    async confirmAdminReassignment(userId) {
+        try {
+            const newAdminSelect = document.getElementById('newAdminSelect');
+            const newAdminId = newAdminSelect.value;
+
+            if (!newAdminId) {
+                showToast('يرجى اختيار المدير الجديد', 'warning');
+                return;
+            }
+
+            console.log(`🔄 Reassigning user ${userId} to admin ${newAdminId}`);
+
+            // Send reassignment request
+            const result = await apiCall(`/admin/reassign-user-admin/${userId}`, 'PUT', {
+                newAdminId: parseInt(newAdminId)
+            });
+
+            showToast(result.message || 'تم إعادة تعيين المدير بنجاح', 'success');
+
+            // Hide modal
+            hideModal();
+
+            // Refresh the users list to show updated admin assignment
+            setTimeout(() => {
+                this.loadTabContent('list');
+            }, 1000);
+
+        } catch (error) {
+            console.error('❌ Error reassigning admin:', error);
+            showToast(error.message || 'خطأ في إعادة تعيين المدير', 'error');
+        }
+    }
+
+    // Helper: Update user row status after approval/block actions
+    updateUserRowStatus(userId, field, value) {
+        // Find all table rows in the current view
+        const rows = document.querySelectorAll('#users-tab-content tbody tr');
+
+        rows.forEach(row => {
+            // Check if this row contains the user ID
+            const idCell = row.querySelector('td[data-column="user_id"]');
+            if (idCell && idCell.textContent.trim() == userId) {
+                // Update the status badge based on field
+                if (field === 'joining_fee_approved') {
+                    const statusCell = row.querySelector('td[data-column="status"]');
+                    if (statusCell) {
+                        // Update joining fee status
+                        const statusBadge = statusCell.querySelector('.status-badge');
+                        if (statusBadge) {
+                            statusBadge.className = 'status-badge approved';
+                            statusBadge.innerHTML = '<i class="fas fa-check-circle"></i> معتمد';
+                        }
+
+                        // Remove the approval button if exists
+                        const approveBtn = row.querySelector('button[onclick*="approveJoiningFee"]');
+                        if (approveBtn) {
+                            approveBtn.style.transition = 'opacity 0.3s';
+                            approveBtn.style.opacity = '0';
+                            setTimeout(() => approveBtn.remove(), 300);
+                        }
+                    }
+                } else if (field === 'is_blocked') {
+                    const statusCell = row.querySelector('td[data-column="status"]');
+                    if (statusCell) {
+                        // Update block status indicator
+                        if (value) {
+                            // User is blocked
+                            row.style.backgroundColor = '#fff1f1';
+                            const blockIndicator = statusCell.querySelector('.block-indicator') ||
+                                                  document.createElement('span');
+                            blockIndicator.className = 'block-indicator';
+                            blockIndicator.innerHTML = '<i class="fas fa-ban"></i> محظور';
+                            blockIndicator.style.cssText = 'color: #dc2626; font-weight: 600; margin-right: 8px;';
+                            if (!statusCell.querySelector('.block-indicator')) {
+                                statusCell.insertBefore(blockIndicator, statusCell.firstChild);
+                            }
+                        } else {
+                            // User is unblocked
+                            row.style.backgroundColor = '';
+                            const blockIndicator = statusCell.querySelector('.block-indicator');
+                            if (blockIndicator) {
+                                blockIndicator.remove();
+                            }
+                        }
+
+                        // Update block button text
+                        const blockBtn = row.querySelector('button[onclick*="toggleUserBlock"]');
+                        if (blockBtn) {
+                            blockBtn.innerHTML = value ?
+                                '<i class="fas fa-unlock"></i> إلغاء الحظر' :
+                                '<i class="fas fa-ban"></i> حظر المستخدم';
+                        }
+                    }
+                }
+
+                // Highlight the updated row briefly
+                row.style.transition = 'background-color 0.5s';
+                const originalBg = row.style.backgroundColor;
+                row.style.backgroundColor = '#dbeafe';
+                setTimeout(() => {
+                    row.style.backgroundColor = originalBg;
+                }, 1000);
+            }
+        });
+    }
+
+    // Helper: Update user balance after deposit/withdrawal
+    async updateUserBalance(userId, amount, type) {
+        // Find all table rows in the current view
+        const rows = document.querySelectorAll('#users-tab-content tbody tr');
+
+        rows.forEach(async row => {
+            // Check if this row contains the user ID
+            const idCell = row.querySelector('td[data-column="user_id"]');
+            if (idCell && idCell.textContent.trim() == userId) {
+                const balanceCell = row.querySelector('td[data-column="balance"]');
+                if (balanceCell) {
+                    // Get current balance
+                    const balanceText = balanceCell.textContent.trim();
+                    const currentBalance = parseFloat(balanceText.replace(/[^\d.-]/g, '')) || 0;
+
+                    // Calculate new balance
+                    const newBalance = type === 'credit' ?
+                        currentBalance + parseFloat(amount) :
+                        currentBalance - parseFloat(amount);
+
+                    // Update balance display
+                    balanceCell.textContent = FormatHelper.formatCurrency(newBalance);
+
+                    // Highlight the updated cell
+                    balanceCell.style.transition = 'background-color 0.5s, transform 0.3s';
+                    balanceCell.style.backgroundColor = type === 'credit' ? '#d1fae5' : '#fee2e2';
+                    balanceCell.style.transform = 'scale(1.05)';
+
+                    setTimeout(() => {
+                        balanceCell.style.backgroundColor = '';
+                        balanceCell.style.transform = 'scale(1)';
+                    }, 1000);
+                }
+            }
+        });
     }
 }
 

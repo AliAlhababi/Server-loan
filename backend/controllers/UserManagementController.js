@@ -3,6 +3,7 @@ const ResponseHelper = require('../utils/ResponseHelper');
 const { asyncHandler } = require('../utils/ErrorHandler');
 const LoanCalculator = require('../models/LoanCalculator');
 const emailService = require('../services/emailService');
+const DatabaseService = require('../services/DatabaseService');
 
 class UserManagementController {
   static getAllUsers = asyncHandler(async (req, res) => {
@@ -15,6 +16,38 @@ class UserManagementController {
     const users = rawUsers;
     
     ResponseHelper.success(res, { users }, 'تم جلب قائمة المستخدمين بنجاح');
+  });
+
+  static getPendingRegistrations = asyncHandler(async (req, res) => {
+    console.log('📋 Admin requesting pending registrations...');
+    
+    const users = await UserService.getUsersByStatus('pending');
+    console.log(`👥 Found ${users.length} pending registrations`);
+    
+    ResponseHelper.success(res, users, 'تم جلب طلبات التسجيل المعلقة بنجاح');
+  });
+
+  static getRegistrations = asyncHandler(async (req, res) => {
+    console.log('📋 Admin requesting registrations by status...');
+    const { status } = req.query;
+
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return ResponseHelper.error(res, 'حالة غير صحيحة', 400);
+    }
+
+    const users = await UserService.getUsersByStatus(status);
+    console.log(`👥 Found ${users.length} ${status} registrations`);
+
+    ResponseHelper.success(res, users, `تم جلب طلبات التسجيل ${status === 'approved' ? 'المعتمدة' : 'المرفوضة'} بنجاح`);
+  });
+
+  static getPendingWebsiteAccess = asyncHandler(async (req, res) => {
+    console.log('📋 Admin requesting pending website access requests...');
+
+    const users = await UserService.getBlockedUsers();
+    console.log(`👥 Found ${users.length} users waiting for website access approval`);
+
+    ResponseHelper.success(res, users, 'تم جلب طلبات الدخول للموقع المعلقة بنجاح');
   });
 
   static registerUser = asyncHandler(async (req, res) => {
@@ -145,6 +178,21 @@ class UserManagementController {
     );
   });
 
+  static markJoiningFeePaid = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const adminId = req.user.user_id;
+
+    console.log(`💰 Admin ${adminId} marking 10 KWD joining fee as paid for user ${userId}`);
+
+    // Update the joining_fee_paid status
+    await DatabaseService.update('users',
+      { joining_fee_paid: 'paid' },
+      { user_id: userId }
+    );
+
+    ResponseHelper.success(res, null, 'تم تسجيل دفع رسوم العضوية (10 د.ك) بنجاح');
+  });
+
   static getUserDetails = asyncHandler(async (req, res) => {
     const { userId } = req.params;
     console.log(`👤 Admin requesting details for user ${userId}`);
@@ -178,6 +226,66 @@ class UserManagementController {
     console.log(`✅ User ${userId} updated successfully`);
     
     ResponseHelper.success(res, null, 'تم تحديث بيانات المستخدم بنجاح');
+  });
+
+  static reassignUserAdmin = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const { newAdminId } = req.body;
+
+    console.log(`🔄 Admin reassigning user ${userId} to admin ${newAdminId}`);
+
+    // Validate input
+    if (!newAdminId || isNaN(newAdminId)) {
+      return ResponseHelper.error(res, 'معرف المدير الجديد مطلوب ويجب أن يكون رقماً صحيحاً', 400);
+    }
+
+    // Validate that target user exists and is not an admin
+    const targetUser = await UserService.getBasicUserInfo(userId);
+    if (!targetUser) {
+      return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+    }
+
+    if (targetUser.user_type === 'admin') {
+      return ResponseHelper.error(res, 'لا يمكن إعادة تعيين مدير لمستخدم إداري', 400);
+    }
+
+    // Validate that new admin exists and is an admin
+    const newAdmin = await UserService.getBasicUserInfo(newAdminId);
+    if (!newAdmin) {
+      return ResponseHelper.error(res, 'المدير المحدد غير موجود', 404);
+    }
+
+    if (newAdmin.user_type !== 'admin') {
+      return ResponseHelper.error(res, 'المستخدم المحدد ليس مديراً', 400);
+    }
+
+    // Update the user's assigned admin
+    await UserService.updateUser(userId, { approved_by_admin_id: newAdminId });
+
+    console.log(`✅ User ${userId} reassigned to admin ${newAdminId} (${newAdmin.Aname})`);
+
+    ResponseHelper.success(res, {
+      userId: parseInt(userId),
+      newAdminId: parseInt(newAdminId),
+      newAdminName: newAdmin.Aname
+    }, 'تم إعادة تعيين المدير بنجاح');
+  });
+
+  static getAvailableAdmins = asyncHandler(async (req, res) => {
+    console.log('📋 Getting list of available admins for reassignment');
+
+    // Get all admin users
+    const { pool } = require('../config/database');
+    const [admins] = await pool.execute(`
+      SELECT user_id, Aname as admin_name
+      FROM users
+      WHERE user_type = 'admin'
+      ORDER BY Aname
+    `);
+
+    console.log(`✅ Found ${admins.length} available admins`);
+
+    ResponseHelper.success(res, { admins }, 'تم جلب قائمة المديرين بنجاح');
   });
 
   static fixLoanInstallments = asyncHandler(async (req, res) => {
@@ -267,6 +375,67 @@ class UserManagementController {
 
     ResponseHelper.success(res, { users }, `تم العثور على ${users.length} مستخدم`);
   });
+
+  // Admin method to get specific user's transactions
+  static getUserTransactions = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 1000); // Validate limit between 1-1000
+    
+    console.log(`👤 Admin requesting transactions for user ${userId} (limit: ${limit})`);
+    
+    // Verify user exists
+    const user = await UserService.getBasicUserInfo(userId);
+    if (!user) {
+      return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+    }
+
+    const { pool } = require('../config/database');
+    // Use string template instead of parameterized LIMIT to avoid MySQL binding issues
+    const [transactions] = await pool.execute(`
+      SELECT t.*, u.Aname as admin_name
+      FROM transaction t
+      LEFT JOIN users u ON t.admin_id = u.user_id
+      WHERE t.user_id = ?
+      ORDER BY t.date DESC
+      LIMIT ${limit}
+    `, [userId]);
+    
+    ResponseHelper.success(res, { 
+      transactions,
+      count: transactions.length,
+      userName: user.Aname 
+    }, 'تم جلب معاملات المستخدم بنجاح');
+  });
+
+  // Admin method to get specific user's loan payments
+  static getUserLoanPayments = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    
+    console.log(`👤 Admin requesting loan payments for user ${userId}`);
+    
+    // Verify user exists
+    const user = await UserService.getBasicUserInfo(userId);
+    if (!user) {
+      return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+    }
+
+    const { pool } = require('../config/database');
+    const [loanPayments] = await pool.execute(`
+      SELECT l.*, u.Aname as admin_name, rl.loan_amount
+      FROM loan l
+      LEFT JOIN users u ON l.admin_id = u.user_id
+      LEFT JOIN requested_loan rl ON l.target_loan_id = rl.loan_id
+      WHERE l.user_id = ?
+      ORDER BY l.date DESC
+    `, [userId]);
+    
+    ResponseHelper.success(res, { 
+      loanPayments,
+      count: loanPayments.length,
+      userName: user.Aname 
+    }, 'تم جلب دفعات قروض المستخدم بنجاح');
+  });
+
 }
 
 module.exports = UserManagementController;

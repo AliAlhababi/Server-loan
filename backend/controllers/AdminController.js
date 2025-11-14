@@ -12,12 +12,22 @@ exports.getFinancialSummary = DashboardController.getFinancialSummary;
 
 // Re-export user management methods
 exports.getAllUsers = UserManagementController.getAllUsers;
+exports.getPendingRegistrations = UserManagementController.getPendingRegistrations;
+exports.getPendingWebsiteAccess = UserManagementController.getPendingWebsiteAccess;
+exports.getRegistrations = UserManagementController.getRegistrations;
 exports.registerUser = UserManagementController.registerUser;
 exports.toggleBlockUser = UserManagementController.toggleBlockUser;
 exports.joiningFeeAction = UserManagementController.joiningFeeAction;
+exports.markJoiningFeePaid = UserManagementController.markJoiningFeePaid;
 exports.getUserDetails = UserManagementController.getUserDetails;
 exports.updateUser = UserManagementController.updateUser;
+exports.reassignUserAdmin = UserManagementController.reassignUserAdmin;
+exports.getAvailableAdmins = UserManagementController.getAvailableAdmins;
 exports.fixLoanInstallments = UserManagementController.fixLoanInstallments;
+
+// Admin-specific methods for accessing user data
+exports.getUserTransactions = UserManagementController.getUserTransactions;
+exports.getUserLoanPayments = UserManagementController.getUserLoanPayments;
 
 // Re-export loan management methods
 exports.loanAction = LoanManagementController.loanAction;
@@ -45,6 +55,9 @@ exports.deleteTransaction = TransactionController.deleteTransaction;
 exports.addLoanPayment = LoanManagementController.addLoanPayment;
 exports.updateLoanPayment = LoanManagementController.updateLoanPayment;
 exports.deleteLoanPayment = LoanManagementController.deleteLoanPayment;
+
+// Admin Override - Create loan with override capability
+exports.createLoanWithOverride = LoanManagementController.createLoanWithOverride;
 
 // Re-export transaction methods
 exports.getPendingTransactions = TransactionController.getPendingTransactions;

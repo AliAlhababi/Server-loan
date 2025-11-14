@@ -235,7 +235,8 @@ class BackupController {
       
       // Header in Arabic
       reportContent += '=====================================\n';
-      reportContent += '       درع العائلة - التقرير المالي الشامل\n';
+      const brandDisplayName = require('../config/brandConfig').getBrandDisplayName();
+      reportContent += `       ${brandDisplayName} - التقرير المالي الشامل\n`;
       reportContent += '=====================================\n';
       reportContent += `تاريخ التقرير: ${new Date().toLocaleDateString('en-US')}\n\n`;
       
@@ -288,7 +289,7 @@ class BackupController {
       
       // Footer
       reportContent += `تم إنشاء هذا التقرير تلقائياً في ${new Date().toLocaleString('ar-SA')}\n`;
-      reportContent += 'نظام إدارة القروض - درع العائلة\n';
+      reportContent += `نظام إدارة القروض - ${brandDisplayName}\n`;
 
       console.log('Report content generated. Length:', reportContent.length);
       console.log('Sending response...');

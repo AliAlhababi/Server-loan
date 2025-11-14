@@ -33,7 +33,7 @@ class UserService {
   }
 
   static async getUserWithBalance(userId) {
-    return await this.getBasicUserInfo(userId, 'user_id, Aname, user_type, balance, registration_date, joining_fee_approved, is_blocked, approved_by_admin_id');
+    return await this.getBasicUserInfo(userId, 'user_id, Aname, user_type, balance, registration_date, joining_fee_approved, joining_fee_paid, is_blocked, approved_by_admin_id');
   }
 
   static async getUserForAuth(userId) {
@@ -81,34 +81,39 @@ class UserService {
     let query = `
       SELECT u.*, 
              admin.Aname as approved_by_admin_name,
-             -- Active loan information
-             COALESCE(active_loan.loan_amount, 0) as current_loan_amount,
-             ROUND(COALESCE(active_loan.loan_amount, 0) - COALESCE(paid_summary.total_paid, 0)) as remaining_loan_amount,
+             -- Aggregate all active loans per user (FIXED: was causing duplicates)
+             COALESCE(loan_summary.total_loan_amount, 0) as current_loan_amount,
+             COALESCE(loan_summary.total_remaining_amount, 0) as remaining_loan_amount,
              -- Family delegation information
              CASE 
                WHEN fd_head.delegation_status = 'approved' AND fd_head.delegation_type = 'family_head_request' THEN 'family_head'
-               WHEN fd_member.delegation_status = 'approved' AND fd_member.delegation_type = 'member_delegation' THEN 'family_member' 
+               WHEN fd_member.delegation_status = 'approved' AND fd_member.delegation_type = 'delegation_request' THEN 'family_member' 
                WHEN fd_pending_head.delegation_status = 'pending' AND fd_pending_head.delegation_type = 'family_head_request' THEN 'pending_head_request'
-               WHEN fd_pending_member.delegation_status = 'pending' AND fd_pending_member.delegation_type = 'member_delegation' THEN 'pending_member_request'
+               WHEN fd_pending_member.delegation_status = 'pending' AND fd_pending_member.delegation_type = 'delegation_request' THEN 'pending_member_request'
                ELSE NULL
              END as family_delegation_type,
              COALESCE(family_head.Aname, family_member_head.Aname) as family_head_name,
              COALESCE(fd_head.delegation_id, fd_member.delegation_id, fd_pending_head.delegation_id, fd_pending_member.delegation_id) as delegation_id,
              -- Count of family members for family heads
-             (SELECT COUNT(*) FROM family_delegations WHERE family_head_id = u.user_id AND delegation_status = 'approved' AND delegation_type = 'member_delegation') as family_members_count
+             (SELECT COUNT(*) FROM family_delegations WHERE family_head_id = u.user_id AND delegation_status = 'approved' AND delegation_type = 'delegation_request') as family_members_count
       FROM users u
       LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
-      -- Get active loan information
-      LEFT JOIN requested_loan active_loan ON u.user_id = active_loan.user_id 
-        AND active_loan.status = 'approved' 
-        AND active_loan.loan_closed_date IS NULL
-      -- Get total paid installments for active loans (exactly like سجل مدفوعات القروض)
+      -- FIXED: Aggregate all active loans per user to prevent duplicates
       LEFT JOIN (
-        SELECT target_loan_id, SUM(credit) as total_paid
-        FROM loan 
-        WHERE status = 'accepted'
-        GROUP BY target_loan_id
-      ) paid_summary ON active_loan.loan_id = paid_summary.target_loan_id
+        SELECT 
+          rl.user_id,
+          SUM(rl.loan_amount) as total_loan_amount,
+          SUM(ROUND(rl.loan_amount - COALESCE(paid.total_paid, 0))) as total_remaining_amount
+        FROM requested_loan rl
+        LEFT JOIN (
+          SELECT target_loan_id, SUM(credit) as total_paid
+          FROM loan 
+          WHERE status = 'accepted'
+          GROUP BY target_loan_id
+        ) paid ON rl.loan_id = paid.target_loan_id
+        WHERE rl.status = 'approved' AND rl.loan_closed_date IS NULL
+        GROUP BY rl.user_id
+      ) loan_summary ON u.user_id = loan_summary.user_id
       -- Check if user is an approved family head
       LEFT JOIN family_delegations fd_head ON u.user_id = fd_head.family_head_id 
         AND u.user_id = fd_head.family_member_id 
@@ -117,7 +122,7 @@ class UserService {
       -- Check if user is an approved family member
       LEFT JOIN family_delegations fd_member ON u.user_id = fd_member.family_member_id 
         AND fd_member.delegation_status = 'approved' 
-        AND fd_member.delegation_type = 'member_delegation'
+        AND fd_member.delegation_type = 'delegation_request'
       LEFT JOIN users family_member_head ON fd_member.family_head_id = family_member_head.user_id
       -- Check for pending family head requests
       LEFT JOIN family_delegations fd_pending_head ON u.user_id = fd_pending_head.family_head_id 
@@ -127,7 +132,7 @@ class UserService {
       -- Check for pending member requests  
       LEFT JOIN family_delegations fd_pending_member ON u.user_id = fd_pending_member.family_member_id 
         AND fd_pending_member.delegation_status = 'pending' 
-        AND fd_pending_member.delegation_type = 'member_delegation'
+        AND fd_pending_member.delegation_type = 'delegation_request'
       LEFT JOIN users family_head ON fd_pending_member.family_head_id = family_head.user_id
     `;
     
@@ -172,6 +177,33 @@ class UserService {
     }
     
     return await DatabaseService.executeQuery(query, params);
+  }
+
+  static async getUsersByStatus(status) {
+    let query = `
+      SELECT u.*,
+             admin.Aname as approved_by_admin_name
+      FROM users u
+      LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+      WHERE u.joining_fee_approved = ?
+      ORDER BY u.registration_date DESC
+    `;
+
+    return await DatabaseService.executeQuery(query, [status]);
+  }
+
+  static async getBlockedUsers() {
+    // Get users waiting for website access approval (blocked)
+    let query = `
+      SELECT u.*,
+             admin.Aname as approved_by_admin_name
+      FROM users u
+      LEFT JOIN users admin ON u.approved_by_admin_id = admin.user_id
+      WHERE u.is_blocked = 1 AND u.user_type = 'employee'
+      ORDER BY u.registration_date DESC
+    `;
+
+    return await DatabaseService.executeQuery(query, []);
   }
 
   static async getAdminUsers() {
@@ -327,16 +359,19 @@ class UserService {
   static async updateUser(userId, updateData) {
     // Prepare the update data with proper field mappings
     const allowedFields = {
+      Aname: 'Aname',
       fullName: 'Aname',
-      name: 'Aname', 
+      name: 'Aname',
       email: 'email',
       phone: 'phone',
       whatsapp: 'whatsapp',
       balance: 'balance',
       registration_date: 'registration_date',
       joining_fee_approved: 'joining_fee_approved',
+      joining_fee_paid: 'joining_fee_paid',
       is_blocked: 'is_blocked',
-      user_type: 'user_type'
+      user_type: 'user_type',
+      approved_by_admin_id: 'approved_by_admin_id'
     };
 
     const updateFields = {};

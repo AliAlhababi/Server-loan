@@ -2,8 +2,12 @@ const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/AdminController');
 const BackupController = require('../controllers/BackupController');
+const FullBackupController = require('../controllers/FullBackupController');
 const BankController = require('../controllers/BankController');
 const LoanManagementController = require('../controllers/LoanManagementController');
+const WhatsAppController = require('../controllers/WhatsAppController');
+const WhatsAppAutomationController = require('../controllers/WhatsAppAutomationController');
+const WhatsAppBulkController = require('../controllers/WhatsAppBulkController');
 
 const router = express.Router();
 
@@ -37,12 +41,24 @@ router.get('/all-transactions', verifyToken, requireAdmin, adminController.getAl
 // Get all users for admin management
 router.get('/users', verifyToken, requireAdmin, adminController.getAllUsers);
 
+// Registration management endpoints
+router.get('/pending-registrations', verifyToken, requireAdmin, adminController.getPendingRegistrations);
+router.get('/pending-website-access', verifyToken, requireAdmin, adminController.getPendingWebsiteAccess);
+router.get('/registrations', verifyToken, requireAdmin, adminController.getRegistrations);
+
 // User management endpoints
 router.post('/register-user', verifyToken, requireAdmin, adminController.registerUser);
 router.put('/block-user/:userId', verifyToken, requireAdmin, adminController.toggleBlockUser);
 router.put('/joining-fee-action/:userId', verifyToken, requireAdmin, adminController.joiningFeeAction);
+router.put('/mark-joining-fee-paid/:userId', verifyToken, requireAdmin, adminController.markJoiningFeePaid);
 router.get('/user-details/:userId', verifyToken, requireAdmin, adminController.getUserDetails);
 router.put('/update-user/:userId', verifyToken, requireAdmin, adminController.updateUser);
+router.put('/reassign-user-admin/:userId', verifyToken, requireAdmin, adminController.reassignUserAdmin);
+router.get('/available-admins', verifyToken, requireAdmin, adminController.getAvailableAdmins);
+
+// Admin endpoints for accessing specific user data
+router.get('/user-transactions/:userId', verifyToken, requireAdmin, adminController.getUserTransactions);
+router.get('/user-loan-payments/:userId', verifyToken, requireAdmin, adminController.getUserLoanPayments);
 
 // Loan repair endpoints
 router.post('/fix-loan-installments', verifyToken, requireAdmin, adminController.fixLoanInstallments);
@@ -51,6 +67,9 @@ router.post('/fix-loan-installments', verifyToken, requireAdmin, adminController
 router.post('/loan-action/:loanId', verifyToken, requireAdmin, adminController.loanAction);
 router.get('/loan-details/:loanId', verifyToken, requireAdmin, adminController.getLoanDetails);
 router.get('/loan-payments/:loanId', verifyToken, requireAdmin, adminController.getLoanPayments);
+
+// Admin override - Create loan with override capability
+router.post('/create-loan-with-override', verifyToken, requireAdmin, adminController.createLoanWithOverride);
 
 // Loan closure endpoints
 router.post('/close-loan/:loanId', verifyToken, requireAdmin, adminController.closeLoan);
@@ -215,11 +234,9 @@ router.put('/banks/:bankId', verifyToken, requireAdmin, BankController.updateBan
 router.delete('/banks/:bankId', verifyToken, requireAdmin, BankController.deleteBank);
 router.get('/banks-summary', verifyToken, requireAdmin, BankController.getTotalBanksBalance);
 
-router.get('/download-sql-backup', verifyToken, requireAdmin, BackupController.downloadSQLBackup);
 router.get('/download-transactions-report', verifyToken, requireAdmin, BackupController.downloadTransactionsReport);
-router.get('/download-arabic-pdf-report', verifyToken, requireAdmin, BackupController.downloadArabicPDFReport);
 router.get('/download-excel-backup', verifyToken, requireAdmin, BackupController.downloadExcelBackup);
-router.get('/download-excel-as-pdf', verifyToken, requireAdmin, BackupController.downloadExcelAsPDF);
+router.get('/download-full-backup', verifyToken, requireAdmin, FullBackupController.downloadFullBackup);
 
 // Memory monitoring endpoints
 const memoryMonitor = require('../utils/MemoryMonitor');
@@ -358,6 +375,153 @@ router.post('/trigger-heapdump', verifyToken, requireAdmin, (req, res) => {
       success: false,
       message: 'خطأ في تشغيل heapdump',
       error: error.message
+    });
+  }
+});
+
+// WhatsApp Queue Management Endpoints
+router.get('/whatsapp-queue/pending', verifyToken, requireAdmin, WhatsAppController.getPendingNotifications);
+router.get('/whatsapp-queue/all', verifyToken, requireAdmin, WhatsAppController.getAllNotifications);
+router.get('/whatsapp-queue/by-status/:status', verifyToken, requireAdmin, WhatsAppController.getNotificationsByStatus);
+router.get('/whatsapp-queue/stats', verifyToken, requireAdmin, WhatsAppController.getNotificationStats);
+router.get('/whatsapp-queue/notification/:notificationId', verifyToken, requireAdmin, WhatsAppController.getNotificationDetails);
+router.post('/whatsapp-queue/notification/:notificationId/sent', verifyToken, requireAdmin, WhatsAppController.markNotificationSent);
+router.post('/whatsapp-queue/notification/:notificationId/failed', verifyToken, requireAdmin, WhatsAppController.markNotificationFailed);
+router.post('/whatsapp-queue/batch-sent', verifyToken, requireAdmin, WhatsAppController.batchMarkSent);
+router.delete('/whatsapp-queue/clear-old', verifyToken, requireAdmin, WhatsAppController.clearOldNotifications);
+router.post('/whatsapp-queue/reset-to-pending', verifyToken, requireAdmin, WhatsAppController.resetToPending);
+
+// WhatsApp Configuration endpoint (Brand-specific)
+router.get('/whatsapp/config', verifyToken, requireAdmin, (req, res) => {
+    const brandConfig = require('../config/brandConfig');
+    const whatsappConfig = brandConfig.getSection('whatsapp');
+    
+    res.json({
+        success: true,
+        data: {
+            businessPhone: whatsappConfig.phone,
+            businessName: whatsappConfig.businessName,
+            brandName: brandConfig.getBrandDisplayName()
+        }
+    });
+});
+
+// WhatsApp Server-Side Automation Endpoints (VNC Compatible)
+router.post('/whatsapp-automation/init', verifyToken, requireAdmin, WhatsAppAutomationController.initializeBrowser);
+router.get('/whatsapp-automation/auth-status', verifyToken, requireAdmin, WhatsAppAutomationController.checkAuth);
+router.post('/whatsapp-automation/start', verifyToken, requireAdmin, WhatsAppAutomationController.startAutomation);
+router.get('/whatsapp-automation/status', verifyToken, requireAdmin, WhatsAppAutomationController.getStatus);
+router.post('/whatsapp-automation/stop', verifyToken, requireAdmin, WhatsAppAutomationController.stopAutomation);
+router.post('/whatsapp-automation/close', verifyToken, requireAdmin, WhatsAppAutomationController.closeBrowser);
+
+// WhatsApp Bulk Automation Endpoints (Alternative)
+router.get('/whatsapp-bulk/generate-links', verifyToken, requireAdmin, WhatsAppBulkController.generateBulkLinks);
+router.post('/whatsapp-bulk/start', verifyToken, requireAdmin, WhatsAppBulkController.startBulkSending);
+router.get('/whatsapp-bulk/status', verifyToken, requireAdmin, WhatsAppBulkController.getBulkStatus);
+router.post('/whatsapp-bulk/stop', verifyToken, requireAdmin, WhatsAppBulkController.stopBulkSending);
+router.post('/whatsapp-bulk/complete', verifyToken, requireAdmin, WhatsAppBulkController.completeBulkSession);
+router.get('/whatsapp-bulk/automation-script', verifyToken, requireAdmin, WhatsAppBulkController.getAutomationScript);
+
+// Admin Profile Management
+router.put('/profile', verifyToken, requireAdmin, async (req, res) => {
+  const { pool } = require('../config/database');
+  const UserService = require('../services/UserService');
+  
+  try {
+    const userId = req.user.user_id;
+    const { name, email, phone, whatsapp } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'الاسم والبريد الإلكتروني ورقم الهاتف مطلوبان'
+      });
+    }
+
+    // Email duplicates are now allowed - no validation needed
+
+    const profileData = {
+      Aname: name,
+      email,
+      phone,
+      whatsapp: whatsapp || phone // Use phone as default if whatsapp not provided
+    };
+
+    await UserService.updateUserProfile(userId, profileData);
+    
+    res.json({
+      success: true,
+      message: 'تم تحديث الملف الشخصي بنجاح'
+    });
+    
+  } catch (error) {
+    console.error('خطأ في تحديث ملف المدير الشخصي:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في تحديث الملف الشخصي'
+    });
+  }
+});
+
+// Admin Change Password  
+router.post('/change-password', verifyToken, requireAdmin, async (req, res) => {
+  const bcrypt = require('bcrypt');
+  const { pool } = require('../config/database');
+  
+  try {
+    const userId = req.user.user_id;
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'كلمة المرور الحالية والجديدة مطلوبتان'
+      });
+    }
+
+    // Get current password hash
+    const [users] = await pool.execute(
+      'SELECT password FROM users WHERE user_id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'المستخدم غير موجود'
+      });
+    }
+
+    // Verify current password
+    const passwordMatch = await bcrypt.compare(currentPassword, users[0].password);
+    if (!passwordMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'كلمة المرور الحالية غير صحيحة'
+      });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    await pool.execute(
+      'UPDATE users SET password = ? WHERE user_id = ?',
+      [hashedNewPassword, userId]
+    );
+
+    res.json({
+      success: true,
+      message: 'تم تغيير كلمة المرور بنجاح'
+    });
+
+  } catch (error) {
+    console.error('خطأ في تغيير كلمة مرور المدير:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في تغيير كلمة المرور'
     });
   }
 });

@@ -157,7 +157,9 @@ class TransactionsManagement {
                                     <button class="btn btn-sm btn-danger" onclick="transactionsManagement.rejectTransaction(${transaction.transaction_id || transaction.id}, 'transaction')" title="رفض">
                                         <i class="fas fa-times"></i> رفض
                                     </button>
-                                    <button class="btn btn-sm btn-info" onclick="transactionsManagement.viewTransactionDetails(${transaction.transaction_id || transaction.id}, 'transaction')" title="التفاصيل">
+                                    <button class="btn btn-sm btn-info" 
+                                            onclick="transactionsManagement.viewTransactionDetails(${transaction.transaction_id || transaction.id}, 'transaction')"
+                                            title="عرض التفاصيل">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </td>
@@ -254,7 +256,9 @@ class TransactionsManagement {
                                     <span class="date">${new Date(transaction.date).toLocaleDateString('en-US')}</span>
                                 </td>
                                 <td class="actions-cell">
-                                    <button class="btn btn-sm btn-info" onclick="transactionsManagement.viewTransactionDetails(${transaction.transaction_id || transaction.id}, 'transaction')" title="التفاصيل">
+                                    <button class="btn btn-sm btn-info" 
+                                            onclick="transactionsManagement.viewTransactionDetails(${transaction.transaction_id || transaction.id}, 'transaction')"
+                                            title="عرض التفاصيل">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                     <button class="btn btn-sm btn-warning" onclick="transactionsManagement.editTransaction(${transaction.transaction_id || transaction.id})" title="تعديل">
@@ -317,12 +321,12 @@ class TransactionsManagement {
     // Approve transaction - handle both loans and subscriptions
     async approveTransaction(transactionId, type) {
         if (!confirm('هل أنت متأكد من الموافقة على هذه المعاملة؟')) return;
-        
+
         try {
             // Get transaction details first for WhatsApp notification
             let transactionDetails = null;
             let userDetails = null;
-            
+
             try {
                 if (type === 'loan_payment') {
                     // Get loan payment details
@@ -333,7 +337,7 @@ class TransactionsManagement {
                     const allTransactionsResult = await apiCall('/admin/all-transactions');
                     transactionDetails = allTransactionsResult.transactions?.find(t => t.transaction_id == transactionId);
                 }
-                
+
                 if (transactionDetails && transactionDetails.user_id) {
                     const userResult = await apiCall(`/admin/user-details/${transactionDetails.user_id}`);
                     userDetails = userResult.user;
@@ -344,91 +348,24 @@ class TransactionsManagement {
 
             // Determine endpoint based on transaction type
             // If it's from loan table, use loan-payment-action, otherwise use transaction-action
-            const endpoint = (type === 'loan_payment') 
-                ? `/admin/loan-payment-action/${transactionId}` 
+            const endpoint = (type === 'loan_payment')
+                ? `/admin/loan-payment-action/${transactionId}`
                 : `/admin/transaction-action/${transactionId}`;
-                
-            const result = await apiCall(endpoint, 'POST', { 
-                action: 'accept' 
+
+            const result = await apiCall(endpoint, 'POST', {
+                action: 'accept'
             });
             showToast(result.message, 'success');
-            
-            // Send WhatsApp notification if details are available
-            if (transactionDetails && userDetails && (userDetails.whatsapp || userDetails.phone)) {
-                try {
-                    const phoneNumber = userDetails.whatsapp || userDetails.phone;
-                    const userName = userDetails.Aname || transactionDetails.user_name || 'العضو';
-                    
-                    // Get user financial data for enhanced notifications
-                    let userFinancials = null;
-                    try {
-                        const userTransactionsResult = await apiCall(`/users/transactions/${transactionDetails.user_id}`);
-                        const subscriptions = userTransactionsResult.transactions?.filter(t => 
-                            t.transaction_type === 'subscription' && t.status === 'accepted'
-                        ) || [];
-                        const totalSubscriptions = subscriptions.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
-                        
-                        userFinancials = {
-                            currentBalance: FormatHelper.formatCurrency(userDetails.balance || 0),
-                            totalSubscriptions: totalSubscriptions.toFixed(3)
-                        };
-                    } catch (financialError) {
-                        console.warn('Could not fetch user financial data:', financialError);
-                    }
-                    
-                    if (type === 'loan_payment') {
-                        // Loan payment notification
-                        // Get loan summary for progress tracking
-                        // Use updated loan summary from approval response if available, otherwise use original data
-                        const loanSummary = result.loanSummary || transactionDetails;
-                        const paymentAmount = loanSummary.payment_amount || transactionDetails.credit || 0;
-                        const totalPaid = loanSummary.total_paid_for_loan || 0;
-                        const loanAmount = loanSummary.loan_amount || 0;
-                        const remainingAmount = Math.max(0, loanAmount - totalPaid);
-                        
-                        const whatsappSent = Utils.sendWhatsAppNotification(
-                            phoneNumber,
-                            userName,
-                            'loanPaymentApproved',
-                            userFinancials,
-                            FormatHelper.formatCurrency(paymentAmount),
-                            FormatHelper.formatCurrency(totalPaid),
-                            FormatHelper.formatCurrency(loanAmount),
-                            FormatHelper.formatCurrency(remainingAmount)
-                        );
-                        
-                        if (whatsappSent) {
-                            showToast('تم فتح واتساب ويب لإرسال إشعار دفعة القرض للعضو', 'info');
-                        }
-                    } else {
-                        // Regular transaction notification
-                        const amount = (transactionDetails.credit || 0) - (transactionDetails.debit || 0);
-                        
-                        const whatsappSent = Utils.sendWhatsAppNotification(
-                            phoneNumber,
-                            userName,
-                            'transactionApproved',
-                            userFinancials,
-                            FormatHelper.formatCurrency(Math.abs(amount)),
-                            transactionDetails.transaction_type
-                        );
-                        
-                        if (whatsappSent) {
-                            showToast('تم فتح واتساب ويب لإرسال إشعار المعاملة للعضو', 'info');
-                        }
-                    }
-                } catch (whatsappError) {
-                    console.warn('WhatsApp notification failed:', whatsappError);
-                    // Don't show error to user - WhatsApp is supplementary
-                }
-            }
-            
-            // Refresh current tab
-            await this.loadTab(this.currentTab);
-            
+
+            // WhatsApp notifications are now handled automatically by the backend
+            // and queued for batch sending through the WhatsApp queue management system
+
+            // Remove the approved row from the table instead of reloading entire tab
+            this.removeTransactionRow(transactionId);
+
             // Refresh admin stats
             await this.adminDashboard.loadStats();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -438,33 +375,73 @@ class TransactionsManagement {
     async rejectTransaction(transactionId, type) {
         const reason = prompt('سبب الرفض (اختياري):');
         if (reason === null) return; // User canceled
-        
+
         if (!confirm('هل أنت متأكد من رفض هذه المعاملة؟')) return;
-        
+
         try {
             // Determine endpoint based on transaction type
-            const endpoint = (type === 'loan_payment') 
-                ? `/admin/loan-payment-action/${transactionId}` 
+            const endpoint = (type === 'loan_payment')
+                ? `/admin/loan-payment-action/${transactionId}`
                 : `/admin/transaction-action/${transactionId}`;
-                
-            const result = await apiCall(endpoint, 'POST', { 
+
+            const result = await apiCall(endpoint, 'POST', {
                 action: 'reject',
                 reason: reason || ''
             });
             showToast(result.message, 'success');
-            
-            // Refresh current tab
-            await this.loadTab(this.currentTab);
-            
+
+            // Remove the rejected row from the table instead of reloading entire tab
+            this.removeTransactionRow(transactionId);
+
             // Refresh admin stats
             await this.adminDashboard.loadStats();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
     }
 
-    // View transaction details
+    // Remove transaction row from table after approval/rejection
+    removeTransactionRow(transactionId) {
+        // Find all table rows in the current view
+        const rows = document.querySelectorAll('#transactions-tab-content tbody tr');
+
+        rows.forEach(row => {
+            // Check if this row contains the transaction ID
+            const idCell = row.querySelector('td:first-child strong');
+            if (idCell && idCell.textContent.includes(`#${transactionId}`)) {
+                // Animate row removal
+                row.style.transition = 'opacity 0.3s ease-out';
+                row.style.opacity = '0';
+
+                setTimeout(() => {
+                    row.remove();
+
+                    // Check if table is now empty and show empty state
+                    const remainingRows = document.querySelectorAll('#transactions-tab-content tbody tr');
+                    if (remainingRows.length === 0) {
+                        const contentDiv = document.getElementById('transactions-tab-content');
+                        contentDiv.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <h4>لا توجد معاملات معلقة</h4>
+                                <p>جميع المعاملات تم معالجتها</p>
+                            </div>`;
+                    } else {
+                        // Update the count in the table header
+                        const tableHeader = document.querySelector('#transactions-tab-content .table-header h4');
+                        if (tableHeader) {
+                            const currentText = tableHeader.textContent;
+                            const newCount = remainingRows.length;
+                            tableHeader.innerHTML = currentText.replace(/\(\d+\)/, `(${newCount})`);
+                        }
+                    }
+                }, 300);
+            }
+        });
+    }
+
+    // View transaction details - used for modal/popup display (Ctrl+Click behavior)  
     async viewTransactionDetails(transactionId, type) {
         try {
             // Get transaction details from all transactions
@@ -551,9 +528,9 @@ class TransactionsManagement {
                                 <i class="fas fa-times"></i> رفض
                             </button>
                         ` : ''}
-                        ${phoneNumber ? `
-                            <button onclick="transactionsManagement.retryWhatsAppNotification(${transaction.user_id}, '${userName}', 'transaction', ${transaction.transaction_id || transaction.id})" class="btn btn-primary">
-                                <i class="fab fa-whatsapp"></i> إعادة إرسال واتساب
+                        ${transaction.status === 'accepted' && phoneNumber ? `
+                            <button onclick="transactionsManagement.openWhatsAppWithMessage(${transaction.transaction_id || transaction.id}, 'transaction', '${phoneNumber}')" class="btn btn-info">
+                                <i class="fab fa-whatsapp"></i> فتح واتساب
                             </button>
                         ` : ''}
                         <button onclick="hideModal()" class="btn btn-secondary">
@@ -568,6 +545,15 @@ class TransactionsManagement {
         } catch (error) {
             // Fallback for when detailed endpoint doesn't exist
             showToast('عرض تفاصيل المعاملة - سيتم تطويرها قريباً', 'info');
+        }
+    }
+
+    // Open transaction details in new tab
+    openTransactionDetailsInNewTab(transactionId) {
+        if (window.adminRouter) {
+            window.adminRouter.openInNewTab('admin/transactions/details', { id: transactionId });
+        } else {
+            console.warn('Admin router not available');
         }
     }
 
@@ -648,10 +634,60 @@ class TransactionsManagement {
             await apiCall(`/admin/update-transaction/${transactionId}`, 'PUT', data);
             showToast('تم تحديث المعاملة بنجاح', 'success');
             hideModal();
-            await this.loadTab(this.currentTab); // Refresh data
+
+            // Update the transaction row instead of reloading entire tab
+            this.updateTransactionRow(transactionId, data);
+
+            // Refresh admin stats
+            await this.adminDashboard.loadStats();
+
         } catch (error) {
             showToast(error.message, 'error');
         }
+    }
+
+    // Helper: Update transaction row after edit
+    updateTransactionRow(transactionId, updatedData) {
+        // Find all table rows in the current view
+        const rows = document.querySelectorAll('#transactions-tab-content tbody tr');
+
+        rows.forEach(row => {
+            // Check if this row contains the transaction ID
+            const idCell = row.querySelector('td:first-child strong');
+            if (idCell && idCell.textContent.includes(`#${transactionId}`)) {
+                // Update the amount if changed
+                const amountCell = row.querySelector('.amount-cell .amount');
+                if (amountCell && updatedData.amount) {
+                    const amount = parseFloat(updatedData.amount);
+                    const sign = updatedData.type === 'credit' ? '+' : '-';
+                    amountCell.className = `amount ${updatedData.type}`;
+                    amountCell.textContent = `${sign}${formatCurrency(amount)}`;
+                }
+
+                // Update the memo if changed
+                const memoCell = row.querySelector('.memo');
+                if (memoCell && updatedData.memo) {
+                    memoCell.textContent = updatedData.memo;
+                }
+
+                // Update status badge if changed
+                if (updatedData.status) {
+                    const statusBadge = row.querySelector('.status-badge');
+                    if (statusBadge) {
+                        statusBadge.className = `status-badge ${updatedData.status}`;
+                        statusBadge.textContent = updatedData.status === 'pending' ? 'معلق' :
+                                                  updatedData.status === 'accepted' ? 'مقبول' : 'مرفوض';
+                    }
+                }
+
+                // Highlight the updated row briefly
+                row.style.transition = 'background-color 0.5s';
+                row.style.backgroundColor = '#dbeafe';
+                setTimeout(() => {
+                    row.style.backgroundColor = '';
+                }, 1000);
+            }
+        });
     }
 
     // Delete transaction
@@ -672,80 +708,70 @@ class TransactionsManagement {
         }
     }
 
-    // Retry WhatsApp notification for transaction
-    async retryWhatsAppNotification(userId, userName, type, transactionId) {
+    // Open WhatsApp Web with transaction notification message
+    async openWhatsAppWithMessage(transactionId, type, phoneNumber) {
         try {
-            // Get transaction details
+            showLoading(true);
+            
+            // Get transaction details for the message
             const result = await apiCall('/admin/all-transactions');
             const transaction = result.transactions.find(t => (t.transaction_id || t.id) === transactionId);
             
             if (!transaction) {
-                showToast('لا يمكن العثور على المعاملة', 'error');
+                showToast('لا يمكن العثور على تفاصيل المعاملة', 'error');
                 return;
             }
-
-            // Get user details for phone number
-            let userDetails = null;
-            try {
-                const userResult = await apiCall(`/admin/user-details/${userId}`);
-                userDetails = userResult.user;
-            } catch (error) {
-                console.warn('Could not fetch user details:', error);
-            }
-
-            const phoneNumber = userDetails?.whatsapp || userDetails?.phone || transaction.phone;
             
-            if (!phoneNumber) {
-                showToast('لا يمكن العثور على رقم الهاتف للمستخدم', 'error');
-                return;
-            }
-
-            // Determine template type based on transaction status
-            let templateType;
-            const amount = `${Utils.formatCurrency(Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)))} د.ك`;
+            // Get user details
+            const userResult = await apiCall(`/admin/user-details/${transaction.user_id}`);
+            const userDetails = userResult.user;
             
-            if (transaction.status === 'accepted') {
-                templateType = 'transactionApproved';
-                // Get complete user financials including balance
-                let userFinancials = null;
-                if (userDetails) {
-                    userFinancials = {
-                        totalSubscriptions: userDetails.financialSummary?.totalSubscriptions || '0.000',
-                        currentBalance: userDetails.balance || '0.000',
-                        transactionAmount: Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)) || 0
-                    };
-                } else if (transaction.transaction_type === 'subscription') {
-                    try {
-                        const userResult = await apiCall(`/admin/user-details/${userId}`);
-                        userFinancials = {
-                            totalSubscriptions: userResult.user?.financialSummary?.totalSubscriptions || '0.000',
-                            currentBalance: userResult.user?.balance || '0.000',
-                            transactionAmount: Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0)) || 0
-                        };
-                    } catch (error) {
-                        console.warn('Could not fetch user financials:', error);
-                    }
-                }
-                const success = Utils.sendWhatsAppNotification(phoneNumber, userName, templateType, userFinancials, amount, transaction.transaction_type);
-                if (success) {
-                    showToast(`تم إرسال إشعار الموافقة عبر الواتساب إلى ${userName}`, 'success');
-                } else {
-                    showToast('فشل في فتح الواتساب', 'error');
-                }
-            } else if (transaction.status === 'rejected') {
-                templateType = 'transactionRejected';
-                const success = Utils.sendWhatsAppNotification(phoneNumber, userName, templateType, null, amount, transaction.transaction_type);
-                if (success) {
-                    showToast(`تم إرسال إشعار الرفض عبر الواتساب إلى ${userName}`, 'success');
-                } else {
-                    showToast('فشل في فتح الواتساب', 'error');
-                }
-            } else {
-                showToast('لا يمكن إرسال إشعار لمعاملة معلقة', 'warning');
+            // Get brand configuration for correct branding
+            const brandResult = await apiCall('/admin/whatsapp/config');
+            const brandName = brandResult.success ? brandResult.data.brandName : 'نظام إدارة القروض';
+            
+            // Format phone number (remove + and ensure it starts with country code)
+            let formattedPhone = phoneNumber.replace(/\D/g, ''); // Remove non-digits
+            if (formattedPhone.startsWith('00')) {
+                formattedPhone = formattedPhone.substring(2);
+            } else if (!formattedPhone.startsWith('965') && formattedPhone.length === 8) {
+                formattedPhone = '965' + formattedPhone; // Add Kuwait country code
             }
+            
+            // Create the message based on transaction details
+            const amount = Math.abs(parseFloat(transaction.credit || 0) + parseFloat(transaction.debit || 0));
+            const transactionType = transaction.credit > 0 ? 'إيداع اشتراك' : 'سحب';
+            const statusText = transaction.status === 'accepted' ? 'تمت الموافقة عليها' : 
+                              transaction.status === 'rejected' ? 'تم رفضها' : 'معلقة';
+            const adminName = currentUser?.Aname || 'الإدارة';
+            const transactionDate = new Date(transaction.date).toLocaleDateString('ar-KW');
+            
+            const message = `🔔 *إشعار من ${brandName}*
+
+السلام عليكم ${userDetails?.Aname || 'عزيزي العضو'}
+
+📋 *تحديث حالة المعاملة:*
+• رقم المعاملة: #${transaction.transaction_id || transaction.id}
+• نوع المعاملة: ${transactionType}
+• المبلغ: ${formatCurrency(amount)} دينار كويتي
+• الحالة: ${statusText} ✅
+• التاريخ: ${transactionDate}
+${transaction.memo ? `• الوصف: ${transaction.memo}` : ''}`;
+
+            // Create WhatsApp Web URL
+            const whatsappUrl = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+            
+            // Open WhatsApp Web in a new tab
+            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+            
+            showToast('تم فتح واتساب ويب مع الرسالة', 'success');
+            hideModal();
+            
         } catch (error) {
-            console.error('Error retrying WhatsApp notification:', error);
-            showToast('حدث خطأ في إرسال الإشعار', 'error');
+            console.error('WhatsApp open error:', error);
+            showToast('خطأ في فتح واتساب: ' + error.message, 'error');
+        } finally {
+            showLoading(false);
         }
     }
 

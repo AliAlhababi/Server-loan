@@ -34,7 +34,7 @@ class BrandConfig {
       // Brand Identity
       brand: {
         name: this.brandName,
-        displayName: process.env.SITE_NAME || 'درع العائلة',
+        displayName: process.env.SITE_NAME || 'صندوق الكوثر',
         logoUrl: process.env.SITE_LOGO_URL || '/assets/logo-default.png',
         domain: process.env.SITE_DOMAIN || 'localhost',
         colors: {
@@ -73,7 +73,7 @@ class BrandConfig {
           pass: process.env.EMAIL_PASSWORD
         },
         from: {
-          name: process.env.EMAIL_FROM_NAME || this.config?.brand?.displayName || 'درع العائلة',
+          name: process.env.EMAIL_FROM_NAME || this.config?.brand?.displayName || 'صندوق الكوثر',
           address: process.env.EMAIL_FROM_ADDRESS
         }
       },

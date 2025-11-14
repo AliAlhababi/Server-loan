@@ -1,0 +1,14 @@
+2025/10/04-14:32:14.970 1af910 Reusing MANIFEST /root/Loan-Management-System/backend/data/whatsapp-session/Default/Local Storage/leveldb/MANIFEST-000001
+2025/10/04-14:32:14.991 1af910 Recovering log #31
+2025/10/04-14:32:15.011 1af910 Level-0 table #34: started
+2025/10/04-14:32:15.017 1af910 Level-0 table #34: 14889 bytes OK
+2025/10/04-14:32:15.021 1af910 Delete type=0 #31
+2025/10/04-14:32:15.023 1af912 Compacting 4@0 + 1@1 files
+2025/10/04-14:32:15.064 1af912 Generated table #36@0: 117 keys, 9526 bytes
+2025/10/04-14:32:15.064 1af912 Compacted 4@0 + 1@1 files => 9526 bytes
+2025/10/04-14:32:15.068 1af912 compacted to: files[ 0 1 0 0 0 0 0 ]
+2025/10/04-14:32:15.069 1af912 Delete type=2 #32
+2025/10/04-14:32:15.069 1af912 Delete type=2 #28
+2025/10/04-14:32:15.069 1af912 Delete type=2 #30
+2025/10/04-14:32:15.069 1af912 Delete type=2 #25
+2025/10/04-14:32:15.069 1af912 Delete type=2 #34

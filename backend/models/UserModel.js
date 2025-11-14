@@ -11,7 +11,7 @@ class UserModel {
   }
 
   // Simplified loan eligibility check with individual tests
-  static async checkLoanEligibility(userId) {
+  static async checkLoanEligibility(userId, excludeLoanId = null) {
     try {
       // Get basic user data
       const [userResults] = await pool.execute(
@@ -76,11 +76,16 @@ class UserModel {
         }
       }
       
-      // Test 5: No active loans (exclude completed loans with loan_closed_date)
-      const [activeLoanResults] = await pool.execute(
-        'SELECT COUNT(*) as count FROM requested_loan WHERE user_id = ? AND status IN ("pending", "approved") AND loan_closed_date IS NULL',
-        [userId]
-      );
+      // Test 5: No active loans (exclude completed loans with loan_closed_date and optionally exclude current loan being approved)
+      let activeLoanQuery = 'SELECT COUNT(*) as count FROM requested_loan WHERE user_id = ? AND status IN ("pending", "approved") AND loan_closed_date IS NULL';
+      let activeLoanParams = [userId];
+
+      if (excludeLoanId) {
+        activeLoanQuery += ' AND loan_id != ?';
+        activeLoanParams.push(excludeLoanId);
+      }
+
+      const [activeLoanResults] = await pool.execute(activeLoanQuery, activeLoanParams);
       tests.noActiveLoans = activeLoanResults[0].count === 0;
       if (!tests.noActiveLoans) {
         reasons.push('active_loan');

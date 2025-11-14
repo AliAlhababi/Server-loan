@@ -1,4 +1,4 @@
-# Email Configuration Guide for درع العائلة
+# Email Configuration Guide for صندوق الكوثر
 
 ## Overview
 The system now supports automatic email sending for new user registrations. This guide explains how to configure email settings for different SMTP providers.
@@ -28,7 +28,7 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-16-character-app-password
-EMAIL_FROM_NAME=درع العائلة
+EMAIL_FROM_NAME=صندوق الكوثر
 EMAIL_FROM_ADDRESS=your-email@gmail.com
 ```
 

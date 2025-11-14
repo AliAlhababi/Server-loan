@@ -3,31 +3,100 @@ const ResponseHelper = require('../utils/ResponseHelper');
 const { asyncHandler, AppError } = require('../utils/ErrorHandler');
 const { closeLoan, getLoansEligibleForClosure, autoCloseFullyPaidLoans } = require('../database/update-loan-status');
 const emailService = require('../services/emailService');
+const UserModel = require('../models/UserModel');
 
 class LoanManagementController {
   static loanAction = asyncHandler(async (req, res) => {
     const { loanId } = req.params;
-    const { action } = req.body;
+    const { action, adminOverride } = req.body; // Add adminOverride option
     const adminId = req.user.user_id;
     
-    console.log(`💰 Admin ${adminId} ${action}ing loan ${loanId}`);
+    console.log(`💰 Admin ${adminId} ${action}ing loan ${loanId}${adminOverride ? ' (ADMIN OVERRIDE)' : ''}`);
     
     if (!['approve', 'reject'].includes(action)) {
       return ResponseHelper.error(res, 'إجراء غير صحيح', 400);
     }
 
     // Verify admin has access to this loan's user
-    const loanQuery = `
-      SELECT rl.loan_id, rl.user_id, u.approved_by_admin_id 
-      FROM requested_loan rl
-      JOIN users u ON rl.user_id = u.user_id
-      WHERE rl.loan_id = ? AND u.approved_by_admin_id = ?
-    `;
-    
-    const loanResults = await DatabaseService.executeQuery(loanQuery, [loanId, adminId]);
-    
+    // Admin ID 1 is the main admin and can approve all loans
+    let loanQuery, queryParams;
+
+    if (adminId === 1) {
+      // Main admin can approve all loans
+      loanQuery = `
+        SELECT rl.loan_id, rl.user_id, u.approved_by_admin_id, u.Aname as user_name
+        FROM requested_loan rl
+        JOIN users u ON rl.user_id = u.user_id
+        WHERE rl.loan_id = ?
+      `;
+      queryParams = [loanId];
+    } else {
+      // Other admins can only approve loans for users they approved
+      loanQuery = `
+        SELECT rl.loan_id, rl.user_id, u.approved_by_admin_id, u.Aname as user_name
+        FROM requested_loan rl
+        JOIN users u ON rl.user_id = u.user_id
+        WHERE rl.loan_id = ? AND u.approved_by_admin_id = ?
+      `;
+      queryParams = [loanId, adminId];
+    }
+
+    const loanResults = await DatabaseService.executeQuery(loanQuery, queryParams);
+
     if (loanResults.length === 0) {
       return ResponseHelper.error(res, 'ليس لديك صلاحية للتعامل مع هذا الطلب', 403);
+    }
+
+    const loan = loanResults[0];
+    const userId = loan.user_id;
+
+    // SECURITY FIX: Check loan eligibility before approval
+    if (action === 'approve') {
+      console.log(`🔍 Checking loan eligibility for user ${userId} before approval...`);
+
+      // Pass the loan ID to exclude it from active loan check (fixes circular logic error)
+      const eligibility = await UserModel.checkLoanEligibility(userId, loanId);
+      
+      if (!eligibility.eligible && !adminOverride) {
+        console.log(`❌ User ${userId} not eligible for loan:`, eligibility.reasons);
+        
+        // Log the violation attempt
+        console.log(`🚨 SECURITY ALERT: Admin ${adminId} attempted to approve ineligible loan ${loanId} for user ${userId} (${loan.user_name})`);
+        console.log(`🚨 Eligibility failures: ${eligibility.reasons.join(', ')}`);
+        console.log(`🚨 Messages: ${eligibility.messages.join(', ')}`);
+        
+        return ResponseHelper.error(res, 
+          `المستخدم غير مؤهل للقرض: ${eligibility.messages.join('، ')}. استخدم "تجاوز إداري" إذا كان ضرورياً.`, 
+          400,
+          { 
+            eligibilityFailures: eligibility.reasons,
+            eligibilityMessages: eligibility.messages,
+            canOverride: true
+          }
+        );
+      }
+      
+      if (adminOverride && !eligibility.eligible) {
+        // Log admin override for audit trail
+        console.log(`⚠️  ADMIN OVERRIDE: Admin ${adminId} overriding eligibility for loan ${loanId}`);
+        console.log(`⚠️  Overridden failures: ${eligibility.reasons.join(', ')}`);
+        
+        // Insert audit log for admin override
+        try {
+          await DatabaseService.create('admin_overrides', {
+            admin_id: adminId,
+            user_id: userId,
+            loan_id: loanId,
+            override_type: 'loan_eligibility',
+            original_failures: eligibility.reasons.join(','),
+            override_reason: 'Admin manual override during loan approval',
+            created_at: new Date()
+          });
+        } catch (auditError) {
+          console.error('Failed to log admin override:', auditError);
+          // Continue with approval but log the error
+        }
+      }
     }
 
     const status = action === 'approve' ? 'approved' : 'rejected';
@@ -625,6 +694,144 @@ class LoanManagementController {
     await pool.execute('DELETE FROM loan WHERE loan_id = ?', [paymentId]);
 
     ResponseHelper.success(res, {}, 'تم حذف دفعة القرض بنجاح');
+  });
+
+  // Create loan with override capability (Admin only - from user details page)
+  static createLoanWithOverride = asyncHandler(async (req, res) => {
+    try {
+      const { userId, loanAmount, installmentAmount, loanStatus, overrideReason } = req.body;
+      const adminId = req.user.user_id;
+
+      console.log(`🔐 Admin ${adminId} creating loan for user ${userId}, amount: ${loanAmount}, installment: ${installmentAmount}, status: ${loanStatus || 'approved'}`);
+
+    // Validation
+    if (!userId || !loanAmount || !installmentAmount) {
+      return ResponseHelper.error(res, 'يرجى تقديم جميع البيانات المطلوبة', 400);
+    }
+
+    if (loanAmount <= 0 || installmentAmount <= 0) {
+      return ResponseHelper.error(res, 'المبلغ والقسط يجب أن يكونا أكبر من صفر', 400);
+    }
+
+    // Step 1: Check eligibility
+    const eligibility = await UserModel.checkLoanEligibility(userId);
+
+    // Step 2: Get user info
+    const user = await UserModel.getUserById(userId);
+    if (!user) {
+      return ResponseHelper.error(res, 'المستخدم غير موجود', 404);
+    }
+
+    // Step 2.5: Validate loan amount doesn't exceed maximum (even with override)
+    const maxLoan = Math.min(user.balance * 3, 10000);
+    if (loanAmount > maxLoan) {
+      console.log(`❌ Loan amount ${loanAmount} exceeds maximum ${maxLoan} for user ${userId}`);
+      return ResponseHelper.error(res,
+        `مبلغ القرض يتجاوز الحد الأقصى المسموح. الحد الأقصى: ${maxLoan.toFixed(3)} دينار`,
+        400,
+        {
+          maxLoan,
+          requestedAmount: loanAmount,
+          userBalance: user.balance
+        }
+      );
+    }
+
+    // Step 3: Validate override reason if needed
+    if (!eligibility.eligible && !overrideReason) {
+      console.log(`❌ User ${userId} not eligible and no override reason provided`);
+      return ResponseHelper.error(res,
+        'يجب إدخال سبب التجاوز الإداري', 400, {
+          eligibilityFailures: eligibility.reasons,
+          eligibilityMessages: eligibility.messages,
+          requiresOverride: true
+        }
+      );
+    }
+
+    // Step 4: Create loan request with chosen status (approved or pending)
+    const status = loanStatus || 'approved'; // Default to approved for backward compatibility
+    const isApproved = status === 'approved';
+
+    const loanData = {
+      user_id: userId,
+      loan_amount: loanAmount,
+      installment_amount: installmentAmount,
+      status: status,
+      request_date: new Date(),
+      approval_date: isApproved ? new Date() : null,
+      admin_id: isApproved ? adminId : null,
+      admin_override: !eligibility.eligible ? 1 : 0,
+      override_reason: !eligibility.eligible ? overrideReason : null,
+      notes: !eligibility.eligible
+        ? `قرض ${isApproved ? 'معتمد' : 'معلق'} بتجاوز إداري: ${overrideReason}`
+        : (isApproved ? `قرض معتمد من الإدارة` : `طلب قرض من الإدارة`)
+    };
+
+    const loanResult = await DatabaseService.create('requested_loan', loanData);
+    const loanId = loanResult.insertId;
+
+    console.log(`✅ Loan ${loanId} created for user ${userId} by admin ${adminId}`);
+
+    // Step 5: Log override if eligibility failed
+    if (!eligibility.eligible) {
+      try {
+        await DatabaseService.create('admin_overrides', {
+          admin_id: adminId,
+          user_id: userId,
+          loan_id: loanId,
+          override_type: 'loan_creation',
+          failed_requirements: eligibility.reasons.join(','),
+          override_reason: overrideReason,
+          created_at: new Date()
+        });
+
+        console.log(`⚠️  ADMIN OVERRIDE LOGGED: Admin ${adminId} created loan ${loanId} for user ${userId}`);
+        console.log(`⚠️  Failed requirements: ${eligibility.reasons.join(', ')}`);
+        console.log(`⚠️  Reason: ${overrideReason}`);
+      } catch (auditError) {
+        console.error('❌ Failed to log admin override:', auditError);
+        // Continue - don't fail loan creation if audit log fails
+      }
+    }
+
+    // Step 6: Send email notification to user (only if approved)
+    if (isApproved) {
+      try {
+        const adminUser = await UserModel.getUserById(adminId);
+        const numberOfInstallments = Math.ceil(loanAmount / installmentAmount);
+
+        await emailService.sendLoanStatusEmail(
+          user.email,
+          user.Aname,
+          {
+            loanAmount,
+            installmentAmount,
+            numberOfInstallments,
+            requestDate: new Date(),
+            notes: loanData.notes
+          },
+          'approved',
+          adminUser?.Aname || 'الإدارة'
+        );
+
+        console.log(`✅ Loan approval email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send loan approval email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
+      const message = isApproved
+        ? 'تم إنشاء القرض واعتماده بنجاح'
+        : 'تم إنشاء طلب القرض بنجاح - يحتاج موافقة لاحقاً';
+
+      ResponseHelper.success(res, { loanId, status }, message);
+    } catch (error) {
+      console.error('❌ Error in createLoanWithOverride:', error);
+      console.error('Stack:', error.stack);
+      return ResponseHelper.error(res, `خطأ في إنشاء القرض: ${error.message}`, 500);
+    }
   });
 }
 

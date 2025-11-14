@@ -4,7 +4,7 @@ class ApiHelper {
     // Common API call wrapper with error handling
     static async call(endpoint, options = {}) {
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('authToken');
             const defaultOptions = {
                 method: 'GET',
                 headers: {
@@ -64,6 +64,10 @@ class ApiHelper {
         return this.call(`/users/transactions/${userId}?limit=${limit}`);
     }
     
+    static async getUserLoanPayments(userId) {
+        return this.call(`/users/loans/payments/${userId}`);
+    }
+    
     static async getUserInfo(userId) {
         return this.call(`/users/${userId}`);
     }
@@ -89,6 +93,15 @@ class ApiHelper {
             method: 'POST',
             body: { action, reason }
         });
+    }
+
+    // Admin methods for accessing specific user data
+    static async getAdminUserTransactions(userId, limit = 50) {
+        return this.call(`/admin/user-transactions/${userId}?limit=${limit}`);
+    }
+    
+    static async getAdminUserLoanPayments(userId) {
+        return this.call(`/admin/user-loan-payments/${userId}`);
     }
 }
 
